@@ -23,6 +23,8 @@ SeedPlane is an open-source research architecture exploring **spatial (sharded) 
 >
 > - **V6 (iterative sharded diffusion, pre-registered): INCONCLUSIVE.** A newly trained 5M-parameter denoiser did not use long-range context on TinyStories (global vs isolated shards on long-range tokens: +0.6 / +1.7 / −0.0 pp; required ≥2 pp), so whether neighbor-only halo exchange recovers distant information could not be tested. See `experiments/v6/RESULTS.md`.
 >
+> - **V7 (in progress):** synthetic long-range key–value task where distant information is *required* by construction, testing (a) the current token-halo design and (b) a latent-message variant where neighboring shards exchange one vector per round. Criteria are pre-registered in `experiments/v7/PROTOCOL.md`; results pending.
+>
 > Full paired benchmarks, unit tests, and replication scripts are archived in [**`experiments/v5/RESULTS.md`**](experiments/v5/RESULTS.md).
 
 ---
@@ -105,6 +107,15 @@ The experiments need the TinyStories validation text at `data/TinyStories-valid.
 
 ---
 
+## 📦 Checkpoints
+
+| File | What it is | Uses context? |
+|---|---|---|
+| `checkpoints/clmp_parity_ctx1024.pt` | Original ~85k-param toy (V3/V4/V5) | **No** — masked loss equals the unigram baseline at every mask rate (`experiments/v6/check_original_checkpoint.py`) |
+| `checkpoints/v6_mdlm_d256_l6_seed1.pt` | V6 denoiser, 5.3M params, same tokenizer/corpus | **Yes** — loss 1.70 at 15% masking vs 5.10 unigram |
+
+The V6 model is not a size-matched replacement: it is ~60× larger and trained longer, so "better" here means "it learned", not "the architecture is better".
+
 ## 🔬 Lessons Learned & Open Questions
 
 1. **Why Hadamard Keys Were Replaced by Envelopes:**
@@ -127,13 +138,15 @@ SeedPlane/
 │   ├── clmp_parity_seed_v3.py   # Parity denoiser + corpus/tokenizer loader
 │   └── clmp_seed_router_v4.py   # V4 trainer and Hadamard router
 ├── checkpoints/
-│   └── clmp_parity_ctx1024.pt   # Toy checkpoint (368 KB)
+│   ├── clmp_parity_ctx1024.pt   # Original toy checkpoint (368 KB) — context-blind, kept for the record
+│   └── v6_mdlm_d256_l6_seed1.pt # V6 masked-diffusion denoiser (21 MB, 5.3M params) — uses context
 ├── experiments/
 │   ├── v4/                  # Original Hadamard tests (historical)
 │   │   └── results/
 │   ├── v5/                  # Self-audit: PROTOCOL*.md, RESULTS.md, scripts
 │   │   └── results/         # Raw JSON results
-│   └── v6/                  # Iterative sharded diffusion (pre-registered; inconclusive)
+│   ├── v6/                  # Iterative sharded diffusion (pre-registered; inconclusive)
+│   └── v7/                  # Synthetic long-range test: token halo vs latent messages (in progress)
 ├── docs/                    # Historical V4 write-up
 ├── data/                    # Local corpus/cache (git-ignored)
 ├── requirements.txt

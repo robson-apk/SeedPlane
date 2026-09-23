@@ -28,4 +28,4 @@ Um corpus com dependências longas reais: documentos longos, ou uma tarefa sint�
 precisa passar **antes** de H1/H2 terem significado. Isso exige um protocolo novo.
 
 Dados: `results/eval_rows.json` (por sequência), `results/analysis.json`, logs de treino `results/run*_*`.
-Checkpoint (21 MB) fora do git, guardado localmente na máquina de treino.
+Checkpoint: `checkpoints/v6_mdlm_d256_l6_seed1.pt` (21 MB, 5,26M parâmetros, seed 1, 10k passos).
