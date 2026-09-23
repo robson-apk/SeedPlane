@@ -109,6 +109,29 @@ def main():
         ax.axvline(100 / 64, color=t['ref'], linewidth=1.2, linestyle=(0, (4, 3))); ax.grid(axis='y', visible=False); ax.grid(axis='x', color=t['grid'], linewidth=0.8)
         for b, v in zip(bars, vals): ax.annotate(f'{v:.1f}%', (v, b.get_y() + b.get_height() / 2), xytext=(5, 0), textcoords='offset points', va='center', fontsize=9, color=t['text'])
         ax.set_xlim(0, 110); fig.subplots_adjust(left=0.33, right=0.95); save(fig, 'long_range', mode)
+    if (EXP / 'v10/results/analysis.json').exists():
+        v10 = json.loads((EXP / 'v10/results/analysis.json').read_text())['cells']
+        sets = ['gpu', 'gpu+cpu4', 'gpu+cpu4+mac2', 'cpu4', 'cpu4+mac2']
+        pretty = {'gpu': 'Arc B580', 'gpu+cpu4': 'B580 + 4 Ryzen cores', 'gpu+cpu4+mac2': 'B580 + 4 Ryzen + 2 Mac cores',
+                  'cpu4': '4 Ryzen cores', 'cpu4+mac2': '4 Ryzen + 2 Mac cores'}
+        for mode_name, key, title, sub in (('throughput', 'tok_s', 'Throughput: 32 pages at once', 'tokens per second (higher is better) · same model · devices synchronized every refinement step'),
+                                           ('latency', 'ms_median', 'Latency: one page, split across devices', 'milliseconds per 1,024-token page (lower is better) · traditional runs on the single best device')):
+            for mode, t in THEMES.items():
+                sp = [np.mean([v10[f'{mode_name}|{s}|{sd}'][f'sp_{key}'] for sd in (11, 23, 37)]) for s in sets]
+                tr = [np.mean([v10[f'{mode_name}|{s}|{sd}'][f'trad_{key}'] for sd in (11, 23, 37)]) if f'trad_{key}' in v10[f'{mode_name}|{s}|11'] else None for s in sets]
+                fig, ax = base(t, title, sub, h=4.3); y = np.arange(len(sets)); hgt = 0.36
+                ax.barh(y - hgt / 2 - 0.01, sp, hgt, color=t['sp'], label='SeedPlane')
+                trv = [v if v is not None else 0 for v in tr]
+                ax.barh(y + hgt / 2 + 0.01, trv, hgt, color=t['trad'], label='Traditional Transformer')
+                fmt = (lambda v: f'{v:,.0f} tok/s') if key == 'tok_s' else (lambda v: f'{v:,.0f} ms')
+                for yi, v in zip(y, sp): ax.annotate(fmt(v), (v, yi - hgt / 2), xytext=(4, 0), textcoords='offset points', va='center', fontsize=8, color=t['text'])
+                for yi, v in zip(y, tr):
+                    if v is not None: ax.annotate(fmt(v), (v, yi + hgt / 2), xytext=(4, 0), textcoords='offset points', va='center', fontsize=8, color=t['text'])
+                    else: ax.annotate('n/a — cannot split one page', (0, yi + hgt / 2), xytext=(4, 0), textcoords='offset points', va='center', fontsize=8, color=t['text2'])
+                ax.set_yticks(y, [pretty[s] for s in sets]); ax.invert_yaxis(); ax.grid(axis='y', visible=False); ax.grid(axis='x', color=t['grid'], linewidth=0.8)
+                ax.set_xlim(0, max(max(sp), max(v for v in tr if v is not None)) * 1.3)
+                ax.legend(frameon=False, fontsize=8.5, labelcolor=t['text'], loc='lower left', bbox_to_anchor=(0, 1.0), ncol=2)
+                fig.subplots_adjust(left=0.3, right=0.95, top=0.74); save(fig, f'devices_{mode_name}', mode)
     print('wrote', sorted(p.name for p in OUT.glob('*.svg')))
 
 

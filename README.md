@@ -79,6 +79,28 @@ A traditional Transformer makes every word attend to every other word — cost g
   </picture>
 </p>
 
+### GPU, CPU and a second computer — together
+
+The same page, split across an Intel Arc B580, Ryzen cores and Apple M4 cores over the local network, synchronized every step. Output tokens are identical on every combination.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/devices_throughput-dark.svg">
+    <img src="docs/img/devices_throughput-light.svg" alt="Throughput: SeedPlane beats the traditional Transformer on every device combination" width="720">
+  </picture>
+</p>
+
+**More throughput than the traditional Transformer on every device set — 1.4× on the GPU, 2.0× on CPUs across two machines.** CPUs from different computers add up well: 4 Ryzen + 2 Mac cores deliver 2.7× the throughput of the Ryzen cores alone.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/devices_latency-dark.svg">
+    <img src="docs/img/devices_latency-light.svg" alt="Latency of one page: on a GPU the traditional Transformer is faster; combining CPUs across machines helps" width="720">
+  </picture>
+</p>
+
+**Honest limits:** for a single page on a GPU, the traditional Transformer is 2.1× faster; and pairing a fast GPU with slow CPUs only adds waiting. SeedPlane's sweet spot is throughput anywhere and combining ordinary CPUs.
+
 ### The price: memory
 
 <p align="center">
@@ -114,6 +136,7 @@ No hidden footnotes: every experiment has its pass/fail criteria written *before
 |---|---|---|
 | **V8** | Same model — faster *and* at least as good? | ✅ 2.0× faster · +0.4 to +1.4 pp · lower loss |
 | **V9** | Faster than the traditional Transformer on every core count, 1 → 6? | ✅ 1.6× to 2.0× faster, identical output to V8 · ❌ optimizations gained only 4–6% (10% needed) · ⚠️ uses 1.7–5.8× more RAM |
+| **V10** | Does it scale across GPU + CPU + a second computer? | ✅ beats traditional on throughput in all 5 device sets · ✅ identical output on every device · ❌ single page on GPU: traditional 2.1× faster · ❌ adding slow CPUs to a GPU hurts |
 | V7 | Can shards recall far-away information? | ❌ not with halos or latent messages (yet) |
 | V6 | Same question on TinyStories | ⚪ inconclusive — too little long-range signal |
 | V5 | Is the message router safe? | ✅ 0 invalid updates accepted out of 54,000 adversarial ones |
