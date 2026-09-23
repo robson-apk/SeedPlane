@@ -4,6 +4,7 @@
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-brightgreen.svg)](https://www.python.org/)
 [![Hardware](https://img.shields.io/badge/hardware-CPU%20%7C%20Intel%20Arc%20%7C%20Apple%20Silicon-orange.svg)]()
 [![Pre-registered](https://img.shields.io/badge/science-pre--registered%20%7C%20falsifications%20kept-8A2BE2.svg)](experiments/)
+[![2x faster, same-or-better quality](https://img.shields.io/badge/V8-2%C3%97%20faster%20%7C%20same--or--better%20quality-success.svg)](experiments/v8/RESULTS.md)
 [![Zero invalid messages](https://img.shields.io/badge/router-0%20invalid%20accepted%20of%2054k%20adversarial%20msgs-success.svg)](experiments/v5/RESULTS.md)
 
 > **"What if text generation didn't have to be sequential token-by-token? What if we could render text like a procedural video game world — each CPU core painting its own region of the page?"**
@@ -16,11 +17,10 @@ SeedPlane splits a text sequence into **spatial shards** (128 tokens each), deno
 
 | | Result | Evidence |
 |---|---|---|
-| ⚡ | **~29% faster than the best single-process forward pass** at L=1024 — 4 sharded workers (incl. IPC + fusion) vs a 4-thread global forward. 95% CI lower bound > 20% in all 3 seeds. | [`experiments/v5/PROTOCOL_V5b.md`](experiments/v5/PROTOCOL_V5b.md) |
+| 🚀 | **2× faster with the same or better quality — on the same model, in the same runs.** At L=1024, SeedPlane decoding took ~760 ms vs ~1,555 ms for the traditional Transformer, while scoring **+0.4 to +1.4 pp higher accuracy** and **lower loss** (3 seeds, pre-registered, criteria committed to git before the run). | [`experiments/v8/RESULTS.md`](experiments/v8/RESULTS.md) |
 | 🛡️ | **Zero invalid messages accepted** by the versioned envelope router across 54,000 adversarial test messages (270,000 decisions over 5 compared routers): collisions, stale generations, wrong request/version/target/source, duplicates. | [`experiments/v5/RESULTS.md`](experiments/v5/RESULTS.md) |
 | ⏱️ | **0 / 120 stale inferences accepted** in a live concurrent test with *real* out-of-date model outputs racing current ones — and 120 / 120 current ones kept. | `experiments/v5/results/live_stale_results.json` |
 | 🎯 | **Bit-identical outputs** between the exact-envelope router and the full SeedPlane V5 router over 180 paired end-to-end runs (max difference 0.0). | `experiments/v5/results/paired_runtime_results.json` |
-| 📈 | **More accurate than full attention on TinyStories**: SeedPlane-style shard decoding scored +0.6 pp over the same model with global attention, in all 3 seeds (95% CI excludes 0). | [Comparison](#-seedplane-vs-a-traditional-transformer) |
 | 🧠 | **A denoiser that actually learns**: the V6 model (5.3M params) reaches 1.70 nats at 15% masking vs 5.10 for a word-frequency baseline — shipped in `checkpoints/`. | [`experiments/v6/`](experiments/v6/) |
 | 🔬 | **A reusable "is my model really using context?" check** that caught a context-blind checkpoint other metrics had missed — one script, three numbers. | [`experiments/v6/check_original_checkpoint.py`](experiments/v6/check_original_checkpoint.py) |
 | 🧪 | **Science in the open**: protocols with fixed pass/fail criteria before every run, failed trainings and retracted claims kept in history instead of deleted. | `experiments/*/PROTOCOL.md` |
@@ -34,15 +34,17 @@ Same model weights, same data, same decoding rule — only the attention layout 
 
 | | Traditional (global attention) | **SeedPlane (shards + halo 16)** | |
 |---|:---:|:---:|:---:|
-| ⚡ Wall-clock, L=1024 (4 CPU threads vs 4 workers, incl. IPC + fusion) | 5.44 ms | **3.78 ms** | 🏆 **SeedPlane, ~29% faster** |
-| 🎯 Masked-infill accuracy, L=1024 (3 seeds, ~33k tokens each) | 45.02 / 44.62 / 45.61 % | **45.67 / 45.29 / 46.20 %** | 🏆 **SeedPlane, +0.6 pp** (95% CI excludes 0 in every seed) |
+| ⚡ End-to-end decoding time, L=1024 (16 steps, 4 threads vs 4 workers, IPC included) | 1,549 / 1,555 / 1,559 ms | **762 / 757 / 762 ms** | 🏆 **SeedPlane, 2.0× faster** |
+| 🎯 Infill accuracy, L=1024 (same runs) | 44.19 / 46.30 / 44.21 % | **44.69 / 47.74 / 44.58 %** | 🏆 **SeedPlane, +0.4 to +1.4 pp** |
+| 📉 Loss (NLL) at 15% / 50% masking | 1.647 / 2.495 | **1.604 / 2.455** | 🏆 **SeedPlane, lower** |
+| 📉 Loss (NLL) at 90% masking | **4.260** | 4.266 | ≈ tie (+0.15%) |
 | 🧮 Attention pairs computed, L=1024 | 1,048,576 | **163,840** | 🏆 **SeedPlane, 6.4× less work** |
 | 📈 Attention pairs, L=8192 | 67,108,864 | **1,310,720** | 🏆 **SeedPlane, 51× less** — the gap grows linearly with length |
 | 🌐 Scale-out | one device must hold the whole sequence | each worker holds one shard; neighbors exchange a thin halo | 🏆 **SeedPlane** |
-| ⏱️ Wall-clock, L=512 | **1.61 ms** | 2.07 ms | Traditional (coordination overhead dominates short inputs) |
+| ⏱️ End-to-end time, L=512 | 455–458 ms | **414–436 ms** | 🏆 SeedPlane, 6–10% faster (quality tied) |
 | 🔭 Recall of information ≥ 2 shards away (V7 synthetic task, 3 seeds) | **100%** | 1.5–1.7% (chance) | **Traditional** — SeedPlane's halos only carry what is written near the border |
 
-<sub>Where SeedPlane wins, the relevant context is local (TinyStories); where information must travel across many shards (V7), global attention wins decisively. Accuracy: V6 denoiser (5.3M params), TinyStories, 50% masked, 16 iterative steps (`experiments/v6/results/analysis.json`, criterion H1a). The model was trained half on full sequences and half on shard windows; TinyStories stories are short, so far-away context carries little information there — V7 is the stress test for that. Timing: V5b pre-registered benchmark on the original toy model (`experiments/v5/PROTOCOL_V5b.md`). Attention pairs are exact arithmetic (L² vs shards × 128 × 160).</sub>
+<sub>Where SeedPlane wins, the relevant context is local (TinyStories); where information must travel across many shards (V7), global attention wins decisively. Speed, accuracy and loss: V8, one checkpoint (`checkpoints/v6_mdlm_d256_l6_seed1.pt`, 5.3M params), identical sequences, randomized order, CPU (Ryzen 5600X), 3 seeds × 32 sequences, 50% masked, 16 iterative steps; pre-registered in `experiments/v8/PROTOCOL.md`. Long-range recall: V7. Attention pairs are exact arithmetic (L² vs shards × 128 × 160).</sub>
 
 ---
 
@@ -104,6 +106,7 @@ Every experiment has a protocol written before the run. Outcomes are recorded as
 | — | Earlier README claims ("3.5x", "+16.97% seam coherence") | ❌ Retracted: the first measured injected sleeps; the second did not replicate on 200 sequences |
 | — | Does the original toy checkpoint use context? | ❌ No (loss = unigram); V4/V5 quality tables are not evidence about seams. Fixed by the V6 model |
 | V6 | Do neighbor-only halos recover distant info on TinyStories? | ⚪ Inconclusive — TinyStories has too little long-range dependency to test it |
+| **V8** | Same model, same runs: faster *and* at least as good? | ✅ **2.0× faster at L=1024 with +0.4 to +1.4 pp accuracy and lower loss** (both pre-registered criteria passed) |
 | V7 | Same question on a task where distant info is **required** | ❌ Token halos recover nothing beyond the neighbor (chance vs 100% for global attention). ❌ A latent-message variant did not learn to use its channel. SeedPlane's quality edge holds for **local** context only |
 
 ---
@@ -175,7 +178,7 @@ SeedPlane/
 │   │   └── results/         # Raw JSON results
 │   ├── v6/                  # Iterative sharded diffusion (pre-registered; inconclusive)
 │   ├── v7/                  # Synthetic long-range test: token halo vs latent messages (both failed)
-│   └── v8/                  # Head-to-head speed + quality on the same model (pre-registered; running)
+│   └── v8/                  # Head-to-head: 2× faster, same-or-better quality on the same model
 ├── docs/                    # Historical V4 write-up
 ├── data/                    # Local corpus/cache (git-ignored)
 ├── requirements.txt
