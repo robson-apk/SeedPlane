@@ -8,9 +8,10 @@ SEED=20260922
 random.seed(SEED); torch.manual_seed(SEED)
 torch.set_num_threads(5)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+REPO_DIR = os.path.dirname(BASE_DIR)
 _candidate_corpus = [
-    os.path.join(BASE_DIR, '..', '..', 'CORPUS', 'TinyStories-valid.txt'),
-    os.path.join(BASE_DIR, 'TinyStories-valid.txt'),
+    os.path.join(REPO_DIR, '..', '..', 'CORPUS', 'TinyStories-valid.txt'),
+    os.path.join(REPO_DIR, 'data', 'TinyStories-valid.txt'),
     '/mnt/data/TinyStories-valid(5).txt'
 ]
 CORPUS = next((p for p in _candidate_corpus if os.path.exists(p)), _candidate_corpus[0])
@@ -25,7 +26,7 @@ SEED_SCALE=0.35
 DEVICE='cpu'
 
 # corpus/tokenizer (cached after first parse)
-CACHE=os.path.join(BASE_DIR, 'tinystories_word1024_cache.pt')
+CACHE=os.path.join(REPO_DIR, 'data', 'tinystories_word1024_cache.pt')
 pat=re.compile(r"[a-z]+(?:'[a-z]+)?|\d+|[^\w\s]",re.I)
 def tok(s): return [t.lower() for t in pat.findall(s)]
 if os.path.exists(CACHE):

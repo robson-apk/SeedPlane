@@ -2,12 +2,12 @@
 import sys,time,json,multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor,as_completed
 import numpy as np
-from runtime_benchmark import PROJECT,ROOT,init_worker,infer,packets,fuse
+from runtime_benchmark import PROJECT,ROOT,RESULTS,CKPT,init_worker,infer,packets,fuse
 
 def main():
  import torch
- sys.path.insert(0,str(PROJECT));import clmp_parity_seed_v3 as v
- model=v.ParityDenoiser('clmp');ck=torch.load(PROJECT/'clmp_parity_ctx1024.pt',map_location='cpu',weights_only=True);model.load_state_dict(ck['state_dict']);model.eval()
+ sys.path.insert(0,str(PROJECT/'seedplane'));import clmp_parity_seed_v3 as v
+ model=v.ParityDenoiser('clmp');ck=torch.load(CKPT,map_location='cpu',weights_only=True);model.load_state_dict(ck['state_dict']);model.eval()
  def glob(x,threads):
   torch.set_num_threads(threads);L=len(x);t=time.perf_counter()
   with torch.inference_mode():
@@ -38,6 +38,6 @@ def main():
    ix=np.random.default_rng(seed).integers(len(s),size=(2000,len(s)));red=1-s.mean()/b.mean();ci=np.quantile(1-s[ix].mean(1)/b[ix].mean(1),[.025,.975])
    comp.append({'L':L,'seed':seed,'n_pairs':len(s),'median_ms':{k:float(np.median(v_)*1000) for k,v_ in {**g,'sharded_4w':s}.items()},'best_global':best,'reduction_vs_best_global':float(red),'ci95':ci.tolist(),'passes_gate':bool(red>=.10 and ci[0]>0)})
  verdict='SPEEDUP_SUPPORTED' if all(c['passes_gate'] for c in comp if c['L']==1024) else 'SPEEDUP_CLAIM_FALSIFIED'
- (ROOT/'global_vs_sharded_results.json').write_text(json.dumps({'protocol':'PROTOCOL_V5b.md','scope':'Local CPU (Mac), toy checkpoint, timing only, no jitter.','verdict':verdict,'comparisons':comp,'rows':rows},indent=2))
+ (RESULTS/'global_vs_sharded_results.json').write_text(json.dumps({'protocol':'PROTOCOL_V5b.md','scope':'Local CPU (Mac), toy checkpoint, timing only, no jitter.','verdict':verdict,'comparisons':comp,'rows':rows},indent=2))
  print(json.dumps({'verdict':verdict,'comparisons':comp},indent=1))
 if __name__=='__main__':main()

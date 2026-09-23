@@ -73,12 +73,12 @@ A solução corrigida é útil como engenharia de coordenação. A hipótese de 
 Na pasta do projeto, com Python e dependências do projeto instaladas:
 
 ```sh
-OPENBLAS_NUM_THREADS=1 python research_v5/audit_routing.py
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python research_v5/runtime_benchmark.py
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python research_v5/paired_runtime.py
-OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python research_v5/live_stale_test.py
-python -m unittest discover -s research_v5 -p 'test_*.py'
-python research_v5/summarize.py
+OPENBLAS_NUM_THREADS=1 python experiments/v5/audit_routing.py
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python experiments/v5/runtime_benchmark.py
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python experiments/v5/paired_runtime.py
+OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python experiments/v5/live_stale_test.py
+python -m unittest discover -s experiments/v5 -p 'test_*.py'
+python experiments/v5/summarize.py
 ```
 
 O modelo e o corpus continuam nos caminhos existentes do projeto. Nenhum arquivo original foi reescrito para obter os resultados. O README principal recebe somente aviso/link da auditoria, preservando o texto histórico. Ver `PROTOCOL.md`, `summary.json` e resultados por exemplo.

@@ -6,13 +6,13 @@ from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor,as_completed
 import numpy as np
 from routing import accept,MODES,wire_bytes
-ROOT=Path(__file__).resolve().parent;PROJECT=ROOT.parent
+ROOT=Path(__file__).resolve().parent;PROJECT=ROOT.parent.parent;RESULTS=ROOT/'results';CKPT=PROJECT/'checkpoints'/'clmp_parity_ctx1024.pt'
 MODEL=None;V=None
 
 def init_worker():
  global MODEL,V
- sys.path.insert(0,str(PROJECT));import clmp_parity_seed_v3 as v;import torch
- V=v;torch.set_num_threads(1);MODEL=v.ParityDenoiser('clmp');ck=torch.load(PROJECT/'clmp_parity_ctx1024.pt',map_location='cpu',weights_only=True);MODEL.load_state_dict(ck['state_dict']);MODEL.eval()
+ sys.path.insert(0,str(PROJECT/'seedplane'));import clmp_parity_seed_v3 as v;import torch
+ V=v;torch.set_num_threads(1);MODEL=v.ParityDenoiser('clmp');ck=torch.load(CKPT,map_location='cpu',weights_only=True);MODEL.load_state_dict(ck['state_dict']);MODEL.eval()
 def infer(job):
  import torch
  idx,c0,c1,q0,q1,words,delay=job
@@ -62,9 +62,9 @@ def fuse(mode,owners,frames,scenario,L,seed):
 
 def main():
  import torch
- sys.path.insert(0,str(PROJECT));import clmp_parity_seed_v3 as v
+ sys.path.insert(0,str(PROJECT/'seedplane'));import clmp_parity_seed_v3 as v
  torch.set_num_threads(1)
- checkpoint=torch.load(PROJECT/'clmp_parity_ctx1024.pt',map_location='cpu',weights_only=True)
+ checkpoint=torch.load(CKPT,map_location='cpu',weights_only=True)
  rows=[];qualities=[];pids=[];serials=[]
  for nw in [1,2,4]:
   start=time.perf_counter()
@@ -91,5 +91,5 @@ def main():
         qualities.append({'workers':nw,'seed':seed,'L':L,'rep':rep,'scenario':scenario,'mode':mode,'boundary_nll':loss(out),'delta_vs_clean':loss(out)-loss(clean),'max_abs_vs_clean':float(np.abs(out-clean).max()),'route_s':route_s,'fusion_s':fusion_s,'total_s_shared_inference':elapsed+fusion_s,'accepted':accepted})
       rows.append({'workers':nw,'seed':seed,'L':L,'rep':rep,'jitter':jitter,'inference_s':elapsed,'startup_s':startup,'worker_pids':sorted({r['pid'] for r in res}),'out_of_order':sum(r['idx']!=i for i,r in enumerate(res)),'returned_payload_bytes':sum(r['p'].nbytes for r in res),'max_worker_peak_rss_bytes':max(r['rss_bytes'] for r in res),'sum_task_compute_s':sum(r['compute_s'] for r in res)})
     print('runtime',nw,seed,'done',flush=True)
-  (ROOT/'runtime_results.json').write_text(json.dumps({'scope':'Persistent local CPU processes, frozen toy checkpoint, center-head owner/halo fusion. Scheduler seeds only. Model evaluation noise is synthetic wrong-vocabulary payload; no natural quality gain claimed.','timing_note':'Inference shared across router variants to isolate routing; total_s_shared_inference is inference plus separately timed fusion, not independent end-to-end runs. RSS is peak per worker, not summed physical memory.','rows':rows,'quality_rows':qualities},indent=2))
+  (RESULTS/'runtime_results.json').write_text(json.dumps({'scope':'Persistent local CPU processes, frozen toy checkpoint, center-head owner/halo fusion. Scheduler seeds only. Model evaluation noise is synthetic wrong-vocabulary payload; no natural quality gain claimed.','timing_note':'Inference shared across router variants to isolate routing; total_s_shared_inference is inference plus separately timed fusion, not independent end-to-end runs. RSS is peak per worker, not summed physical memory.','rows':rows,'quality_rows':qualities},indent=2))
 if __name__=='__main__':main()

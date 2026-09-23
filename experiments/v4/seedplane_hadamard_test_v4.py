@@ -1,11 +1,12 @@
 import sys,os,json,math,statistics,time,torch
 import torch.nn.functional as F
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-if BASE_DIR not in sys.path: sys.path.insert(0, BASE_DIR)
+REPO_DIR = os.path.dirname(os.path.dirname(BASE_DIR))
+sys.path.insert(0, os.path.join(REPO_DIR, 'seedplane'))
 import clmp_parity_seed_v3 as v
 
 torch.set_num_threads(5); torch.manual_seed(v.SEED+12345)
-ckpt_path = os.path.join(BASE_DIR, 'clmp_parity_ctx1024.pt')
+ckpt_path = os.path.join(REPO_DIR, 'checkpoints', 'clmp_parity_ctx1024.pt')
 m=v.ParityDenoiser('clmp');m.load_state_dict(torch.load(ckpt_path,map_location='cpu')['state_dict']);m.eval()
 
 def hadamard(n):
@@ -62,5 +63,5 @@ for L,B,reps in [(512,8,12),(1024,4,12)]:
   z[n]={'unseeded':summary(d['unseeded']),'seedplane':summary(d['seedplane']),'seedplane_better_batches':sum(s<u for s,u in zip(d['seedplane'],d['unseeded']))}
  out['contexts'][str(L)]=z;out['contexts'][str(L)]['seconds']=time.perf_counter()-t0
  print('L',L,json.dumps(z,indent=2),flush=True)
-open(os.path.join(BASE_DIR, 'seedplane_hadamard_test_v4.json'),'w').write(json.dumps(out,indent=2))
+open(os.path.join(BASE_DIR, 'results', 'seedplane_hadamard_test_v4.json'),'w').write(json.dumps(out,indent=2))
 print('GEOMETRY',geometry)

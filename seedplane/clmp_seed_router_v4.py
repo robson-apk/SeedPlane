@@ -144,7 +144,7 @@ def train_run(name,attn_strength,steps):
             hist.append([step,L,float(loss.detach())]);print(name,'step',step,'L',L,'loss',float(loss.detach()),flush=True)
     sec=time.perf_counter()-t0
     ck={'state_dict':m.state_dict(),'attn_strength':attn_strength,'steps':steps,'params':v.count_params(m),'seen':seen,'hist':hist,'seconds':sec}
-    torch.save(ck,os.path.join(BASE_DIR, f'{name}.pt'))
+    torch.save(ck,os.path.join(os.path.dirname(BASE_DIR), 'checkpoints', f'{name}.pt'))
     return m,ck
 
 if __name__=='__main__':
@@ -158,4 +158,4 @@ if __name__=='__main__':
         gate_sweep[str(g)]=evaluate(m,strength,g,reps=3)
         print('gate',g,gate_sweep[str(g)]['1024']['linked'],flush=True)
     report={'checkpoint':ck,'gate_sweep':gate_sweep}
-    open(os.path.join(BASE_DIR, f'{name}_report.json'),'w').write(json.dumps(report,indent=2))
+    open(os.path.join(os.path.dirname(BASE_DIR), 'experiments', 'v4', 'results', f'{name}_report.json'),'w').write(json.dumps(report,indent=2))

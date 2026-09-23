@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-brightgreen.svg)](https://www.python.org/)
 [![Hardware Agnostic](https://img.shields.io/badge/hardware-CPU%20%7C%20Intel%20Arc%20%7C%20CUDA-orange.svg)]()
-[![Hadamard hypothesis](https://img.shields.io/badge/Hadamard%20routing%20hypothesis-rejected%20(V5%20self--audit)-red.svg)](research_v5/RESULTS.md)
+[![Hadamard hypothesis](https://img.shields.io/badge/Hadamard%20routing%20hypothesis-rejected%20(V5%20self--audit)-red.svg)](experiments/v5/RESULTS.md)
 
 > **"What if text generation didn't have to be sequential token-by-token? What if we could render text like a procedural video game world across independent CPU cores?"**
 
@@ -19,7 +19,7 @@ SeedPlane is an open-source research architecture exploring **spatial (sharded) 
 > - **The Finding:** The Hadamard hypothesis was **rejected**. Hadamard matching is equivalent to `boundary_src % 32 == boundary_dst % 32`: it admits modulo-32 collisions and accepts stale messages from the same boundary (120/120 in a live stale test). An exact envelope produced **identical outputs** (max difference 0) and no configuration met the pre-registered ≥10% end-to-end time gain for V5.
 > - **Sharding speed (V5b, no injected jitter, this Mac, toy model):** at L=1024, 4 sharded workers took ~3.8 ms vs ~5.4 ms for a single unsharded forward with 4 threads (~29% less time, ~1.4x). At L=512 sharding was **slower** (~2.1 ms vs ~1.6 ms). Sharded inference uses block-local attention, so it does less work than the full forward; output quality vs a global model was not measured.
 > 
-> Full paired benchmarks, unit tests, and replication scripts are archived in [**`research_v5/RESULTS.md`**](research_v5/RESULTS.md).
+> Full paired benchmarks, unit tests, and replication scripts are archived in [**`experiments/v5/RESULTS.md`**](experiments/v5/RESULTS.md).
 
 ---
 
@@ -51,7 +51,7 @@ Modern LLMs are bound to an **$O(N)$ sequential memory wall**: generating token 
 
 ## 📊 Empirical Benchmarks
 
-### 1. Sharded vs unsharded inference (V5b, pre-registered in `research_v5/PROTOCOL_V5b.md`)
+### 1. Sharded vs unsharded inference (V5b, pre-registered in `experiments/v5/PROTOCOL_V5b.md`)
 
 Local CPU (Mac), toy checkpoint, no injected jitter, 20 paired runs × 3 seeds, randomized order. Median ms:
 
@@ -60,7 +60,7 @@ Local CPU (Mac), toy checkpoint, no injected jitter, 20 paired runs × 3 seeds, 
 | 512 | ~3.26 | ~1.61 | ~2.07 | **slower** (−19% to −30%) |
 | 1024 | ~11.85 | ~5.44 | ~3.78 | **~29% less time** (CI95 lower bound > 20% in all 3 seeds) |
 
-Earlier versions of this README reported a "3.5x speedup" (41.9 → 11.95 ms, 1 → 4 workers). That comparison was **wrong as a speedup claim**: its baseline was the sharded pipeline on 1 worker, and each shard included an injected `sleep(uniform(0, 5 ms))` that was serialized on 1 worker and parallelized on 4. Actual compute per L=1024 batch is ~5.5 ms. Numbers kept in `research_v5/paired_runtime_results.json` for the record.
+Earlier versions of this README reported a "3.5x speedup" (41.9 → 11.95 ms, 1 → 4 workers). That comparison was **wrong as a speedup claim**: its baseline was the sharded pipeline on 1 worker, and each shard included an injected `sleep(uniform(0, 5 ms))` that was serialized on 1 worker and parallelized on 4. Actual compute per L=1024 batch is ~5.5 ms. Numbers kept in `experiments/v5/paired_runtime_results.json` for the record.
 
 ### 2. Boundary Noise Rejection (Context 1024)
 
@@ -88,13 +88,16 @@ python3 demo.py
 ```bash
 pip install -r requirements.txt
 
-# Run the core Hadamard tests
-python3 seedplane_hadamard_test_v4.py
+# V4 Hadamard routing test (loads checkpoints/clmp_parity_ctx1024.pt)
+python3 experiments/v4/seedplane_hadamard_test_v4.py
 
-# Run the V5 paired audit suite (reproduces 180 comparisons)
-OPENBLAS_NUM_THREADS=1 python3 research_v5/paired_runtime.py
-python3 research_v5/summarize.py
+# V5 audit: unit tests, paired runtime, report
+python3 -m unittest discover -s experiments/v5 -p 'test_*.py'
+OPENBLAS_NUM_THREADS=1 python3 experiments/v5/paired_runtime.py
+python3 experiments/v5/summarize.py
 ```
+
+The experiments need the TinyStories validation text at `data/TinyStories-valid.txt` (not included; the tokenized cache is built in `data/` on first run).
 
 ---
 
@@ -115,23 +118,21 @@ python3 research_v5/summarize.py
 
 ```text
 SeedPlane/
-├── demo.py                          # Interactive zero-dependency visual demo
-├── seedplane_hadamard_test_v4.py     # Main Hadamard routing & stress test script
-├── seed_router_robust_v4.py          # Cross-talk resilience evaluator
-├── seed_fusion_ablation_v4.py        # Boundary fusion & Product-of-Experts ablations
-├── clmp_seed_router_v4.py            # Trainer and router module
-├── clmp_parity_seed_v3.py            # Parity denoiser baseline
-├── clmp_parity_ctx1024.pt            # Pre-trained checkpoint (368 KB)
-├── research_v5/                      # V5 self-audit suite (+ V5b timing)
-│   ├── RESULTS.md                    # Detailed audit write-up & falsification data
-│   ├── PROTOCOL.md                   # Strict evaluation criteria
-│   ├── paired_runtime.py             # 180-run paired benchmark
-│   ├── live_stale_test.py            # Real concurrent stale-inference test
-│   ├── PROTOCOL_V5b.md / global_vs_sharded.py  # Sharded vs unsharded timing (pre-registered)
-│   └── summarize.py                  # Report generator & bootstrap CI calculator
-├── requirements.txt                  # Minimal dependencies
-├── LAUNCH_KIT.md                     # Ready-to-publish posts (HN, Reddit, X)
-└── LICENSE                           # MIT License
+├── demo.py                  # Interactive zero-dependency visual demo
+├── seedplane/               # Model and router code
+│   ├── clmp_parity_seed_v3.py   # Parity denoiser + corpus/tokenizer loader
+│   └── clmp_seed_router_v4.py   # V4 trainer and Hadamard router
+├── checkpoints/
+│   └── clmp_parity_ctx1024.pt   # Toy checkpoint (368 KB)
+├── experiments/
+│   ├── v4/                  # Original Hadamard tests (historical)
+│   │   └── results/
+│   └── v5/                  # Self-audit: PROTOCOL*.md, RESULTS.md, scripts
+│       └── results/         # Raw JSON results
+├── docs/                    # Historical V4 write-up
+├── data/                    # Local corpus/cache (git-ignored)
+├── requirements.txt
+└── LICENSE
 ```
 
 ---

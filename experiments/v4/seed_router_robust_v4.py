@@ -1,11 +1,12 @@
 import sys,os,math,json,time,statistics,torch
 import torch.nn.functional as F
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-if BASE_DIR not in sys.path: sys.path.insert(0, BASE_DIR)
+REPO_DIR = os.path.dirname(os.path.dirname(BASE_DIR))
+sys.path.insert(0, os.path.join(REPO_DIR, 'seedplane'))
 import clmp_parity_seed_v3 as v
 
 torch.set_num_threads(5);torch.manual_seed(v.SEED+12345)
-ckpt_path = os.path.join(BASE_DIR, 'clmp_parity_ctx1024.pt')
+ckpt_path = os.path.join(REPO_DIR, 'checkpoints', 'clmp_parity_ctx1024.pt')
 m=v.ParityDenoiser('clmp');m.load_state_dict(torch.load(ckpt_path,map_location='cpu')['state_dict']);m.eval()
 
 def bs(pos,bid):
@@ -43,4 +44,4 @@ for L,B,reps in [(512,8,20),(1024,4,20)]:
   return {'mean_delta':statistics.mean(a),'stdev':statistics.stdev(a),'sem':statistics.stdev(a)/(len(a)**.5),'wins':sum(x<0 for x in a),'n':len(a)}
  out[str(L)]={k:summ(a) for k,a in ds.items()};out[str(L)]['seed_score']={'mean':statistics.mean(compvals),'stdev':statistics.stdev(compvals),'min':min(compvals),'max':max(compvals)};out[str(L)]['seconds']=time.perf_counter()-t
  print('L',L,json.dumps(out[str(L)],indent=2),flush=True)
-open(os.path.join(BASE_DIR, 'seed_router_robust_v4.json'),'w').write(json.dumps(out,indent=2))
+open(os.path.join(BASE_DIR, 'results', 'seed_router_robust_v4.json'),'w').write(json.dumps(out,indent=2))

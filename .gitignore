@@ -18,3 +18,7 @@ tinystories_word1024_cache.pt
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Local-only
+LAUNCH_KIT.md
+data/

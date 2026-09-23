@@ -3,7 +3,7 @@ from concurrent.futures import ProcessPoolExecutor,as_completed
 from pathlib import Path
 import numpy as np
 from routing import *
-ROOT=Path(__file__).resolve().parent
+ROOT=Path(__file__).resolve().parent;RESULTS=ROOT/'results'
 
 def cases(seed,n=2000):
  rng=np.random.default_rng(seed);rows=[]
@@ -36,5 +36,5 @@ def main():
    futures=[pool.submit(worker,j) for j in jobs];order=[f.result() for f in as_completed(futures)]
   asyncs.append({'seed':seed,'workers_observed':len({p for i,p in order}),'out_of_order':sum(i!=j for j,(i,p) in enumerate(order)),'seconds_including_startup':time.perf_counter()-start})
  out={'seeds':allout,'real_process_delivery_synthetic_payload':asyncs,'equivalence':'For the fixed Hadamard lookup, complement > 0.5 is exactly boundary modulo 32 equality; exact envelope validation implies the V5 Hadamard check. V5 cannot improve correctness under the same exact contract.','scope':'Injected metadata faults, not natural LLM quality or measured network fault rates.'}
- (ROOT/'routing_results.json').write_text(json.dumps(out,indent=2));print(json.dumps(out,indent=2))
+ (RESULTS/'routing_results.json').write_text(json.dumps(out,indent=2));print(json.dumps(out,indent=2))
 if __name__=='__main__':main()

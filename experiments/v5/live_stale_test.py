@@ -2,12 +2,12 @@
 import time,sys,json,multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor,as_completed
 import numpy as np
-from runtime_benchmark import PROJECT,ROOT,init_worker,infer
+from runtime_benchmark import PROJECT,ROOT,RESULTS,CKPT,init_worker,infer
 from routing import MODES,accept
 
 def main():
  import torch
- sys.path.insert(0,str(PROJECT));import clmp_parity_seed_v3 as v
+ sys.path.insert(0,str(PROJECT/'seedplane'));import clmp_parity_seed_v3 as v
  rows=[]
  with ProcessPoolExecutor(max_workers=4,mp_context=mp.get_context('spawn'),initializer=init_worker) as pool:
   warm=[pool.submit(infer,(0,0,128,0,144,[1]*144,.02)) for _ in range(8)];[f.result() for f in warm]
@@ -32,5 +32,5 @@ def main():
     old_diffs=[float(np.abs(r['p']-current[k]['p']).max()) for gen,k,r in delivery if gen==0]
     rows.append({'seed':seed,'rep':rep,'completion_order':[(g,k) for g,k,r in delivery],'distinct_worker_pids':sorted({r['pid'] for g,k,r in delivery}),'seconds':time.perf_counter()-submitted,'old_current_max_probability_difference':max(old_diffs),'metrics':metrics})
    print('live stale',seed,flush=True)
- (ROOT/'live_stale_results.json').write_text(json.dumps({'scope':'Actual different masked inputs, real concurrent old/current inference with generation bump; 25ms controlled delay on old tasks. No word permutation. Not multi-step diffusion training.','rows':rows},indent=2))
+ (RESULTS/'live_stale_results.json').write_text(json.dumps({'scope':'Actual different masked inputs, real concurrent old/current inference with generation bump; 25ms controlled delay on old tasks. No word permutation. Not multi-step diffusion training.','rows':rows},indent=2))
 if __name__=='__main__':main()

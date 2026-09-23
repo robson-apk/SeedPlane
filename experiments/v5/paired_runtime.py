@@ -2,11 +2,11 @@
 import sys,time,json,multiprocessing as mp
 from concurrent.futures import ProcessPoolExecutor,as_completed
 import numpy as np
-from runtime_benchmark import PROJECT,ROOT,init_worker,infer,packets,fuse
+from runtime_benchmark import PROJECT,ROOT,RESULTS,CKPT,init_worker,infer,packets,fuse
 
 def main():
  import torch
- sys.path.insert(0,str(PROJECT));import clmp_parity_seed_v3 as v
+ sys.path.insert(0,str(PROJECT/'seedplane'));import clmp_parity_seed_v3 as v
  torch.set_num_threads(1);rows=[]
  for nw in [1,2,4]:
   with ProcessPoolExecutor(max_workers=nw,mp_context=mp.get_context('spawn'),initializer=init_worker) as pool:
@@ -19,5 +19,5 @@ def main():
       t=time.perf_counter();fs=[pool.submit(infer,j) for j in jobs];res=[f.result() for f in as_completed(fs)];owners,frames=packets(res,seed,rep);out,route,accepted=fuse(mode,owners,frames,'stale',L,seed+rep);values[mode]={'seconds':time.perf_counter()-t,'route_seconds':route};outputs[mode]=out
      rows.append({'workers':nw,'seed':seed,'rep':rep,'timings':values,'max_abs_output_difference':float(np.abs(outputs['exact_envelope']-outputs['seedplane_v5']).max())})
     print('paired',nw,seed,flush=True)
-   (ROOT/'paired_runtime_results.json').write_text(json.dumps({'scope':'Actual independent inference+IPC+fusion calls; same inputs/jitter within pair; randomized order. Local CPU only. Injected stale metadata and permuted payload, not real observed network corruption.','rows':rows},indent=2))
+   (RESULTS/'paired_runtime_results.json').write_text(json.dumps({'scope':'Actual independent inference+IPC+fusion calls; same inputs/jitter within pair; randomized order. Local CPU only. Injected stale metadata and permuted payload, not real observed network corruption.','rows':rows},indent=2))
 if __name__=='__main__':main()
