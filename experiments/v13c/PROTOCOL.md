@@ -17,3 +17,9 @@ Critérios:
   Se nenhuma existir, a afirmação "mesma qualidade" fica falsificada para este modelo sem retreino.
 - **F2:** existe configuração com razão ≤ 1,05 E ≥ 3 × nativo (≥ 11.673 tok/s).
 - Reportado: a fronteira de Pareto completa, sem escolher só o melhor ponto.
+
+## Adendo 1 (antes de qualquer resultado com sumidouros)
+A 1ª execução parou na 2ª configuração: o llama.cpp atual rejeita posições com buraco dentro de um lote ("failed to
+initialize batch"). Nas janelas, os sumidouros passam a ocupar as posições logo antes do halo, como no StreamingLLM;
+as distâncias entre halo e núcleo continuam as originais. No span, os sumidouros ficam nas posições originais, sem
+mudança. `results/frontier.json` (parcial, só a configuração base) fica guardado; a execução completa vai para `frontier_1.json`.
