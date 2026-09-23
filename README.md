@@ -19,6 +19,10 @@ SeedPlane is an open-source research architecture exploring **spatial (sharded) 
 > - **The Finding:** The Hadamard hypothesis was **rejected**. Hadamard matching is equivalent to `boundary_src % 32 == boundary_dst % 32`: it admits modulo-32 collisions and accepts stale messages from the same boundary (120/120 in a live stale test). An exact envelope produced **identical outputs** (max difference 0) and no configuration met the pre-registered ≥10% end-to-end time gain for V5.
 > - **Sharding speed (V5b, no injected jitter, this Mac, toy model):** at L=1024, 4 sharded workers took ~3.8 ms vs ~5.4 ms for a single unsharded forward with 4 threads (~29% less time, ~1.4x). At L=512 sharding was **slower** (~2.1 ms vs ~1.6 ms). Sharded inference uses block-local attention, so it does less work than the full forward; output quality vs a global model was not measured.
 > 
+> - **Checkpoint quality (found 2026-09-23):** the included toy checkpoint does **not use context**. Its masked-token loss is 5.06–5.13 nats at 15%, 50% and 90% masking, vs 5.10 for a unigram (word-frequency) model; accuracy ~7.5%. The boundary-NLL tables (V4, V5) were therefore measured on a context-blind model and are not evidence about seam quality. Routing-correctness and timing results do not depend on model quality. The same training setup (grad clipping at 1.0, 1/√d logit scale with N(0,1) embeddings) reproducibly stalls on the unigram plateau in V6 (`experiments/v6/PROTOCOL.md`, addenda 2–3). Check: `experiments/v6/check_original_checkpoint.py`.
+>
+> - **V6 (iterative sharded diffusion, pre-registered): INCONCLUSIVE.** A newly trained 5M-parameter denoiser did not use long-range context on TinyStories (global vs isolated shards on long-range tokens: +0.6 / +1.7 / −0.0 pp; required ≥2 pp), so whether neighbor-only halo exchange recovers distant information could not be tested. See `experiments/v6/RESULTS.md`.
+>
 > Full paired benchmarks, unit tests, and replication scripts are archived in [**`experiments/v5/RESULTS.md`**](experiments/v5/RESULTS.md).
 
 ---
@@ -127,8 +131,9 @@ SeedPlane/
 ├── experiments/
 │   ├── v4/                  # Original Hadamard tests (historical)
 │   │   └── results/
-│   └── v5/                  # Self-audit: PROTOCOL*.md, RESULTS.md, scripts
-│       └── results/         # Raw JSON results
+│   ├── v5/                  # Self-audit: PROTOCOL*.md, RESULTS.md, scripts
+│   │   └── results/         # Raw JSON results
+│   └── v6/                  # Iterative sharded diffusion (pre-registered; inconclusive)
 ├── docs/                    # Historical V4 write-up
 ├── data/                    # Local corpus/cache (git-ignored)
 ├── requirements.txt
