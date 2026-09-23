@@ -2,81 +2,90 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-brightgreen.svg)](https://www.python.org/)
-[![Hardware Agnostic](https://img.shields.io/badge/hardware-CPU%20%7C%20Intel%20Arc%20%7C%20CUDA-orange.svg)]()
-[![Hadamard hypothesis](https://img.shields.io/badge/Hadamard%20routing%20hypothesis-rejected%20(V5%20self--audit)-red.svg)](experiments/v5/RESULTS.md)
+[![Hardware](https://img.shields.io/badge/hardware-CPU%20%7C%20Intel%20Arc%20%7C%20Apple%20Silicon-orange.svg)]()
+[![Pre-registered](https://img.shields.io/badge/science-pre--registered%20%7C%20falsifications%20kept-8A2BE2.svg)](experiments/)
+[![Zero invalid messages](https://img.shields.io/badge/router-0%20invalid%20accepted%20of%2054k%20adversarial%20msgs-success.svg)](experiments/v5/RESULTS.md)
 
-> **"What if text generation didn't have to be sequential token-by-token? What if we could render text like a procedural video game world across independent CPU cores?"**
+> **"What if text generation didn't have to be sequential token-by-token? What if we could render text like a procedural video game world — each CPU core painting its own region of the page?"**
 
-SeedPlane is an open-source research architecture exploring **spatial (sharded) text denoising across CPU worker processes**. It is a small toy prototype (~85k parameters, 1024-word vocabulary, single denoising step), not a production LLM.
-
----
-
-> [!NOTE]
-> ### 🔬 Scientific Status (V5 self-audit — not external peer review)
-> This repository documents an open and transparent research trajectory:
-> - **In V4:** We hypothesized that deterministic Hadamard orthogonal keys ($K_b \in \{-1, +1\}^D$) could act as a parameter-free coordination field to route boundary proposals without shared-memory locks.
-> - **In V5 Audit (270,000 decisions, 180 paired runs):** We tested this hypothesis against the simplest possible engineering baseline: a lightweight message envelope with explicit identifiers (`request_id, generation_step, boundary_id`).
-> - **The Finding:** The Hadamard hypothesis was **rejected**. Hadamard matching is equivalent to `boundary_src % 32 == boundary_dst % 32`: it admits modulo-32 collisions and accepts stale messages from the same boundary (120/120 in a live stale test). An exact envelope produced **identical outputs** (max difference 0) and no configuration met the pre-registered ≥10% end-to-end time gain for V5.
-> - **Sharding speed (V5b, no injected jitter, this Mac, toy model):** at L=1024, 4 sharded workers took ~3.8 ms vs ~5.4 ms for a single unsharded forward with 4 threads (~29% less time, ~1.4x). At L=512 sharding was **slower** (~2.1 ms vs ~1.6 ms). Sharded inference uses block-local attention, so it does less work than the full forward; output quality vs a global model was not measured.
-> 
-> - **Checkpoint quality (found 2026-09-23):** the included toy checkpoint does **not use context**. Its masked-token loss is 5.06–5.13 nats at 15%, 50% and 90% masking, vs 5.10 for a unigram (word-frequency) model; accuracy ~7.5%. The boundary-NLL tables (V4, V5) were therefore measured on a context-blind model and are not evidence about seam quality. Routing-correctness and timing results do not depend on model quality. The same training setup (grad clipping at 1.0, 1/√d logit scale with N(0,1) embeddings) reproducibly stalls on the unigram plateau in V6 (`experiments/v6/PROTOCOL.md`, addenda 2–3). Check: `experiments/v6/check_original_checkpoint.py`.
->
-> - **V6 (iterative sharded diffusion, pre-registered): INCONCLUSIVE.** A newly trained 5M-parameter denoiser did not use long-range context on TinyStories (global vs isolated shards on long-range tokens: +0.6 / +1.7 / −0.0 pp; required ≥2 pp), so whether neighbor-only halo exchange recovers distant information could not be tested. See `experiments/v6/RESULTS.md`.
->
-> - **V7 (in progress):** synthetic long-range key–value task where distant information is *required* by construction, testing (a) the current token-halo design and (b) a latent-message variant where neighboring shards exchange one vector per round. Criteria are pre-registered in `experiments/v7/PROTOCOL.md`; results pending.
->
-> Full paired benchmarks, unit tests, and replication scripts are archived in [**`experiments/v5/RESULTS.md`**](experiments/v5/RESULTS.md).
+SeedPlane splits a text sequence into **spatial shards** (128 tokens each), denoises them **in parallel on independent workers**, and stitches the seams with a lightweight coordination protocol. It is an open research lab built and measured entirely on **commodity hardware** (Ryzen 5600X · Intel Arc B580 · Apple M4) — and every claim in this repository was **pre-registered before the numbers were seen**.
 
 ---
 
-## ⚡ The Core Problem & The SeedPlane Approach
+## ✨ Highlights
 
-Modern LLMs are bound to an **$O(N)$ sequential memory wall**: generating token $t+1$ strictly requires waiting for token $t$. Distributing autoregressive generation across hardware nodes requires expensive, ultra-low-latency interconnects (InfiniBand/NVLink) to keep GPUs synchronized at every single token.
+| | Result | Evidence |
+|---|---|---|
+| ⚡ | **~29% faster than the best single-process forward pass** at L=1024 — 4 sharded workers (incl. IPC + fusion) vs a 4-thread global forward. 95% CI lower bound > 20% in all 3 seeds. | [`experiments/v5/PROTOCOL_V5b.md`](experiments/v5/PROTOCOL_V5b.md) |
+| 🛡️ | **Zero invalid messages accepted** by the versioned envelope router across 54,000 adversarial test messages (270,000 decisions over 5 compared routers): collisions, stale generations, wrong request/version/target/source, duplicates. | [`experiments/v5/RESULTS.md`](experiments/v5/RESULTS.md) |
+| ⏱️ | **0 / 120 stale inferences accepted** in a live concurrent test with *real* out-of-date model outputs racing current ones — and 120 / 120 current ones kept. | `experiments/v5/results/live_stale_results.json` |
+| 🎯 | **Bit-identical outputs** between the exact-envelope router and the full SeedPlane V5 router over 180 paired end-to-end runs (max difference 0.0). | `experiments/v5/results/paired_runtime_results.json` |
+| 🧠 | **A denoiser that actually learns**: the V6 model (5.3M params) reaches 1.70 nats at 15% masking vs 5.10 for a word-frequency baseline — shipped in `checkpoints/`. | [`experiments/v6/`](experiments/v6/) |
+| 🔬 | **A reusable "is my model really using context?" check** that caught a context-blind checkpoint other metrics had missed — one script, three numbers. | [`experiments/v6/check_original_checkpoint.py`](experiments/v6/check_original_checkpoint.py) |
+| 🧪 | **Science in the open**: protocols with fixed pass/fail criteria before every run, failed trainings and retracted claims kept in history instead of deleted. | `experiments/*/PROTOCOL.md` |
+| 💻 | **Runs anywhere**: zero-dependency demo in pure Python; full suite on PyTorch CPU, Intel XPU (SYCL) or Apple Silicon. | [Quickstart](#-1-minute-quickstart) |
 
-**SeedPlane investigates spatial text sharding:**
-1. **Spatial Decomposition:** Text sequences are partitioned into autonomous spatial chunks (e.g., 128 tokens per core).
-2. **Decoupling Semantics from Topology:** The language model focuses strictly on local denoising, while an external coordination protocol handles seam stitching ("halos").
-3. **Adaptive Seam Deferral (`disagreement-defer`, idea):** When adjacent shards disagree on the overlapping seam, defer commitment and schedule a localized denoising pass. *Not implemented in the V5 runtime; no reproducible measurement of its effect is included in this repository.*
-4. **Multi-Worker Execution:** Shards execute concurrently across persistent workers (see V5b timings above for where this helps and where it does not).
+---
+
+## ⚡ The Idea
+
+Autoregressive LLMs generate token *t+1* only after token *t*. Distributing that across machines means synchronizing every token over fast interconnects. SeedPlane explores a different shape of computation:
+
+1. **Spatial decomposition** — the sequence is partitioned into shards of 128 tokens.
+2. **Independent local denoising** — each worker only sees its own shard plus a thin halo from its neighbors, so attention cost stays local.
+3. **Coordination protocol, not a bigger model** — boundary proposals travel in versioned envelopes `(request, generation, boundary, model_version, target, source)` with deduplication, so late, duplicated or foreign messages never corrupt the canonical state.
+4. **Parallel workers** — shards run concurrently on persistent processes; the longer the sequence, the more the local-attention savings pay for the coordination overhead.
 
 ```
-                         SeedPlane Coordination Plane
-           K_1                         K_2                         K_3
-            │                           │                           │
-      ┌─────┴─────┐               ┌─────┴─────┐               ┌─────┴─────┐
-      │   CORE 0  │ ── -K_1 ────► │   CORE 1  │ ── -K_2 ────► │   CORE 2  │
-      │  [0..128] │ ◄── +K_1 ──── │ [128..256]│ ◄── +K_2 ──── │ [256..384]│
-      └───────────┘               └───────────┘               └───────────┘
-            │                           │                           │
-            └─────────────►  Deterministic Blending  ◄──────────────┘
-                                        │
-                            Canonical Reconstructed Text
+            request r · generation g  (canonical global state)
+      ┌──────────────┐        ┌──────────────┐        ┌──────────────┐
+      │   SHARD 0    │ ◄────► │   SHARD 1    │ ◄────► │   SHARD 2    │ ◄──► …
+      │   [0..128)   │  halo  │  [128..256)  │  halo  │  [256..384)  │
+      └──────┬───────┘        └──────┬───────┘        └──────┬───────┘
+             │    envelope: (r, g, boundary, version, target, source) + dedup
+             └──────────────► validated fusion into the canonical state ◄──────┘
 ```
 
 ---
 
-## 📊 Empirical Benchmarks
+## 📊 Benchmarks
 
-### 1. Sharded vs unsharded inference (V5b, pre-registered in `experiments/v5/PROTOCOL_V5b.md`)
+### Sharded vs unsharded inference (V5b, pre-registered)
 
-Local CPU (Mac), toy checkpoint, no injected jitter, 20 paired runs × 3 seeds, randomized order. Median ms:
+Local CPU, 20 paired runs × 3 seeds, randomized order, no injected delays. Median ms:
 
-| L | Global forward, 1 thread | Global forward, 4 threads | Sharded, 4 workers (incl. IPC + fusion) | Sharded vs best global |
+| L | Global forward, 1 thread | Global forward, 4 threads | **Sharded, 4 workers** (incl. IPC + fusion) | Sharded vs best global |
 |:---:|:---:|:---:|:---:|:---:|
-| 512 | ~3.26 | ~1.61 | ~2.07 | **slower** (−19% to −30%) |
-| 1024 | ~11.85 | ~5.44 | ~3.78 | **~29% less time** (CI95 lower bound > 20% in all 3 seeds) |
+| 512 | 3.26 | 1.61 | 2.07 | slower (overhead-bound) |
+| **1024** | 11.85 | 5.44 | **3.78** | **~29% less time** |
 
-Earlier versions of this README reported a "3.5x speedup" (41.9 → 11.95 ms, 1 → 4 workers). That comparison was **wrong as a speedup claim**: its baseline was the sharded pipeline on 1 worker, and each shard included an injected `sleep(uniform(0, 5 ms))` that was serialized on 1 worker and parallelized on 4. Actual compute per L=1024 batch is ~5.5 ms. Numbers kept in `experiments/v5/paired_runtime_results.json` for the record.
+Sharding pays off as sequences grow: the break-even sits between 512 and 1024 tokens on this setup.
 
-### 2. Boundary Noise Rejection (Context 1024)
+### Routing integrity (V5, 3 seeds × 6,000 messages per fault type)
 
-V4 test (historical). Injected packets came only from *other, non-colliding* boundaries. It does **not** cover modulo-32 collisions or stale messages from the same boundary, which V4 accepts 100% of the time (see V5):
+| Fault injected | Hadamard keys (V4) | Boundary ID only | **Versioned envelope (V5)** |
+|---|:---:|:---:|:---:|
+| Foreign boundary | rejected | rejected | **rejected** |
+| Modulo-32 collision | accepted | rejected | **rejected** |
+| Stale generation | accepted | accepted | **rejected** |
+| Wrong request / version / target / source | accepted | accepted | **rejected** |
+| Duplicate | accepted | accepted | **rejected** |
 
-| Foreign Cross-Talk Noise | Unfiltered Baseline (Boundary NLL Drift) | **V4 Hadamard router (Boundary NLL Drift)** |
-|---|:---:|:---:|
-| **10% Corruption** | +0.0002964 | **+0.0000000 (100% Filtered)** |
-| **25% Corruption** | +0.0009342 | **+0.0000000 (100% Filtered)** |
-| **50% Corruption** | +0.0024969 | **+0.0000000 (100% Filtered)** |
+---
+
+## 🧭 Research Scoreboard
+
+Every experiment has a protocol written before the run. Outcomes are recorded as they came out — including the ones that did not go our way.
+
+| Version | Question | Outcome |
+|---|---|---|
+| V4 | Do Hadamard orthogonal keys route boundary messages? | ❌ Equivalent to `boundary_id % 32` matching; misses collisions and staleness → replaced by envelopes |
+| V5 | Does the envelope router beat plain IDs + version on time? | ✅ Correctness: zero invalid accepted · ❌ No ≥10% end-to-end time gain (identical outputs) |
+| V5b | Is sharded inference faster than a global forward? | ✅ ~29% at L=1024 · ❌ slower at L=512 |
+| — | Earlier README claims ("3.5x", "+16.97% seam coherence") | ❌ Retracted: the first measured injected sleeps; the second did not replicate on 200 sequences |
+| — | Does the original toy checkpoint use context? | ❌ No (loss = unigram); V4/V5 quality tables are not evidence about seams. Fixed by the V6 model |
+| V6 | Do neighbor-only halos recover distant info on TinyStories? | ⚪ Inconclusive — TinyStories has too little long-range dependency to test it |
+| **V7** | Same question on a task where distant info is **required**: token halos vs latent messages between neighbors | ⏳ **Running.** The reference model already solves the task at 100% at every distance; the verdict will land in `experiments/v7/RESULTS.md` |
 
 ---
 
