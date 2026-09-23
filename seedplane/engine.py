@@ -68,3 +68,21 @@ def save_bundle(out_dir, model_id, plan):
     (out / 'seedplane.json').write_text(json.dumps({'source': model_id, 'plan': asdict(plan), 'format': 'seedplane-bundle/1',
                                                     'note': 'weights unchanged; SeedPlane only changes how attention is scheduled'}, indent=1))
     return out
+
+
+@torch.inference_mode()
+def nll_full(model, ids, device):
+    """Sum of next-token NLL with the original full causal attention (computed on device, no giant logits on the host)."""
+    x = torch.as_tensor(ids, device=device)[None]; z = model(input_ids=x).logits[0, :-1].float()
+    return float(F.cross_entropy(z, x[0, 1:], reduction='sum')), len(ids) - 1
+
+
+@torch.inference_mode()
+def nll_shards(model, ids, plan, device):
+    """Same NLL, but each position only sees its SeedPlane window (shard + halo + sinks)."""
+    L = len(ids); tot = 0.0; y = torch.as_tensor(ids, device=device)
+    for c0, c1, idx in plan.windows(L):
+        z = window_logits(model, ids, idx, device)[-(c1 - c0):]           # logits of the core positions c0..c1-1
+        last = min(c1, L - 1)                                             # position L-1 predicts nothing
+        if last > c0: tot += float(F.cross_entropy(z[:last - c0], y[c0 + 1:last + 1], reduction='sum'))
+    return tot, L - 1
