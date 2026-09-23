@@ -1,0 +1,205 @@
+{
+  "design": "SeedPlane above shards; Hadamard boundary keys; owner +K_b, borrowed halo -K_b",
+  "params_extra": 0,
+  "model_params": 84736,
+  "key_dim": 32,
+  "key_geometry": {
+    "key_dim": 32,
+    "max_wrong_abs_cos_8boundaries": 5.960464477539063e-08,
+    "correct_complement": 0.9999999403953552
+  },
+  "clean_ablation": {
+    "512": {
+      "seed_total": {
+        "mean_delta": -2.4318695068359373e-06,
+        "stdev": 2.387641610683691e-05,
+        "sem": 5.338928947395821e-06,
+        "wins": 8,
+        "n": 20
+      },
+      "seed_boundary": {
+        "mean_delta": -1.3709068298339844e-05,
+        "stdev": 0.0001450553728666174,
+        "sem": 3.243536742313351e-05,
+        "wins": 10,
+        "n": 20
+      },
+      "const_total": {
+        "mean_delta": -2.47955322265625e-06,
+        "stdev": 2.3529414761958717e-05,
+        "sem": 5.261337087852672e-06,
+        "wins": 9,
+        "n": 20
+      },
+      "const_boundary": {
+        "mean_delta": -1.3399124145507813e-05,
+        "stdev": 0.00014197555028867823,
+        "sem": 3.174669815884244e-05,
+        "wins": 10,
+        "n": 20
+      },
+      "random_total": {
+        "mean_delta": -2.7179718017578126e-06,
+        "stdev": 2.7338026584840833e-05,
+        "sem": 6.112968581440052e-06,
+        "wins": 9,
+        "n": 20
+      },
+      "random_boundary": {
+        "mean_delta": -1.56402587890625e-05,
+        "stdev": 0.00016309302789881827,
+        "sem": 3.6468709703802735e-05,
+        "wins": 10,
+        "n": 20
+      },
+      "seed_score": {
+        "mean": 0.9257011571450642,
+        "stdev": 0.016336535497252058,
+        "min": 0.8634892106056213,
+        "max": 0.9475152492523193
+      },
+      "seconds": 6.7513497209997695
+    },
+    "1024": {
+      "seed_total": {
+        "mean_delta": 1.2874603271484376e-06,
+        "stdev": 3.0766393537638346e-05,
+        "sem": 6.879574737266957e-06,
+        "wins": 10,
+        "n": 20
+      },
+      "seed_boundary": {
+        "mean_delta": -4.436969757080078e-05,
+        "stdev": 6.1529106388406e-05,
+        "sem": 1.375832644792924e-05,
+        "wins": 15,
+        "n": 20
+      },
+      "const_total": {
+        "mean_delta": 9.5367431640625e-07,
+        "stdev": 2.983949250633624e-05,
+        "sem": 6.6723133658263405e-06,
+        "wins": 10,
+        "n": 20
+      },
+      "const_boundary": {
+        "mean_delta": -4.336833953857422e-05,
+        "stdev": 6.041131018315479e-05,
+        "sem": 1.3508379617935938e-05,
+        "wins": 15,
+        "n": 20
+      },
+      "random_total": {
+        "mean_delta": 1.4066696166992188e-06,
+        "stdev": 3.444380067491477e-05,
+        "sem": 7.701867971256256e-06,
+        "wins": 11,
+        "n": 20
+      },
+      "random_boundary": {
+        "mean_delta": -5.0139427185058596e-05,
+        "stdev": 7.119390905623797e-05,
+        "sem": 1.59194420233686e-05,
+        "wins": 16,
+        "n": 20
+      },
+      "seed_score": {
+        "mean": 0.9257137096590466,
+        "stdev": 0.016343042648286194,
+        "min": 0.8634892106056213,
+        "max": 0.9478662014007568
+      },
+      "seconds": 5.721032854999976
+    }
+  },
+  "stress": {
+    "512": {
+      "0.1": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0008232593536376953,
+          "stdev": 0.0009088171325844762,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 10
+      },
+      "0.25": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0015662908554077148,
+          "stdev": 0.0016244999235568787,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 9
+      },
+      "0.5": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.002978722254435221,
+          "stdev": 0.0025547594941342728,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 9
+      },
+      "seconds": 3.458463833999758
+    },
+    "1024": {
+      "0.1": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0002964337666829427,
+          "stdev": 0.0011062221896049893,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 6
+      },
+      "0.25": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0009342432022094727,
+          "stdev": 0.0018007735278115704,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 8
+      },
+      "0.5": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0024968783060709634,
+          "stdev": 0.0029643801871192883,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 10
+      },
+      "seconds": 3.3545638880000297
+    }
+  },
+  "notes": {
+    "attention_bias": "worked numerically but severe PyTorch CPU fast-path penalty; no visible loss benefit by step 150",
+    "clean_quality": "procedural seed itself did not improve clean NLL beyond constant/random controls"
+  }
+}

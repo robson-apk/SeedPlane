@@ -1,0 +1,93 @@
+{
+  "geometry": {
+    "key_dim": 32,
+    "max_wrong_abs_cos_8boundaries": 5.960464477539063e-08,
+    "correct_complement": 0.9999999403953552
+  },
+  "contexts": {
+    "512": {
+      "0.1": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0008232593536376953,
+          "stdev": 0.0009088171325844762,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 10
+      },
+      "0.25": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0015662908554077148,
+          "stdev": 0.0016244999235568787,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 9
+      },
+      "0.5": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.002978722254435221,
+          "stdev": 0.0025547594941342728,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 9
+      },
+      "seconds": 3.458463833999758
+    },
+    "1024": {
+      "0.1": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0002964337666829427,
+          "stdev": 0.0011062221896049893,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 6
+      },
+      "0.25": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0009342432022094727,
+          "stdev": 0.0018007735278115704,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 8
+      },
+      "0.5": {
+        "unseeded": {
+          "mean_boundary_nll_delta": 0.0024968783060709634,
+          "stdev": 0.0029643801871192883,
+          "batches": 12
+        },
+        "seedplane": {
+          "mean_boundary_nll_delta": 0.0,
+          "stdev": 0.0,
+          "batches": 12
+        },
+        "seedplane_better_batches": 10
+      },
+      "seconds": 3.3545638880000297
+    }
+  }
+}

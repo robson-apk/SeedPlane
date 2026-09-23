@@ -1,0 +1,806 @@
+{
+  "seeds": [
+    {
+      "seed": 11,
+      "results": {
+        "unfiltered": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            }
+          },
+          "us_per_message": 0.36371755555555635,
+          "metadata_bytes": 0
+        },
+        "boundary_id": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            }
+          },
+          "us_per_message": 0.37182405555555603,
+          "metadata_bytes": 8
+        },
+        "hadamard_v4": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            }
+          },
+          "us_per_message": 2.2560370000000005,
+          "metadata_bytes": 128
+        },
+        "exact_envelope": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            }
+          },
+          "us_per_message": 0.32522222222222363,
+          "metadata_bytes": 48
+        },
+        "seedplane_v5": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            }
+          },
+          "us_per_message": 0.7370069444444424,
+          "metadata_bytes": 176
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "results": {
+        "unfiltered": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            }
+          },
+          "us_per_message": 0.2788448888888887,
+          "metadata_bytes": 0
+        },
+        "boundary_id": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            }
+          },
+          "us_per_message": 0.30154166666666715,
+          "metadata_bytes": 8
+        },
+        "hadamard_v4": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            }
+          },
+          "us_per_message": 2.084275444444444,
+          "metadata_bytes": 128
+        },
+        "exact_envelope": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            }
+          },
+          "us_per_message": 0.33140511111110865,
+          "metadata_bytes": 48
+        },
+        "seedplane_v5": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            }
+          },
+          "us_per_message": 0.744358833333335,
+          "metadata_bytes": 176
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "results": {
+        "unfiltered": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            }
+          },
+          "us_per_message": 0.27411344444444596,
+          "metadata_bytes": 0
+        },
+        "boundary_id": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            }
+          },
+          "us_per_message": 0.30643055555555787,
+          "metadata_bytes": 8
+        },
+        "hadamard_v4": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 2000
+            }
+          },
+          "us_per_message": 2.0873634444444438,
+          "metadata_bytes": 128
+        },
+        "exact_envelope": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            }
+          },
+          "us_per_message": 0.3357361111111111,
+          "metadata_bytes": 48
+        },
+        "seedplane_v5": {
+          "cases": {
+            "clean": {
+              "n": 2000,
+              "accepted": 2000,
+              "errors": 0
+            },
+            "foreign": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "modulo_collision": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "stale": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "request": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "model_version": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "target": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "source": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            },
+            "duplicate": {
+              "n": 2000,
+              "accepted": 0,
+              "errors": 0
+            }
+          },
+          "us_per_message": 0.7470740555555558,
+          "metadata_bytes": 176
+        }
+      }
+    }
+  ],
+  "real_process_delivery_synthetic_payload": [
+    {
+      "seed": 11,
+      "workers_observed": 4,
+      "out_of_order": 73,
+      "seconds_including_startup": 0.17033791699999995
+    },
+    {
+      "seed": 23,
+      "workers_observed": 4,
+      "out_of_order": 61,
+      "seconds_including_startup": 0.178640291
+    },
+    {
+      "seed": 37,
+      "workers_observed": 4,
+      "out_of_order": 68,
+      "seconds_including_startup": 0.16502137499999991
+    }
+  ],
+  "equivalence": "For the fixed Hadamard lookup, complement > 0.5 is exactly boundary modulo 32 equality; exact envelope validation implies the V5 Hadamard check. V5 cannot improve correctness under the same exact contract.",
+  "scope": "Injected metadata faults, not natural LLM quality or measured network fault rates."
+}

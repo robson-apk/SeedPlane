@@ -1,0 +1,18 @@
+{
+  "seedplane_hadamard_test_v4.json": "97ef4161c29a7f6914e5f034ae641bf63d786044ff13d1800ed6a5a0710eb114",
+  "LICENSE": "a4e20d4ec945c86dd59edb27ab163ad991a7d6734718fed4674fd15cc3664983",
+  "requirements.txt": "87f89cca3a457dd6ec0ec0a771d81668c9e45c3ca16bd86d6028bbfc13037a6d",
+  "seedplane_hadamard_test_v4.py": "39670ec39af577d23da321a92c3e8ac245b4df47fa56dfeaa1f5285425644d88",
+  "seed_fusion_ablation_v4.py": "8dd59099e49ec38a7230a7a9a819ab4979c81242ab3ce859664c0cd63dee0f85",
+  "clmp_v4_seedplane_report.json": "0090874a9798298c7adba56bb6ec054708a795abbaf28f363987fced54da27bd",
+  "README_CLMP_V4_SEEDPLANE.md": "e31d83381a47305474919e4a142f782b19906ce1ddfd55e7e6ea5998b451f6b2",
+  "seed_router_robust_v4.json": "e2ba98f8b837204a20e4d3e2c6477e0251c1d276c91f86aa0fd7900a2b8732b2",
+  "clmp_seed_router_v4.py": "edb62b61c0533d23b56a8aa3ef7477abb8d56ead5c0ff1ed0fe42079cc5fb279",
+  "clmp_parity_seed_v3.py": "e4f9d70117553522eb39ab5e07af75ca9e6d67ebdb21c85df4bebb9e6bca3d60",
+  "README.md": "0dcb29e6d0eaf920bef809a8932c5af4d5add32a68cc0d9dac1b305e6b42c8e8",
+  ".gitignore": "ffc693c181266de4379c5c2146050cef7907b098c4ef3f6c7088f8aff79912d0",
+  "LAUNCH_KIT.md": "dbd967062babc701727ccd4b6a4ed6e31daeed9a91ba8b68e38c31051ab0d029",
+  "demo.py": "6e23a9a106aaa42ae44458a68a954010a68a2e78846975f985de942dbb09f1a5",
+  "clmp_parity_ctx1024.pt": "8993be27569f25e36d06e32535066d2e3f94252e9736c8c55b2270e6bcc98653",
+  "seed_router_robust_v4.py": "39d1aa3e55f3c878d076a0ac3f5c20994932652f0e63af81e55b25010404c755"
+}
