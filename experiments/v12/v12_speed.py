@@ -21,8 +21,11 @@ def median_time(fn, reps=REPS):
     return float(np.median(ts))
 
 
-def llama_bench(exe, gguf, extra):
-    out = subprocess.run([str(exe), '-m', str(gguf), '-p', str(L), '-n', '0', '-r', str(REPS), '-o', 'json'] + extra, capture_output=True, text=True, timeout=1800)
+def llama_bench(exe, gguf, extra, oneapi=False):
+    cmd = [str(exe), '-m', str(gguf), '-p', str(L), '-n', '0', '-r', str(REPS), '-o', 'json'] + extra
+    if oneapi:   # SYCL builds need the oneAPI runtime DLLs on PATH
+        cmd = ['cmd', '/c', 'call', r'E:\oneAPI\setvars.bat', '>nul', '2>&1', '&&'] + cmd
+    out = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
     try:
         d = json.loads(out.stdout); return float(d[0]['avg_ts'])
     except Exception:
@@ -43,12 +46,14 @@ def main():
     torch.set_num_threads(1)
     # --- our engine, SeedPlane windows distributed over workers
     configs = {'cpu1': 'local:cpu:1', 'cpu2': 'local:cpu:2', 'cpu4': 'local:cpu:4', 'cpu6': 'local:cpu:6', 'gpu': 'local:xpu:1', 'gpu+cpu4': 'local:xpu:1,local:cpu:4'}
-    if a.mac: configs['cpu4+mac2'] = 'local:cpu:4,' + a.mac
+    if a.mac: configs['cpu4+mac2'] = 'local:cpu:4,' + a.mac; configs['gpu+cpu4+mac2'] = 'local:xpu:1,local:cpu:4,' + a.mac
     for name, spec in configs.items():
         procs, clients = cli.start_workers(spec, a.bundle)
         try:
-            ts = [cli.distribute(clients, ids, wins, 'prefill')[1] for _ in range(REPS + 1)][1:]
-            res['ours_seedplane'][name] = L / float(np.median(ts))
+            for sched, fn in (('static', cli.distribute), ('dynamic', cli.distribute_dynamic)):
+                if sched == 'dynamic' and len(clients) == 1: continue
+                ts = [fn(clients, ids, wins, 'prefill')[1] for _ in range(REPS + 1)][1:]
+                res['ours_seedplane'][f'{name}|{sched}'] = L / float(np.median(ts))
         finally:
             for _, c in clients:
                 try: c.send(('close',))
@@ -58,8 +63,12 @@ def main():
     # --- llama.cpp native (same model, F16 GGUF)
     lp = Path(a.llama)
     for t in (1, 2, 4, 6): res['llama_cpp'][f'cpu{t}'] = llama_bench(lp / 'cpu' / 'llama-bench.exe', a.gguf, ['-t', str(t), '-ngl', '0'])
-    res['llama_cpp']['gpu_sycl'] = llama_bench(lp / 'sycl' / 'llama-bench.exe', a.gguf, ['-ngl', '99'])
-    res['llama_cpp']['gpu_vulkan'] = llama_bench(lp / 'vulkan' / 'llama-bench.exe', a.gguf, ['-ngl', '99'])
+    res['llama_cpp']['gpu_sycl_official'] = llama_bench(lp / 'sycl' / 'llama-bench.exe', a.gguf, ['-ngl', '99'])
+    res['llama_cpp']['gpu_vulkan_official'] = llama_bench(lp / 'vulkan' / 'llama-bench.exe', a.gguf, ['-ngl', '99'])
+    syn = Path(r'F:\S.Y.N.A.P.S.E\llama.cpp')                      # the user's own B580-tuned builds (PRJ-010)
+    for b_ in ('build', 'build_dnn', 'build_vk_submitstats'):
+        exe = syn / b_ / 'bin' / 'llama-bench.exe'
+        if exe.exists(): res['llama_cpp'][f'gpu_synapse_{b_}'] = llama_bench(exe, a.gguf, ['-ngl', '99'], oneapi='vk' not in b_)
     RES.mkdir(exist_ok=True); (RES / 'speed.json').write_text(json.dumps(res, indent=1)); print(json.dumps(res, indent=1))
 
 

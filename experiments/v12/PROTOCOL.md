@@ -31,3 +31,15 @@ e no Mac; e a GPU se houver build com SYCL/Vulkan.
 - **S2:** `sp*` mais rápido que `full` no nosso motor, com o mesmo número de núcleos (ganho algorítmico isolado).
 - Previsão registrada: S2 provável; S1 incerto — o llama.cpp é C++ altamente otimizado.
 Escopo: 1 modelo pequeno; sem geração token a token nesta fase (medida separada depois); sem quantização.
+
+## Adendo 1 — escalonador e builds do llama.cpp (antes de qualquer medida de velocidade)
+Resultado de qualidade já saiu (Q1 falhou; melhor variante sp S=512 H=256 sinks=0) — a velocidade usa essa variante.
+- **Escalonador dinâmico** (`cli.distribute_dynamic`): fila por demanda (cada worker pede a próxima janela ao terminar),
+  tempo de ida-e-volta por worker medido continuamente (rede incluída) e trava de cauda (só entrega uma janela a um worker
+  se ele a termina antes do resto do grupo terminar a fila sem ele). Motivo: na V10 o escalonador proporcional estático
+  ignorava custo fixo por mensagem, subestimava a GPU (calibração com lote pequeno) e não sabia deixar um dispositivo de fora.
+  Medido lado a lado com o estático.
+- **S3 (escalonador):** com o dinâmico, {B580 + 4 Ryzen} e {B580 + 4 Ryzen + 2 Mac} nunca ficam mais de 3% abaixo de {B580}
+  sozinha (somar dispositivos não pode piorar).
+- **llama.cpp:** além dos binários oficiais (CPU, SYCL, Vulkan b11140), os builds do próprio usuário para a B580
+  (F:\S.Y.N.A.P.S.E\llama.cpp: SYCL icx F16, SYCL+oneDNN, Vulkan). O melhor deles é a referência de S1.
