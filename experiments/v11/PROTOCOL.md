@@ -35,3 +35,9 @@ Sonda de memória na B580: um passo de treino com L=8.192 (batch 1) estoura a VR
 (2 GiB por alocação); com gradient checkpointing por camada cabe (6,2 GB, 0,66 s/passo). O treino usa checkpointing
 para L ≥ 4.096. É só uma técnica de memória (recalcula ativações no backward; a conta é a mesma). A VRAM livre da B580
 agora é ~11 GB (antes ~3 GB). Critérios da parte B inalterados.
+
+## Adendo 2 — treino relançado (antes de qualquer resultado da parte B)
+O primeiro treino rodou a ~2 s/passo (5,5 h previstas) e foi interrompido no passo ~300. Perfil por tipo de passo:
+L=1.024 0,10 s · 2.048 0,13 s · 4.096 0,33 s · **8.192 15,3 s** · janelas 0,04–0,05 s. Com o cache do alocador ocupado
+por outros formatos, a atenção global de 8.192² transbordava para a memória do sistema. Liberar o cache
+(`torch.xpu.empty_cache()`) antes dos passos de 8.192 → 0,77 s. Só isso mudou; receita e critérios inalterados.

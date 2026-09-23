@@ -158,6 +158,7 @@ def train(a):
         opt.zero_grad(set_to_none=True); hi = 0.3 if step < 3000 else 1.0; tot = 0.0
         if step % 2 == 0:
             L = lens[(step // 2) % len(lens)]; B = max(1, 8192 // L); micro = [(B, L, torch.arange(L))]
+            if L >= 8192 and dev.type == 'xpu': torch.xpu.empty_cache()  # avoid spilling to host memory (addendum 2)
         else:
             H = [16, 64][(step // 2) % 2]; k = int(torch.randint(0, MP // SHARD, (1,))); c0 = k * SHARD; q0, q1 = max(0, c0 - H), min(MP, c0 + SHARD + H)
             micro = [(24, q1 - q0, torch.arange(q0, q1))] * 2
@@ -193,6 +194,7 @@ def sanity(a):
 def part_b(a):
     torch.set_num_threads(1); model = load_lm(ROOT / 'v11_long_model.pt', 8192); _, val = load_cache(a.cache); rows = []
     for L in (1024, 2048, 4096, 8192):
+        if dev.type == 'xpu': torch.xpu.empty_cache()
         w = torch.full((1, L), MASK, device=dev); sp_gpu(model, w); trad_gpu(model, w, chunk=1)
         for seed in SEEDS:
             for bi, (y, m) in enumerate(pages(val, L, seed + L, 6)):
