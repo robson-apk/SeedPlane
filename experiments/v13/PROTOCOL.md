@@ -90,3 +90,9 @@ Critérios novos (substituem a regra de "deixar de fora" do adendo 1; P4–P6 co
   bloco), mas as chaves e valores do halo carregam contexto mais profundo (estilo Transformer-XL).
 - **P9:** span só na GPU ≥ 1,3 × janelas só na GPU, em L ≥ 8.192.
 - **C3:** qualidade do span: NLL span ≤ 1,01 × NLL janelas (L=16.384, 3 trechos, média).
+- **Bug encontrado antes da execução 2 (exploratório, Mac CPU, WikiText, 1 trecho):** o span sem sumidouros deu NLL
+  3,44 contra 2,56 das janelas (L=700) e 4,38 contra 2,73 (L=2.048). Remover as primeiras posições do KV derruba o
+  "sumidouro de atenção" (StreamingLLM). Correção: os 4 primeiros tokens do trecho nunca saem do KV (`--span-sinks 4`).
+  Com a correção: 2,569 contra 2,558 (+0,4%) e 2,750 contra 2,727 (+0,8%). Esses números motivaram a correção, então
+  são exploratórios; C3 será julgado só na execução 2 (GPU, L=16.384, 3 trechos novos). A hipótese de que o halo
+  "com contexto mais profundo" melhora a qualidade NÃO se confirmou aqui (ficou ligeiramente pior).

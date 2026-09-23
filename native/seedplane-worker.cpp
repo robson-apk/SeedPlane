@@ -16,7 +16,8 @@
 // Response: u32 magic, f64 nll_sum, u32 n_scored, i32 argmax_last, f32 compute_ms
 // want 3 (span prefill) / 4 (span nll): the window is a long SPAN (halo prefix of core_off tokens + many cores). It is
 // decoded in chunks of --span-chunk tokens; before each chunk the KV cache drops every position older than
-// --span-keep tokens before the chunk, so the halo is REUSED from the previous chunk instead of recomputed.
+// --span-keep tokens before the chunk, so the halo is REUSED from the previous chunk instead of recomputed. The span's
+// first --span-sinks tokens are never dropped (attention sinks).
 #include "llama.h"
 #include <algorithm>
 #include <chrono>
@@ -67,7 +68,7 @@ static bool write_all(sock_t s, const void* buf, size_t n) {
 }
 
 struct Slot { llama_context* ctx; llama_batch batch; int n_batch; };
-static int g_span_chunk = 512, g_span_keep = 256;
+static int g_span_chunk = 512, g_span_keep = 256, g_span_sinks = 4;
 
 // Decode one window from an empty cache; fills r (nll over scored positions and/or argmax of the last token).
 static bool run_window(Slot& sl, int n_vocab, const Req& q, const std::vector<int32_t>& tok, const std::vector<int32_t>& pos, Resp& r) {
@@ -77,7 +78,10 @@ static bool run_window(Slot& sl, int n_vocab, const Req& q, const std::vector<in
     for (uint32_t b0 = 0, b1 = 0; b0 < q.n_tok; b0 = b1) {
         b1 = std::min<uint32_t>(q.n_tok, b0 + (span ? (b0 == 0 ? q.core_off + g_span_chunk : g_span_chunk) : sl.n_batch));
         if (span && b1 - b0 > (uint32_t)sl.n_batch) { fprintf(stderr, "span chunk > n_batch\n"); return false; }
-        if (span && b0 > 0) llama_memory_seq_rm(llama_get_memory(sl.ctx), 0, -1, pos[b0] - g_span_keep);  // slide the KV window
+        if (span && b0 > 0) {   // slide the KV window, but keep the span's first tokens: they are the attention sink
+            const llama_pos p0 = pos[0] + g_span_sinks, p1 = pos[b0] - g_span_keep;   // (StreamingLLM; dropping them collapses attention)
+            if (p1 > p0) llama_memory_seq_rm(llama_get_memory(sl.ctx), 0, p0, p1);
+        }
         llama_batch& batch = sl.batch; batch.n_tokens = 0;
         for (uint32_t i = b0; i < b1; i++) {
             const int k = batch.n_tokens++;
@@ -126,6 +130,7 @@ int main(int argc, char** argv) {
         else if (a == "--dev") dev_name = next(); else if (a == "--slots") slots = std::max(1, std::stoi(next()));
         else if (a == "--bench") bench = std::stoi(next()); else if (a == "--list-devices") list = true;
         else if (a == "--span-chunk") g_span_chunk = std::stoi(next()); else if (a == "--span-keep") g_span_keep = std::stoi(next());
+        else if (a == "--span-sinks") g_span_sinks = std::stoi(next());
     }
     llama_backend_init(); ggml_backend_load_all();
     if (list) { list_devices(); return 0; }
