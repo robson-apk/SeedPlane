@@ -9,6 +9,7 @@ import argparse, json, math, sys, time
 from pathlib import Path
 import numpy as np
 import torch, torch.nn as nn, torch.nn.functional as F
+import torch.utils.checkpoint
 
 ROOT = Path(__file__).resolve().parent; RES = ROOT / 'results'
 sys.path.insert(0, str(ROOT.parent / 'v8')); sys.path.insert(0, str(ROOT.parent / 'v6'))
@@ -45,7 +46,7 @@ def commit_gpu(x, pred, conf, t):
     P, L = x.shape; ns = L // SHARD; masked = x == MASK
     cs = conf.masked_fill(~masked, -1.0).view(P, ns, SHARD); ms = masked.view(P, ns, SHARD)
     n = torch.ceil(ms.sum(-1).float() / (K - t)).long()
-    rank = cs.argsort(-1, descending=True, stable=True).argsort(-1)
+    rank = cs.argsort(dim=-1, descending=True, stable=True).argsort(dim=-1)
     take = ((rank < n[..., None]) & ms).view(P, L)
     return torch.where(take, pred, x)
 
@@ -165,7 +166,11 @@ def train(a):
             m = torch.rand(y.shape) < (0.05 + (hi - 0.05) * torch.rand(B, 1)); x = y.masked_fill(m, MASK)
             x, y, m, p = x.to(dev), y.to(dev), m.to(dev), pos.expand(B, -1).to(dev)
             with torch.autocast(dev.type, dtype=torch.bfloat16, enabled=dev.type == 'xpu'):
-                h = model.hidden(x, p)
+                if L >= 4096:  # gradient checkpointing per layer (memory only; identical math) — PROTOCOL addendum 1
+                    h = model.emb(x) + model.pos(p)
+                    for layer in model.tr.layers: h = torch.utils.checkpoint.checkpoint(layer, h, use_reentrant=False)
+                else:
+                    h = model.hidden(x, p)
             loss = F.cross_entropy(model.logits(h.float()[m]), y[m]) / len(micro); loss.backward(); tot += float(loss)
         opt.step(); sched.step()
         if step % 250 == 0 or step == a.steps - 1:

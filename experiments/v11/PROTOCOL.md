@@ -29,3 +29,9 @@ Critérios:
 - Descritivo: comprimento de cruzamento (menor L em que `sp_gpu` fica mais rápido) e curva de tempo × L.
 Escopo: TinyStories concatenado (dependência longa fraca — a V7 mostrou que o SeedPlane não recupera informação
 distante); modelo de 5,3M; uma GPU.
+
+## Adendo 1 — parte A concluída; ajuste de memória no treino da parte B (antes de treinar)
+Sonda de memória na B580: um passo de treino com L=8.192 (batch 1) estoura a VRAM com atenção global materializada
+(2 GiB por alocação); com gradient checkpointing por camada cabe (6,2 GB, 0,66 s/passo). O treino usa checkpointing
+para L ≥ 4.096. É só uma técnica de memória (recalcula ativações no backward; a conta é a mesma). A VRAM livre da B580
+agora é ~11 GB (antes ~3 GB). Critérios da parte B inalterados.
