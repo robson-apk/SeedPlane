@@ -85,6 +85,12 @@ end-to-end time (including network and contention), while `plan_pieces(...)` ass
 defaults to the fastest worker alone unless the pool predicts at least a 4% improvement; this safety margin prevents
 short-prompt regressions caused by calibration noise and boundary/network overhead. See the measured V15 result.
 
+`run_batch(workers, jobs, want='prefill', estimates=None, timeline=None)` schedules independent `(ids, window)` jobs
+over a heterogeneous pool and returns `(ordered_results, seconds, jobs_per_worker)`. Calibrate `estimates` with the
+actual job size when sizes are uniform. Its tail guard admits a slower worker only when that job should finish before
+the other devices drain the remaining queue, so small queues keep latency on the fastest worker while saturated queues
+use every device that can reduce makespan. See the measured [V16 result](../experiments/v16/RESULTS.md).
+
 ```python
 from seedplane import engine
 model, tok = engine.load_model("Qwen/Qwen2.5-0.5B-Instruct")

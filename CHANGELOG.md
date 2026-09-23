@@ -2,6 +2,13 @@
 
 All notable changes are documented here. SeedPlane is currently alpha research software.
 
+## 0.12.3 — 2026-09-23
+
+- Added gain-aware request-level batching across heterogeneous workers.
+- Added a full-job tail guard so slow devices contribute only above their measured break-even queue depth.
+- Validated B580 + Mac on 18 independent 4k requests: +5.79% and +5.18% aggregate throughput in two runs.
+- Added the pre-registered V16 protocol, raw timelines and results.
+
 ## 0.12.2 — 2026-09-23
 
 - Added concurrent end-to-end worker calibration including network and contention.

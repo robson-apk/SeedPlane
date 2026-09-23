@@ -91,8 +91,10 @@ keep quality as texts get longer. That one is logged as a falsified claim.
 | **2 · Split by speed** | Each device gets what it can finish by a common deadline; too slow → waits for the next request | 0.97–1.21× the planned speed |
 | **3 · Run in parallel** | One message per piece, binary protocol, halo reused in the KV cache | coordinator = 0.1–0.3% of time |
 
-<sub>Open: network time isn't in the plan yet (adding the Mac to short prompts costs 5–8%). Via llama.cpp's RPC the same Mac
-does 210 tok/s; as a SeedPlane worker, 1,250.</sub>
+For short independent requests, `run_batch(...)` uses a shared queue instead of putting a slow device in one request's
+critical path. Full-job calibration and a tail guard admit each device only above its measured break-even queue depth.
+On 18 queued 4k requests, B580 + Mac improved aggregate throughput by **5.79%** and **5.18%** in two runs; at 17, the
+gain-preserving policy correctly leaves the Mac waiting. See [V16](experiments/v16/RESULTS.md).
 
 ```bash
 python -m seedplane.probe --model qwen.gguf --worker ./seedplane-worker          # which API/device layout is fastest here?
@@ -222,6 +224,7 @@ No hidden footnotes: every experiment has its pass/fail criteria written *before
 
 | | Question | Verdict |
 |---|---|---|
+| **V16** | Can every useful device add throughput without slowing short requests? | ✅ B580 + Mac both used at measured break-even · ✅ +5.79% and +5.18% on 18 × 4k requests · ❌ forcing both at 17 loses 1.7% |
 | **V15** | Can network-aware scheduling remove the Mac regression on short prompts? | ✅ 4k: 0.999× B580 alone vs 0.928× former plan · ✅ 8k: 1.001× · ✅ Mac retained at 16k: 1.018× |
 | **V14** | Exact pipeline (layers split over B580 + CPU + Mac via llama.cpp RPC), planner vs default split | ✅ planner 48× faster than llama.cpp's default split · results in progress |
 | **V13d** | Does the quality hold at 32k tokens? | ❌ no: +2.2% (3.2×) to +6.2% (4.9×) — fixed halo falsified for long texts |

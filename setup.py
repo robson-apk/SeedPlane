@@ -6,7 +6,7 @@ from setuptools import setup
 
 setup(
     name='seedplane',
-    version='0.12.2',
+    version='0.12.3',
     description='Run language models as independent shards across CPU cores, GPUs and machines',
     long_description=Path(__file__).with_name('README.md').read_text(encoding='utf-8'),
     long_description_content_type='text/markdown',

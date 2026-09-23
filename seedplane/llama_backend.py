@@ -192,3 +192,57 @@ def run_pieces(workers, ids, wins_by_worker, want='prefill', timeline=None):
             if todo[n]: by[n].send_window(ids, todo[n][0], want); sent[n] = time.perf_counter()
             else: del active[s]
     return out, time.perf_counter() - t0
+
+
+def run_batch(workers, jobs, want='prefill', estimates=None, timeline=None):
+    """Process independent requests with a work-conserving heterogeneous pool.
+
+    ``jobs`` is an iterable of ``(ids, window)`` pairs. Slow workers are admitted
+    only while one job on them is predicted to finish before the remaining queue
+    would finish on the other workers. With enough queued requests every useful
+    device contributes, without putting a slow device in one request's critical
+    path. Results are returned in input order together with elapsed time and job
+    counts per worker.
+    """
+    jobs = list(jobs)
+    if not workers: raise ValueError('at least one worker is required')
+    if not jobs: return [], 0.0, {w.name: 0 for w in workers}
+    estimates = dict(estimates or {})
+    for w in workers:
+        if w.name not in estimates:
+            if getattr(w, 'est', None) is None: calibrate([w], jobs[0][0], jobs[0][1], want)
+            estimates[w.name] = w.est
+        if estimates[w.name] <= 0: raise ValueError('worker estimates must be positive')
+
+    queue = list(range(len(jobs))); out = [None] * len(jobs); busy = {}; sent = {}
+    count = {w.name: 0 for w in workers}; by_sock = {w.s: w for w in workers}; t0 = time.perf_counter()
+
+    def worth_it(w):
+        others = [o for o in workers if o is not w]
+        if not others: return True
+        other_rate = sum(1.0 / estimates[o.name] for o in others)
+        return estimates[w.name] <= len(queue) / other_rate + 1e-9
+
+    def feed(w, force=False):
+        if queue and (force or worth_it(w)):
+            k = queue.pop(0); ids, win = jobs[k]
+            w.send_window(ids, win, want); busy[w.name] = k; sent[w.name] = time.perf_counter()
+
+    ordered = sorted(workers, key=lambda x: estimates[x.name])
+    for w in ordered: feed(w)
+    # With 3+ similarly fast workers and a one-job tail, every independent
+    # worth_it decision can reject the job.  The fastest idle worker must still
+    # make progress; this is also the optimal assignment for that tail.
+    if queue and not busy: feed(ordered[0], force=True)
+    while busy:
+        ready, _, _ = select.select([w.s for w in workers if w.name in busy], [], [])
+        for sock in ready:
+            w = by_sock[sock]; result = w.recv(); k = busy.pop(w.name); out[k] = result; count[w.name] += 1
+            end = time.perf_counter(); observed = end - sent[w.name]
+            estimates[w.name] = 0.7 * estimates[w.name] + 0.3 * observed
+            if timeline is not None: timeline.append({'worker': w.name, 'job': k, 'start': sent[w.name] - t0, 'end': end - t0})
+            feed(w)
+        for w in workers:
+            if w.name not in busy: feed(w)
+        if queue and not busy: feed(ordered[0], force=True)
+    return out, time.perf_counter() - t0, count

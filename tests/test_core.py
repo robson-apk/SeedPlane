@@ -1,4 +1,5 @@
 import unittest
+import socket
 
 import numpy as np
 from unittest.mock import patch
@@ -77,6 +78,51 @@ class PiecePlannerTests(unittest.TestCase):
             rates = llama_backend.measure_rates(workers, np.arange(100), win)
         self.assertAlmostEqual(rates['gpu'], 10000)
         self.assertAlmostEqual(rates['mac'], 1000)
+
+    def test_empty_batch_is_a_noop(self):
+        worker = type('W', (), {'name': 'gpu'})()
+        self.assertEqual(llama_backend.run_batch([worker], []), ([], 0.0, {'gpu': 0}))
+
+    def test_batch_admits_slow_worker_only_above_break_even(self):
+        class FakeWorker:
+            def __init__(self, name):
+                self.name = name
+                self.s, self.peer = socket.socketpair()
+            def send_window(self, ids, win, want):
+                self.peer.sendall(llama_backend.RESP.pack(llama_backend.MAGIC, 0, 1, int(ids[0]), 1.0))
+            def recv(self):
+                return llama_backend.RESP.unpack(self.s.recv(llama_backend.RESP.size))[1:]
+            def close(self):
+                self.s.close(); self.peer.close()
+
+        gpu, mac = FakeWorker('gpu'), FakeWorker('mac')
+        try:
+            ids = np.arange(4); job = (ids, (0, 4, np.arange(4)))
+            _, _, below = llama_backend.run_batch([gpu, mac], [job] * 17, estimates={'gpu': .21, 'mac': 3.55})
+            self.assertEqual(below, {'gpu': 17, 'mac': 0})
+            out, _, above = llama_backend.run_batch([gpu, mac], [job] * 18, estimates={'gpu': .21, 'mac': 3.55})
+            self.assertEqual(above, {'gpu': 17, 'mac': 1})
+            self.assertEqual([row[2] for row in out], [0] * 18)
+        finally:
+            gpu.close(); mac.close()
+
+    def test_batch_three_equal_workers_always_makes_tail_progress(self):
+        class FakeWorker:
+            def __init__(self, name):
+                self.name = name; self.s, self.peer = socket.socketpair()
+            def send_window(self, ids, win, want):
+                self.peer.sendall(llama_backend.RESP.pack(llama_backend.MAGIC, 0, 1, 0, 1.0))
+            def recv(self):
+                return llama_backend.RESP.unpack(self.s.recv(llama_backend.RESP.size))[1:]
+            def close(self):
+                self.s.close(); self.peer.close()
+        workers = [FakeWorker(str(i)) for i in range(3)]
+        try:
+            job = (np.arange(1), (0, 1, np.arange(1)))
+            out, _, counts = llama_backend.run_batch(workers, [job], estimates={str(i): 1 for i in range(3)})
+            self.assertIsNotNone(out[0]); self.assertEqual(sum(counts.values()), 1)
+        finally:
+            for worker in workers: worker.close()
 
 
 if __name__ == '__main__':
