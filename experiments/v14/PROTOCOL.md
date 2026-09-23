@@ -38,3 +38,10 @@ num dispositivo só ou quando os dispositivos têm velocidades comparáveis.
   por dispositivo). E2 compara planejador × padrão. E1 usa a condição de 3 dispositivos com min1, para que todos
   participem de fato.
 - Métricas: `llama-bench -p 4096,16384 -n 128 -r 3` (prompt e geração).
+
+## Adendo 2: execução 1 abortada (`results/v14.json` guardado, só com o pré-bench e a divisão padrão de 2 dispositivos)
+Com `-dev Vulkan0,RPC0 -ts 24/0` (o planejador mandou tudo para a B580), o servidor RPC da CPU continuou a 500% de
+CPU: o llama.cpp ainda manda trabalho para um dispositivo listado com 0 camadas. Correção da ferramenta: só entram
+em `-dev` os dispositivos com > 0 camadas. Critérios inalterados. Números já vistos: pré-bench (B580 20.525, CPU via
+RPC 270, Mac via RPC 210 tok/s) e padrão B580+CPU (pp4096 221, pp16384 143, tg128 34 tok/s). Eles serão medidos de
+novo na execução 2, e só a execução 2 conta.

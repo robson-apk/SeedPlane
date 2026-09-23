@@ -43,8 +43,11 @@ def main():
         for name, devs in (('gpu+cpu', ['Vulkan0', 'RPC0']), ('gpu+cpu+mac', ['Vulkan0', 'RPC0', 'RPC1'])):
             ds = [Device(d, r[d], mem[d], link[d]) for d in devs]; p = plan_pipeline(ds, N_LAYERS, LAYER_GB, HIDDEN)
             m1 = min1(_split(ds, N_LAYERS, LAYER_GB)); res['conditions'][name] = {'planner': p.layers, 'planner_pred_tok_s': p.tok_s, 'min1': m1}
-            for tag, ts in (('default', None), ('planner', '/'.join(map(str, p.layers))), ('min1', '/'.join(map(str, m1)))):
-                res['conditions'][name][tag + '_result'] = bench(','.join(devs), ts); save(); print(name, tag, ts, res['conditions'][name][tag + '_result'], flush=True)
+            for tag, split in (('default', None), ('planner', p.layers), ('min1', m1)):
+                # only devices that got layers go to -dev: llama.cpp still sends work to a listed device with -ts 0 (run 1)
+                use = [d for d, n in zip(devs, split)] if split is None else [d for d, n in zip(devs, split) if n > 0]
+                ts = None if split is None or len(use) == 1 else '/'.join(str(n) for n in split if n > 0)
+                res['conditions'][name][tag + '_result'] = bench(','.join(use), ts); save(); print(name, tag, use, ts, res['conditions'][name][tag + '_result'], flush=True)
         res['conditions']['gpu'] = {'result': bench('Vulkan0')}; save(); print('gpu', res['conditions']['gpu'], flush=True)
         m1 = res['conditions']['gpu+cpu+mac']['min1']
         a = generate('Vulkan0', None); b = generate('Vulkan0,RPC0,RPC1', ','.join(map(str, m1)))
