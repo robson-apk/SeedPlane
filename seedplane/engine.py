@@ -86,3 +86,17 @@ def nll_shards(model, ids, plan, device):
         last = min(c1, L - 1)                                             # position L-1 predicts nothing
         if last > c0: tot += float(F.cross_entropy(z[:last - c0], y[c0 + 1:last + 1], reduction='sum'))
     return tot, L - 1
+
+
+@torch.inference_mode()
+def prefill_full(model, ids, device):
+    """Prompt processing like llama.cpp's `pp`: hidden states for all tokens, output logits only for the last one."""
+    x = torch.as_tensor(ids, device=device)[None]; h = model.model(input_ids=x).last_hidden_state
+    return int(model.lm_head(h[:, -1]).argmax())
+
+
+@torch.inference_mode()
+def prefill_window(model, ids, index, device, last=False):
+    x = torch.as_tensor(ids[index], device=device)[None]; pos = torch.as_tensor(index, device=device)[None]
+    h = model.model(input_ids=x, position_ids=pos).last_hidden_state
+    return int(model.lm_head(h[:, -1]).argmax()) if last else None
