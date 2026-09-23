@@ -101,6 +101,17 @@ The same page, split across an Intel Arc B580, Ryzen cores and Apple M4 cores ov
 
 **Honest limits:** for a single page on a GPU, the traditional Transformer is 2.1× faster; and pairing a fast GPU with slow CPUs only adds waiting. SeedPlane's sweet spot is throughput anywhere and combining ordinary CPUs.
 
+### Longer text: where the GPU story flips
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/long_text_gpu-dark.svg">
+    <img src="docs/img/long_text_gpu-light.svg" alt="Milliseconds per page on an Arc B580: traditional grows from 104 ms to 3,814 ms, SeedPlane from 119 ms to 323 ms" width="720">
+  </picture>
+</p>
+
+On a GPU, full attention is fine at 1,024 tokens — but its cost explodes with length. **At 8,192 tokens SeedPlane is 11.8× faster (323 ms vs 3,814 ms)**; the crossover is at 2,048 tokens. *Timing only:* the long-context model trained for this test did not learn well enough to judge quality, so quality on long real text is being measured next on a pre-trained Qwen model.
+
 ### The price: memory
 
 <p align="center">
@@ -136,6 +147,7 @@ No hidden footnotes: every experiment has its pass/fail criteria written *before
 |---|---|---|
 | **V8** | Same model — faster *and* at least as good? | ✅ 2.0× faster · +0.4 to +1.4 pp · lower loss |
 | **V9** | Faster than the traditional Transformer on every core count, 1 → 6? | ✅ 1.6× to 2.0× faster, identical output to V8 · ❌ optimizations gained only 4–6% (10% needed) · ⚠️ uses 1.7–5.8× more RAM |
+| **V11** | GPU: vectorized kernels + long text | ✅ 1.8× faster GPU kernels · ✅ 11.8× faster than traditional at 8,192 tokens (timing) · ❌ still 1.15× slower at 1,024 · ❌ long-context model failed to train (quality pending) |
 | **V10** | Does it scale across GPU + CPU + a second computer? | ✅ beats traditional on throughput in all 5 device sets · ✅ identical output on every device · ❌ single page on GPU: traditional 2.1× faster · ❌ adding slow CPUs to a GPU hurts |
 | V7 | Can shards recall far-away information? | ❌ not with halos or latent messages (yet) |
 | V6 | Same question on TinyStories | ⚪ inconclusive — too little long-range signal |

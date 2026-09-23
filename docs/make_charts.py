@@ -132,6 +132,14 @@ def main():
                 ax.set_xlim(0, max(max(sp), max(v for v in tr if v is not None)) * 1.3)
                 ax.legend(frameon=False, fontsize=8.5, labelcolor=t['text'], loc='lower left', bbox_to_anchor=(0, 1.0), ncol=2)
                 fig.subplots_adjust(left=0.3, right=0.95, top=0.74); save(fig, f'devices_{mode_name}', mode)
+    if (EXP / 'v11/results/part_b_analysis.json').exists():
+        pb = json.loads((EXP / 'v11/results/part_b_analysis.json').read_text())['per']; Ls = [1024, 2048, 4096, 8192]
+        ser = {'sp': [np.mean([pb[f'L{L}_{s}']['sp_ms_median'] for s in (11, 23, 37)]) for L in Ls],
+               'trad': [np.mean([pb[f'L{L}_{s}']['trad_ms_median'] for s in (11, 23, 37)]) for L in Ls]}
+        for mode, t in THEMES.items():
+            fig, ax = base(t, 'Longer text: the traditional Transformer hits the quadratic wall', 'One page on an Intel Arc B580 · milliseconds per page (lower is better) · timing only')
+            lines(ax, t, list(range(len(Ls))), ser, lambda v: f'{v:,.0f} ms'); ax.set_xticks(range(len(Ls)), [f'{L:,}' for L in Ls])
+            ax.set_xlabel('tokens per page', color=t['text2'], fontsize=9); ax.set_ylim(0, max(ser['trad']) * 1.12); save(fig, 'long_text_gpu', mode)
     print('wrote', sorted(p.name for p in OUT.glob('*.svg')))
 
 
