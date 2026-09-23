@@ -45,7 +45,7 @@ def main():
             m1 = min1(_split(ds, N_LAYERS, LAYER_GB)); res['conditions'][name] = {'planner': p.layers, 'planner_pred_tok_s': p.tok_s, 'min1': m1}
             for tag, split in (('default', None), ('planner', p.layers), ('min1', m1)):
                 # only devices that got layers go to -dev: llama.cpp still sends work to a listed device with -ts 0 (run 1)
-                use = [d for d, n in zip(devs, split)] if split is None else [d for d, n in zip(devs, split) if n > 0]
+                use = list(devs) if split is None else [d for d, n in zip(devs, split) if n > 0]
                 ts = None if split is None or len(use) == 1 else '/'.join(str(n) for n in split if n > 0)
                 res['conditions'][name][tag + '_result'] = bench(','.join(use), ts); save(); print(name, tag, use, ts, res['conditions'][name][tag + '_result'], flush=True)
         res['conditions']['gpu'] = {'result': bench('Vulkan0')}; save(); print('gpu', res['conditions']['gpu'], flush=True)

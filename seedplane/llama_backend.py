@@ -35,7 +35,10 @@ class Worker:
         return buf
 
     def send_window(self, ids, win, want, score_from=0):
-        c0, c1, idx = win; tok = np.ascontiguousarray(ids[idx], dtype=np.int32); pos = np.ascontiguousarray(idx, dtype=np.int32)
+        c0, c1, idx = win; tok = np.ascontiguousarray(ids[idx], dtype=np.int32); pos = np.array(idx, dtype=np.int32)
+        gap = np.flatnonzero(np.diff(pos) != 1)
+        if len(gap):   # sinks + halo: llama.cpp needs consecutive positions in a batch -> place the sinks right before
+            g = gap[0] + 1; pos[:g] = pos[g] - g + np.arange(g)   # the halo (StreamingLLM); halo/core distances stay original
         core_off = len(idx) - (c1 - c0); nxt = int(ids[c1]) if (want in ('nll', 'span_nll') and c1 < len(ids)) else -1
         self.s.sendall(REQ.pack(MAGIC, WANT[want], len(tok), core_off, max(0, score_from - (c0 - core_off)), nxt) + tok.tobytes() + pos.tobytes())
 
