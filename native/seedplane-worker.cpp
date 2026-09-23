@@ -117,7 +117,7 @@ static void list_devices() {
 }
 
 int main(int argc, char** argv) {
-    std::string model_path, dev_name, host = "0.0.0.0";
+    std::string model_path, dev_name, host = "127.0.0.1";
     int port = 54000, ngl = -1, threads = 1, n_ctx = 4096, n_batch = 2048, n_ubatch = 512, slots = 1, bench = 0;
     bool list = false;
     for (int i = 1; i < argc; i++) {
@@ -132,9 +132,18 @@ int main(int argc, char** argv) {
         else if (a == "--span-chunk") g_span_chunk = std::stoi(next()); else if (a == "--span-keep") g_span_keep = std::stoi(next());
         else if (a == "--span-sinks") g_span_sinks = std::stoi(next());
     }
+    if (port < 1 || port > 65535 || threads < 1 || n_ctx < 1 || n_batch < 1 || n_ubatch < 1 ||
+        g_span_chunk < 1 || g_span_keep < 0 || g_span_sinks < 0) {
+        fprintf(stderr, "invalid numeric option\n"); return 1;
+    }
     llama_backend_init(); ggml_backend_load_all();
     if (list) { list_devices(); return 0; }
-    const char* key_env = getenv("SEEDPLANE_AUTHKEY"); std::string key = key_env ? key_env : "seedplane-local-default";
+    const char* key_env = getenv("SEEDPLANE_AUTHKEY"); std::string key = key_env ? key_env : "seedplane-loopback-only";
+    const bool loopback = host == "127.0.0.1";
+    if (!loopback && !key_env) {
+        fprintf(stderr, "refusing non-loopback worker without SEEDPLANE_AUTHKEY; set a long random secret or use --host 127.0.0.1\n");
+        return 1;
+    }
     if (model_path.empty()) {
         fprintf(stderr, "usage: %s -m model.gguf [--dev NAME] [--slots N] [-t T] [--port P] [--bench N] | --list-devices\n", argv[0]);
         return 1;
@@ -189,7 +198,8 @@ int main(int argc, char** argv) {
 #endif
     sock_t ls = socket(AF_INET, SOCK_STREAM, 0); int yes = 1;
     setsockopt(ls, SOL_SOCKET, SO_REUSEADDR, (const char*)&yes, sizeof(yes));
-    sockaddr_in addr{}; addr.sin_family = AF_INET; addr.sin_port = htons((uint16_t)port); inet_pton(AF_INET, host.c_str(), &addr.sin_addr);
+    sockaddr_in addr{}; addr.sin_family = AF_INET; addr.sin_port = htons((uint16_t)port);
+    if (inet_pton(AF_INET, host.c_str(), &addr.sin_addr) != 1) { fprintf(stderr, "invalid IPv4 address: %s\n", host.c_str()); return 1; }
     if (bind(ls, (sockaddr*)&addr, sizeof(addr)) != 0 || listen(ls, 16) != 0) { fprintf(stderr, "cannot listen on %d\n", port); return 1; }
     printf("seedplane-worker ready on %s:%d (dev=%s, slots=%d, threads/slot=%d, ctx=%d)\n",
            host.c_str(), port, dev_name.empty() ? "auto" : dev_name.c_str(), slots, threads, n_ctx); fflush(stdout);
@@ -202,14 +212,22 @@ int main(int argc, char** argv) {
         std::thread([&, cs, s]() {
             setsockopt(cs, IPPROTO_TCP, TCP_NODELAY, (const char*)&yes, sizeof(yes));
             uint32_t klen = 0; std::string got;
-            if (read_all(cs, &klen, 4) && klen < 4096) { got.resize(klen); read_all(cs, &got[0], klen); }
+            if (read_all(cs, &klen, 4) && klen > 0 && klen < 4096) { got.resize(klen); if (!read_all(cs, got.data(), klen)) got.clear(); }
             uint32_t ok = (got == key) ? 1u : 0u; write_all(cs, &ok, 4);
             std::vector<int32_t> tok, pos;
             while (ok) {
                 Req q; if (!read_all(cs, &q, sizeof(q)) || q.magic != MAGIC || q.want == 2) break;
-                if ((q.want < 3 && (int)q.n_tok > n_ctx) || q.n_tok == 0 || q.n_tok > (1u << 24)) { fprintf(stderr, "window of %u tokens > ctx %d\n", q.n_tok, n_ctx); break; }
+                if (q.want > 4 || q.n_tok == 0 || q.n_tok > (1u << 24) || q.core_off > q.n_tok || q.score_from > q.n_tok ||
+                    (q.want < 3 && (int)q.n_tok > n_ctx)) {
+                    fprintf(stderr, "invalid request (want=%u tokens=%u core_off=%u score_from=%u ctx=%d)\n",
+                            q.want, q.n_tok, q.core_off, q.score_from, n_ctx); break;
+                }
                 tok.resize(q.n_tok); pos.resize(q.n_tok);
                 if (!read_all(cs, tok.data(), 4 * q.n_tok) || !read_all(cs, pos.data(), 4 * q.n_tok)) break;
+                bool valid = q.next_tok >= -1 && q.next_tok < n_vocab;
+                for (uint32_t i = 0; valid && i < q.n_tok; i++)
+                    valid = tok[i] >= 0 && tok[i] < n_vocab && pos[i] >= 0 && (i == 0 || pos[i] > pos[i - 1]);
+                if (!valid) { fprintf(stderr, "invalid token id, next token, or position sequence\n"); break; }
                 auto t0 = std::chrono::high_resolution_clock::now(); Resp r{MAGIC, 0.0, 0, -1, 0.f};
                 if (!run_window(pool[s], n_vocab, q, tok, pos, r)) break;
                 r.compute_ms = std::chrono::duration<float, std::milli>(std::chrono::high_resolution_clock::now() - t0).count();

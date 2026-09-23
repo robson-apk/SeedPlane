@@ -1,0 +1,10 @@
+cff-version: 1.2.0
+message: "If you use SeedPlane, please cite this software."
+title: "SeedPlane: Parallel Long-Context Prefill Across Heterogeneous Devices"
+type: software
+authors:
+  - family-names: "Robson"
+repository-code: "https://github.com/robson-apk/SeedPlane"
+license: MIT
+version: 0.12.1
+date-released: 2026-09-23

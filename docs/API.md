@@ -5,7 +5,8 @@ any mix of devices: CPU cores, GPUs (CUDA, Intel XPU, Apple MPS) and other compu
 Weights are never modified — SeedPlane only changes *which tokens each position attends to* and *where the work runs*.
 
 ```bash
-pip install -e .            # from a clone of this repository (Python ≥ 3.9, PyTorch ≥ 2.2)
+python -m pip install --upgrade pip
+python -m pip install -e .  # from a clone of this repository (Python ≥ 3.9, PyTorch ≥ 2.2)
 seedplane --help
 ```
 
@@ -37,10 +38,8 @@ Any Hugging Face `AutoModelForCausalLM` checkpoint that accepts `position_ids` w
 ### `seedplane serve` — turn a device into a worker
 ```bash
 export SEEDPLANE_AUTHKEY="a long random secret"          # same value on every machine
-seedplane serve --bundle ./qwen05.sp --device cpu  --port 52000 --threads 1   # one CPU core
-seedplane serve --bundle ./qwen05.sp --device cuda --port 52001               # an NVIDIA GPU
-seedplane serve --bundle ./qwen05.sp --device xpu  --port 52002               # an Intel Arc GPU
-seedplane serve --bundle ./qwen05.sp --device mps  --port 52003               # an Apple GPU
+seedplane serve --bundle ./qwen05.sp --device cpu --port 52000 --threads 1              # loopback only (default)
+seedplane serve --bundle ./qwen05.sp --device xpu --port 52002 --host 192.168.1.20       # LAN: explicit key required
 ```
 One worker = one process on one device. Start as many as you have cores/GPUs, on as many machines as you like.
 
@@ -98,9 +97,10 @@ Workers are `multiprocessing.connection.Listener`s. The coordinator sends
 `('windows', ids, [(core_start, core_end, index), …], want)` with `want ∈ {'nll', 'prefill', 'next'}` and receives
 `(results, compute_seconds)`. `('close',)` ends the session; the worker keeps listening for the next coordinator.
 
-**Security.** The transport uses pickle. Anyone who can reach a worker port and knows the key can run code on that
-machine. Use a trusted LAN only, set `SEEDPLANE_AUTHKEY` to a long random secret on every machine, and never forward
-worker ports to the internet.
+**Security.** The transport uses pickle and is not encrypted. Anyone who can reach a worker port and knows or observes
+the key can run code on that machine. Workers bind to `127.0.0.1` by default and refuse a non-loopback bind unless
+`SEEDPLANE_AUTHKEY` is explicitly set. Use a trusted LAN or an SSH/VPN tunnel, choose a long random key, and never expose
+worker ports to the internet. See [SECURITY.md](../SECURITY.md).
 
 ---
 
@@ -126,8 +126,8 @@ and the model is a GGUF file.
 c++ -std=c++17 -O3 native/seedplane-worker.cpp -I $LLAMA/include -I $LLAMA/ggml/include \
     -L $LLAMA/build/bin -lllama -lggml -lggml-base -Wl,-rpath,$LLAMA/build/bin -o seedplane-worker
 export SEEDPLANE_AUTHKEY="a long random secret"
-./seedplane-worker -m qwen2.5-0.5b-instruct-fp16.gguf --port 54000 --ngl 99      # GPU
-./seedplane-worker -m qwen2.5-0.5b-instruct-fp16.gguf --port 54001 --ngl 0 -t 4  # 4 CPU threads
+./seedplane-worker -m qwen2.5-0.5b-instruct-fp16.gguf --port 54000 --ngl 99                    # loopback
+./seedplane-worker -m qwen2.5-0.5b-instruct-fp16.gguf --port 54001 --ngl 0 -t 4 --host 10.0.0.2 # trusted LAN
 ```
 
 ```python

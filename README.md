@@ -1,9 +1,14 @@
 <h1 align="center">SeedPlane</h1>
 
 <p align="center">
-  <b>What if AI stopped thinking in single file?</b><br>
-  Split the page into shards. Let every CPU core write its own part — at the same time.
+  <b>Parallel long-context prefill and scoring across heterogeneous devices.</b><br>
+  Split a prompt into independent shard windows and run them concurrently on CPUs, GPUs and machines.
 </p>
+
+> [!IMPORTANT]
+> SeedPlane is alpha research software. The current implementation accelerates prompt prefill and perplexity scoring;
+> it does **not** yet provide token-by-token text generation after sharded prefill. Sharding changes the attention
+> pattern, so quality depends on shard and halo sizes. See the measured trade-offs and failed hypotheses below.
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT"></a>
@@ -98,13 +103,17 @@ Full API: [docs/API.md](docs/API.md).
 
 ---
 
-## The blank page isn't a queue. It's a territory.
+## From diffusion research to real-model prefill
 
-Language models write the way we have since Gutenberg: one word, then the next, then the next. **SeedPlane borrows a trick from open-world game engines instead** — split the world into chunks and let every core render its own chunk at once.
+SeedPlane borrows a spatial partitioning idea from game engines: split a long prompt into chunks and let each worker
+process an independent window concurrently. This applies to prompt processing and scoring today—not autoregressive generation.
 
-- **Spatial shards** — the page is cut into 128-token shards, spread across the cores.
-- **Parallel refinement** — every shard fills in its hidden words over 16 steps, all shards at the same time.
-- **A thin seam** — each shard reads a 16-token halo from its neighbours; a versioned message envelope makes sure no late, duplicated or foreign update ever lands.
+The project contains two connected research tracks:
+
+- **Current causal-LM path** — existing Hugging Face or GGUF models process independent shard windows consisting of a
+  core, a preceding halo, and optional attention sinks. No weights are changed.
+- **Original masked-diffusion path** — the V4–V10 experiments fill hidden words over refinement steps and use versioned
+  envelopes to reject late, duplicated, or foreign boundary updates. The animation below shows this historical track.
 
 <p align="center">
   <picture>
@@ -113,7 +122,8 @@ Language models write the way we have since Gutenberg: one word, then the next, 
   </picture>
 </p>
 
-A traditional Transformer makes every word attend to every other word — cost grows with the square of the length. SeedPlane only looks inside the shard and its halo, so the work grows linearly and splits cleanly across cores.
+A full-attention Transformer compares tokens across the whole prompt. SeedPlane bounds each worker's view to its shard
+window, reducing attention work and making prompt processing parallelizable at the cost of long-range context.
 
 ---
 
@@ -262,15 +272,22 @@ Live concurrency test: **0 / 120** stale model outputs accepted, **120 / 120** c
 ```bash
 git clone https://github.com/robson-apk/SeedPlane.git
 cd SeedPlane
-python3 demo.py                     # zero-dependency visual demo
+python3 demo.py                     # zero-dependency layout tour (not a benchmark)
+python3 -m pip install --upgrade pip
+python3 -m pip install -e .
+seedplane --help
 ```
+
+The demo explains the current shard/halo layout without claiming measured performance. Real-model usage and native
+worker build instructions are in [docs/API.md](docs/API.md).
 
 <details>
 <summary>Reproduce the experiments</summary>
 
 ```bash
-pip install -r requirements.txt
-# needs the TinyStories validation text at data/TinyStories-valid.txt (cache is built on first run)
+python3 -m pip install -r requirements.txt
+# Download the TinyStories validation split and save it as data/TinyStories-valid.txt.
+# The cache is built locally on the first run and is intentionally git-ignored.
 python3 experiments/v8/v8.py --cache data/tinystories_word1024_cache.pt --ckpt checkpoints/v6_mdlm_d256_l6_seed1.pt
 python3 experiments/v7/v7.py train_a && python3 experiments/v7/v7.py train_b && python3 experiments/v7/v7.py eval
 python3 docs/record_trajectory.py && python3 docs/make_gifs.py && python3 docs/make_charts.py
@@ -285,10 +302,10 @@ Every experiment folder has `PROTOCOL.md` (criteria, written first), the code, r
 
 ```text
 SeedPlane/
-├── demo.py            # zero-dependency visual demo
+├── demo.py            # zero-dependency shard/halo layout tour
 ├── seedplane/         # original model + router code
 ├── checkpoints/       # original toy + V6 denoiser
-├── experiments/       # v4 … v9 — protocol, code, raw results, verdict
+├── experiments/       # v4 … v14 — protocol, code, raw results, verdict
 ├── docs/              # charts, GIFs and the scripts that render them
 └── data/              # local corpus/cache (git-ignored)
 ```
@@ -302,7 +319,7 @@ SeedPlane/
 ```bibtex
 @software{seedplane2026,
   author = {Robson},
-  title  = {SeedPlane: Spatial Text Diffusion Across Independent CPU Cores},
+  title  = {SeedPlane: Parallel Long-Context Prefill Across Heterogeneous Devices},
   url    = {https://github.com/robson-apk/SeedPlane},
   year   = {2026}
 }

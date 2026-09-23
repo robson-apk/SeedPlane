@@ -55,6 +55,11 @@ def _split(devs, n_layers, layer_gb):
 
 def plan_pipeline(devs, n_layers, layer_gb=0.0, hidden=4096, ubatch=512, act_dtype_bytes=2):
     """Try every device subset (in the given order = pipeline order) and return the fastest predicted Plan."""
+    if not devs: raise ValueError('at least one device is required')
+    if n_layers <= 0 or layer_gb < 0 or hidden <= 0 or ubatch <= 0 or act_dtype_bytes <= 0:
+        raise ValueError('layers, hidden, ubatch and dtype size must be positive; layer_gb must be non-negative')
+    if any(d.tok_s <= 0 or d.mem_gb < 0 or d.link_gbps <= 0 or d.link_ms < 0 for d in devs):
+        raise ValueError('device rates/bandwidth must be positive and memory/latency non-negative')
     act = hidden * act_dtype_bytes; best = None
     for k in range(1, len(devs) + 1):
         for sub in combinations(range(len(devs)), k):

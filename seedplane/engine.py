@@ -19,8 +19,14 @@ class ShardPlan:
     halo: int = 256       # H: tokens borrowed from the previous shard
     sinks: int = 4        # first tokens of the sequence visible to every shard (0 = off)
 
+    def __post_init__(self):
+        if self.shard <= 0: raise ValueError('shard must be greater than zero')
+        if self.halo < 0: raise ValueError('halo must be non-negative')
+        if self.sinks < 0: raise ValueError('sinks must be non-negative')
+
     def windows(self, L):
         """Yield (core_start, core_end, index_array) with the token indices each window reads, in order."""
+        if L < 0: raise ValueError('sequence length must be non-negative')
         for c0 in range(0, L, self.shard):
             c1 = min(L, c0 + self.shard); h0 = max(0, c0 - self.halo)
             sink = list(range(min(self.sinks, h0))) if self.sinks else []
@@ -30,7 +36,7 @@ class ShardPlan:
 def load_model(path_or_id, device='cpu', dtype=torch.float32):
     from transformers import AutoModelForCausalLM, AutoTokenizer
     tok = AutoTokenizer.from_pretrained(path_or_id)
-    model = AutoModelForCausalLM.from_pretrained(path_or_id, dtype=dtype).to(device).eval()
+    model = AutoModelForCausalLM.from_pretrained(path_or_id, torch_dtype=dtype).to(device).eval()
     return model, tok
 
 
@@ -63,7 +69,7 @@ def save_bundle(out_dir, model_id, plan):
     """`seedplane convert`: a bundle = the original safetensors + tokenizer + seedplane.json (shard plan, provenance)."""
     from transformers import AutoModelForCausalLM, AutoTokenizer
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
-    AutoModelForCausalLM.from_pretrained(model_id, dtype=torch.float32).save_pretrained(out, safe_serialization=True)
+    AutoModelForCausalLM.from_pretrained(model_id, torch_dtype=torch.float32).save_pretrained(out, safe_serialization=True)
     AutoTokenizer.from_pretrained(model_id).save_pretrained(out)
     (out / 'seedplane.json').write_text(json.dumps({'source': model_id, 'plan': asdict(plan), 'format': 'seedplane-bundle/1',
                                                     'note': 'weights unchanged; SeedPlane only changes how attention is scheduled'}, indent=1))

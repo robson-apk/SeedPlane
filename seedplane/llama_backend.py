@@ -11,11 +11,12 @@ MAGIC = 0x31575053                      # "SPW1"
 REQ = struct.Struct('<IIIIIi')           # magic, want, n_tok, core_off, score_from, next_tok
 RESP = struct.Struct('<IdIif')           # magic, nll_sum, n_scored, argmax_last, compute_ms
 WANT = {'prefill': 0, 'nll': 1, 'close': 2, 'span': 3, 'span_nll': 4}   # span*: KV halo reuse (worker --span-chunk/--span-keep)
+DEFAULT_AUTH = 'seedplane-loopback-only'
 
 
 class Worker:
     def __init__(self, host, port, key=None, timeout=600, slot=0):
-        self.name = f'{host}:{port}' + (f'#{slot}' if slot else ''); key = (key or os.environ.get('SEEDPLANE_AUTHKEY', 'seedplane-local-default')).encode()
+        self.name = f'{host}:{port}' + (f'#{slot}' if slot else ''); key = (key or os.environ.get('SEEDPLANE_AUTHKEY', DEFAULT_AUTH)).encode()
         deadline = time.time() + timeout
         while True:
             try: self.s = socket.create_connection((host, port), timeout=timeout); break
@@ -43,7 +44,9 @@ class Worker:
         self.s.sendall(REQ.pack(MAGIC, WANT[want], len(tok), core_off, max(0, score_from - (c0 - core_off)), nxt) + tok.tobytes() + pos.tobytes())
 
     def recv(self):
-        magic, nll, n, argmax, ms = RESP.unpack(self._read(RESP.size)); return nll, n, argmax, ms
+        magic, nll, n, argmax, ms = RESP.unpack(self._read(RESP.size))
+        if magic != MAGIC: raise ConnectionError(f'{self.name}: invalid response magic 0x{magic:08x}')
+        return nll, n, argmax, ms
 
     def close(self):
         try: self.s.sendall(REQ.pack(MAGIC, 2, 0, 0, 0, -1))

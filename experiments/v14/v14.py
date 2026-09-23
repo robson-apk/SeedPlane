@@ -1,11 +1,11 @@
 """V14: exact layer pipeline over B580 + CPU + Mac via llama.cpp RPC, with the SeedPlane planner. See PROTOCOL.md."""
-import json, subprocess, sys, time
+import argparse, json, os, subprocess, sys, time
 from pathlib import Path
 ROOT = Path(__file__).resolve().parent; sys.path.insert(0, str(ROOT.parents[1]))
 from seedplane.planner import Device, plan_pipeline, _split
 
-B = r"F:\seedplane_build\llama.cpp\build_vk\bin"; G = r"C:\Users\Windows 11\seedplane_v12\llama\qwen2.5-0.5b-instruct-fp16.gguf"
-RPC = "127.0.0.1:50052,10.0.0.92:50053"; N_LAYERS, HIDDEN, LAYER_GB = 24, 896, 0.04
+B = G = RPC = None
+N_LAYERS, HIDDEN, LAYER_GB = 24, 896, 0.04
 PROMPT = "The history of the printing press begins in the fifteenth century, when"
 
 
@@ -31,6 +31,12 @@ def min1(split):
 
 
 def main():
+    global B, G, RPC
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument('--bin-dir', default=os.environ.get('LLAMA_BIN'), required='LLAMA_BIN' not in os.environ)
+    ap.add_argument('--gguf', default=os.environ.get('SEEDPLANE_GGUF'), required='SEEDPLANE_GGUF' not in os.environ)
+    ap.add_argument('--rpc', default=os.environ.get('SEEDPLANE_RPC', '127.0.0.1:50052,10.0.0.92:50053'))
+    a = ap.parse_args(); B, G, RPC = a.bin_dir, a.gguf, a.rpc
     out = ROOT / 'results'; out.mkdir(exist_ok=True); fp = out / 'v14.json'; k = 1
     while fp.exists(): fp = out / f'v14_{k}.json'; k += 1
     res = {'pre_bench_pp512': {}, 'conditions': {}, 'E1': {}}; save = lambda: fp.write_text(json.dumps(res, indent=1))

@@ -25,7 +25,20 @@ try:
 except ImportError:
     sys.path.insert(0, str(Path(__file__).resolve().parent)); import engine   # plain script: `python seedplane/cli.py ...`
 
-AUTH = os.environ.get('SEEDPLANE_AUTHKEY', 'seedplane-local-default').encode()
+DEFAULT_AUTH = 'seedplane-loopback-only'
+
+
+def authkey():
+    """Authentication key shared by coordinators and workers.
+
+    The fallback is intentionally restricted to loopback workers by cmd_serve;
+    listening on another interface requires an explicit secret.
+    """
+    return os.environ.get('SEEDPLANE_AUTHKEY', DEFAULT_AUTH).encode()
+
+
+def is_loopback(host):
+    return host in {'127.0.0.1', '::1', 'localhost'}
 
 
 def plan_of(bundle):
@@ -40,8 +53,10 @@ def cmd_convert(a):
 
 # ------------------------------------------------------------------ serve (a worker)
 def cmd_serve(a):
+    if not is_loopback(a.host) and 'SEEDPLANE_AUTHKEY' not in os.environ:
+        raise SystemExit('refusing non-loopback worker without SEEDPLANE_AUTHKEY; set a long random secret or use --host 127.0.0.1')
     torch.set_num_threads(a.threads); model, _ = engine.load_model(a.bundle, a.device)
-    with Listener((a.host, a.port), authkey=AUTH) as lst:
+    with Listener((a.host, a.port), authkey=authkey()) as lst:
         print(f'seedplane worker ready on {a.host}:{a.port} ({a.device}, {a.threads} thread(s))', flush=True)
         while True:
             conn = lst.accept()
@@ -70,6 +85,7 @@ def cmd_serve(a):
 # ------------------------------------------------------------------ run / bench (the coordinator)
 def start_workers(spec, bundle):
     """spec: 'local:cpu:4,local:xpu:1,HOST:PORT' -> list of (name, Client). Local workers are spawned here."""
+    if not spec.strip(): raise ValueError('at least one worker is required')
     procs, conns, port = [], [], 53000
     for item in spec.split(','):
         parts = item.split(':')
@@ -83,7 +99,7 @@ def start_workers(spec, bundle):
     clients = []
     for name, h, p in conns:
         for _ in range(240):
-            try: clients.append((name, Client((h, p), authkey=AUTH))); break
+            try: clients.append((name, Client((h, p), authkey=authkey()))); break
             except OSError: time.sleep(0.5)
         else: raise RuntimeError(f'worker {name} unreachable')
     return procs, clients
@@ -91,6 +107,8 @@ def start_workers(spec, bundle):
 
 def distribute(clients, ids, wins, want):
     """Calibrate each worker on one window, then assign windows proportionally to speed; returns results in window order."""
+    if not clients: raise ValueError('at least one worker is required')
+    if not wins: return [], 0.0, {n: 0 for n, _ in clients}
     speed = {}
     for name, c in clients:
         c.send(('windows', ids, wins[:1], want)); c.recv(); c.send(('windows', ids, wins[:1], want)); speed[name] = 1.0 / max(c.recv()[1], 1e-6)
@@ -113,6 +131,8 @@ def distribute_dynamic(clients, ids, wins, want, prior=None, timeline=None):
     Per-window time of each worker is tracked (EMA, seeded by `prior` or a 1-window probe). A worker only receives a
     window if it would finish it before the rest of the pool would finish the whole remaining queue without it
     (so a slow core or a far-away machine never becomes the straggler that holds the last window)."""
+    if not clients: raise ValueError('at least one worker is required')
+    if not wins: return [], 0.0, {n: 0 for n, _ in clients}
     from multiprocessing.connection import wait
     est = dict(prior or {})
     for name, c in clients:
@@ -150,6 +170,7 @@ def cmd_run(a):
     from transformers import AutoTokenizer
     tok = AutoTokenizer.from_pretrained(a.bundle)
     ids = np.array(tok(Path(a.prompt_file).read_text(encoding='utf-8', errors='ignore')).input_ids, dtype=np.int64)[: a.max_tokens]
+    if len(ids) < 2: raise SystemExit('prompt must contain at least two tokens for perplexity scoring')
     plan = plan_of(a.bundle); wins = list(plan.windows(len(ids))); procs, clients = start_workers(a.workers, a.bundle)
     try:
         nll, dt, split = (distribute_dynamic if a.scheduler == 'dynamic' else distribute)(clients, ids, wins, 'nll')
@@ -165,6 +186,7 @@ def cmd_run(a):
 def cmd_bench(a):
     dev = a.device; model, tok = engine.load_model(a.bundle, dev); plan = plan_of(a.bundle)
     ids = np.array(tok(Path(a.text_file).read_text(encoding='utf-8', errors='ignore')).input_ids, dtype=np.int64)
+    if len(ids) <= a.length: raise SystemExit(f'text must contain more than --length ({a.length}) tokens')
     rng = np.random.default_rng(0); res = []
     for _ in range(a.samples):
         s = int(rng.integers(0, len(ids) - a.length - 1)); seq = ids[s:s + a.length]
@@ -182,7 +204,7 @@ def main():
     c = sub.add_parser('convert', help='make a SeedPlane bundle from a Hugging Face model'); c.add_argument('model'); c.add_argument('out')
     c.add_argument('--shard', type=int, default=512); c.add_argument('--halo', type=int, default=256); c.add_argument('--sinks', type=int, default=0)
     s = sub.add_parser('serve', help='run a worker on this device'); s.add_argument('--bundle', required=True); s.add_argument('--device', default='cpu')
-    s.add_argument('--port', type=int, default=52000); s.add_argument('--host', default='0.0.0.0'); s.add_argument('--threads', type=int, default=1)
+    s.add_argument('--port', type=int, default=52000); s.add_argument('--host', default='127.0.0.1'); s.add_argument('--threads', type=int, default=1)
     r = sub.add_parser('run', help='process a long prompt across workers'); r.add_argument('--bundle', required=True); r.add_argument('--prompt-file', required=True)
     r.add_argument('--workers', default='local:cpu:4'); r.add_argument('--scheduler', choices=['dynamic', 'static'], default='dynamic'); r.add_argument('--max-tokens', type=int, default=8192)
     b = sub.add_parser('bench', help='quality + speed vs the original full attention'); b.add_argument('--bundle', required=True); b.add_argument('--text-file', required=True)

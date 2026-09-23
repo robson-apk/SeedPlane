@@ -35,6 +35,7 @@ def llama_bench(exe, gguf, extra, oneapi=False):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--bundle'); ap.add_argument('--gguf'); ap.add_argument('--llama'); ap.add_argument('--text'); ap.add_argument('--plan'); ap.add_argument('--mac', default='')
     ap.add_argument('--part', default='full,seedplane,llama')  # phases run in separate processes (PROTOCOL adendo 2)
+    ap.add_argument('--synapse-llama', help='optional path to local tuned llama.cpp builds')
     a = ap.parse_args(); parts = a.part.split(','); S, H, K = map(int, a.plan.split(','))
     from transformers import AutoTokenizer
     ids = np.array(AutoTokenizer.from_pretrained(a.bundle)(Path(a.text).read_text(encoding='utf-8', errors='ignore')).input_ids, dtype=np.int64)[:L]
@@ -73,10 +74,11 @@ def main():
     for t in (1, 2, 4, 6): res['llama_cpp'][f'cpu{t}'] = llama_bench(lp / 'cpu' / 'llama-bench.exe', a.gguf, ['-t', str(t), '-ngl', '0'])
     res['llama_cpp']['gpu_sycl_official'] = llama_bench(lp / 'sycl' / 'llama-bench.exe', a.gguf, ['-ngl', '99'])
     res['llama_cpp']['gpu_vulkan_official'] = llama_bench(lp / 'vulkan' / 'llama-bench.exe', a.gguf, ['-ngl', '99'])
-    syn = Path(r'F:\S.Y.N.A.P.S.E\llama.cpp')                      # the user's own B580-tuned builds (PRJ-010)
-    for b_ in ('build', 'build_dnn', 'build_vk_submitstats'):
-        exe = syn / b_ / 'bin' / 'llama-bench.exe'
-        if exe.exists(): res['llama_cpp'][f'gpu_synapse_{b_}'] = llama_bench(exe, a.gguf, ['-ngl', '99'], oneapi='vk' not in b_)
+    if a.synapse_llama:
+        syn = Path(a.synapse_llama)
+        for b_ in ('build', 'build_dnn', 'build_vk_submitstats'):
+            exe = syn / b_ / 'bin' / 'llama-bench.exe'
+            if exe.exists(): res['llama_cpp'][f'gpu_synapse_{b_}'] = llama_bench(exe, a.gguf, ['-ngl', '99'], oneapi='vk' not in b_)
     save(); print(json.dumps(res, indent=1))
 
 
