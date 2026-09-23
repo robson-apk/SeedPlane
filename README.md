@@ -40,9 +40,9 @@ Same model weights, same data, same decoding rule — only the attention layout 
 | 📈 Attention pairs, L=8192 | 67,108,864 | **1,310,720** | 🏆 **SeedPlane, 51× less** — the gap grows linearly with length |
 | 🌐 Scale-out | one device must hold the whole sequence | each worker holds one shard; neighbors exchange a thin halo | 🏆 **SeedPlane** |
 | ⏱️ Wall-clock, L=512 | **1.61 ms** | 2.07 ms | Traditional (coordination overhead dominates short inputs) |
-| 🔭 Information from far-away shards | sees everything | only what reaches it through neighbors | ⏳ Under test in **V7** |
+| 🔭 Recall of information ≥ 2 shards away (V7 synthetic task, 3 seeds) | **100%** | 1.5–1.7% (chance) | **Traditional** — SeedPlane's halos only carry what is written near the border |
 
-<sub>Accuracy: V6 denoiser (5.3M params), TinyStories, 50% masked, 16 iterative steps (`experiments/v6/results/analysis.json`, criterion H1a). The model was trained half on full sequences and half on shard windows; TinyStories stories are short, so far-away context carries little information there — V7 is the stress test for that. Timing: V5b pre-registered benchmark on the original toy model (`experiments/v5/PROTOCOL_V5b.md`). Attention pairs are exact arithmetic (L² vs shards × 128 × 160).</sub>
+<sub>Where SeedPlane wins, the relevant context is local (TinyStories); where information must travel across many shards (V7), global attention wins decisively. Accuracy: V6 denoiser (5.3M params), TinyStories, 50% masked, 16 iterative steps (`experiments/v6/results/analysis.json`, criterion H1a). The model was trained half on full sequences and half on shard windows; TinyStories stories are short, so far-away context carries little information there — V7 is the stress test for that. Timing: V5b pre-registered benchmark on the original toy model (`experiments/v5/PROTOCOL_V5b.md`). Attention pairs are exact arithmetic (L² vs shards × 128 × 160).</sub>
 
 ---
 
@@ -104,7 +104,7 @@ Every experiment has a protocol written before the run. Outcomes are recorded as
 | — | Earlier README claims ("3.5x", "+16.97% seam coherence") | ❌ Retracted: the first measured injected sleeps; the second did not replicate on 200 sequences |
 | — | Does the original toy checkpoint use context? | ❌ No (loss = unigram); V4/V5 quality tables are not evidence about seams. Fixed by the V6 model |
 | V6 | Do neighbor-only halos recover distant info on TinyStories? | ⚪ Inconclusive — TinyStories has too little long-range dependency to test it |
-| **V7** | Same question on a task where distant info is **required**: token halos vs latent messages between neighbors | ⏳ **Running.** The reference model already solves the task at 100% at every distance; the verdict will land in `experiments/v7/RESULTS.md` |
+| V7 | Same question on a task where distant info is **required** | ❌ Token halos recover nothing beyond the neighbor (chance vs 100% for global attention). ❌ A latent-message variant did not learn to use its channel. SeedPlane's quality edge holds for **local** context only |
 
 ---
 
@@ -174,7 +174,8 @@ SeedPlane/
 │   ├── v5/                  # Self-audit: PROTOCOL*.md, RESULTS.md, scripts
 │   │   └── results/         # Raw JSON results
 │   ├── v6/                  # Iterative sharded diffusion (pre-registered; inconclusive)
-│   └── v7/                  # Synthetic long-range test: token halo vs latent messages (in progress)
+│   ├── v7/                  # Synthetic long-range test: token halo vs latent messages (both failed)
+│   └── v8/                  # Head-to-head speed + quality on the same model (pre-registered; running)
 ├── docs/                    # Historical V4 write-up
 ├── data/                    # Local corpus/cache (git-ignored)
 ├── requirements.txt
