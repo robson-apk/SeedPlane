@@ -114,7 +114,7 @@ The experiments need the TinyStories validation text at `data/TinyStories-valid.
 
 2. **What Remains (with limits):**
    * **Sharding is faster only at longer contexts, on this toy model:** ~1.4x vs a 4-thread global forward at L=1024; slower at L=512. This is the known cost profile of block-local attention, not a new mechanism, and quality relative to a global model was not measured.
-   * **Adaptive deferral:** earlier drafts cited "+16.97% seam coherence"; no script or result file reproducing that number exists in this repository, so it is withdrawn until re-measured.
+   * **Adaptive deferral:** earlier drafts cited "+16.97% seam coherence". Its source was later found in the predecessor prototype CLMP-dLM v3, where it was measured on 10 sequences (~340 boundary bytes). A paired re-test on 200 sequences with the same evaluation code gave **−0.2 to −0.4 pp** (95% CI includes 0) on both training seeds. The claim is withdrawn as not replicated.
 
 ---
 
