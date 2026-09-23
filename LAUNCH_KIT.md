@@ -7,35 +7,36 @@ Use these pre-formatted templates to publish SeedPlane to the AI / open-source c
 ## 1. Hacker News (news.ycombinator.com)
 
 **Title:**
-> Show HN: SeedPlane – Asynchronous text diffusion across CPU cores using Hadamard codes
+> Show HN: SeedPlane – Spatial text diffusion across CPU cores (Hadamard keys vs. message envelopes)
 
 **Body / First Comment:**
 ```text
 Hey HN,
 
-Modern LLMs are stuck in an O(N) sequential bottleneck: generating token t+1 requires waiting for token t. Distributing autoregressive generation across machines requires ultra-fast InfiniBand/NVLink networks to keep GPUs in lockstep every single token.
+Modern LLMs are stuck in an O(N) sequential bottleneck: generating token t+1 requires waiting for token t. Distributing autoregressive generation across machines requires expensive InfiniBand/NVLink networks to keep GPUs in lockstep every single token.
 
 I wanted to explore an alternative inspired by procedural world generation in video games:
-What if text could be partitioned into independent spatial chunks (shards) rendered by independent CPU cores or worker threads, without needing a global attention lock or centralized KV cache?
+What if text could be partitioned into independent spatial chunks (shards) rendered concurrently by independent CPU cores, without needing a global attention lock or centralized KV cache?
 
-The main challenge with sharded diffusion is boundary drift: neighboring workers disagree on the overlapping seam ("halo").
+In this project (SeedPlane), I explored two things:
+1. Spatial Sharding: Denoising 128-token text chunks across independent CPU worker processes. This yielded a 3.5x wall-clock speedup (scaling from ~41ms down to ~12ms on 4 CPU workers).
+2. Boundary Coordination: How to route and filter overlapping "halo" proposals without shared-memory locks.
 
-In SeedPlane, I introduced a hardware coordination layer using deterministic Hadamard orthogonal codes:
-1. Each boundary b gets an orthogonal key K_b from an H_32 Sylvester Hadamard matrix.
-2. The owner core expects +K_b; borrowed halo proposals from neighbors carry -K_b.
-3. Compatibility is computed via max(0, -cos(K_source, K_owner)).
-4. Matching takes ~0.006 ms.
+We started with an elegant mathematical hypothesis (V4): using deterministic Sylvester Hadamard orthogonal keys (+K_b / -K_b) so foreign boundary proposals cancel out by orthogonality.
 
-In stress tests simulating asynchronous network chaos with 50% corrupted / stale packets injected into the boundaries, the SeedPlane router achieved +0.0000000 boundary NLL degradation (100% foreign noise rejection) because foreign Hadamard keys are strictly orthogonal.
+Then, we conducted an exhaustive peer-audit (V5, 270,000 decisions, 180 paired runs) comparing Hadamard vectors against a classic engineering baseline: lightweight message envelopes (request_id, generation_step, boundary_id).
 
-I also added an adaptive disagreement-defer scheduler that defers token commitment only when cores disagree, giving a +16.97% boost in boundary coherence.
+What we learned:
+- Hadamard matching is mathematically isomorphic to integer boundary matching, but introduces modulo-32 collisions and cannot detect temporal staleness (delayed steps from the same boundary).
+- An exact message envelope matches the output with 0.0000000 difference at lower CPU overhead.
+- However, the underlying spatial diffusion sharding and adaptive disagreement-defer scheduler (+16.97% seam coherence) are genuinely effective on commodity CPUs.
 
 The repository includes a standalone zero-dependency terminal demo:
 `python3 demo.py`
 
-Code, paper notes, and weights: https://github.com/robson-apk/SeedPlane
+Full code, weights, and replication scripts for the audit: https://github.com/robson-apk/SeedPlane
 
-I built this on commodity hardware (Ryzen 5600X + Intel Arc B580) and would love feedback from systems & ML engineers on scaling this to true multi-device mesh clusters!
+I built this on commodity hardware (Ryzen 5600X + Intel Arc B580) and would love feedback from distributed systems and ML researchers!
 ```
 
 ---
@@ -43,26 +44,22 @@ I built this on commodity hardware (Ryzen 5600X + Intel Arc B580) and would love
 ## 2. Reddit — r/LocalLLaMA
 
 **Post Title:**
-> [Project] SeedPlane: Breaking the autoregressive sequential bottleneck with asynchronous multi-core diffusion & Hadamard routing
+> [Project] SeedPlane: Exploring asynchronous spatial text diffusion on CPU cores (and what we learned auditing Hadamard routing)
 
 **Post Body:**
 ```markdown
 Hey r/LocalLLaMA,
 
-We all know the biggest pain point of running LLMs locally: autoregressive generation is strictly sequential. You wait token by token, and scaling across multiple consumer CPUs or GPUs usually hits a memory-bandwidth / synchronization wall.
+We all know the biggest pain point of running local LLMs: autoregressive generation is strictly sequential. You wait token by token, and scaling across multiple consumer CPU cores usually hits memory-bandwidth walls.
 
-I've been working on an alternative architecture called **SeedPlane**.
+I've been working on an open-source research prototype called **SeedPlane**.
 
-Instead of generating text left-to-right, it treats text as an open spatial field (like chunks in Minecraft). 
+Instead of generating text left-to-right, it treats text as an open spatial field (like chunks in Minecraft):
 
 ### How it works:
-1. **Spatial Sharding:** Text is divided into 128-token shards handled by independent CPU cores.
-2. **Zero-Cost Coordination:** Instead of putting position embeddings into the network, each boundary between cores is assigned a deterministic Hadamard orthogonal key ($+K_b$ / $-K_b$).
-3. **Instant Filtering:** Boundary matching takes 0.006 ms. If a worker gets a delayed, out-of-order, or corrupt boundary proposal, it gets mathematically zeroed out by Hadamard orthogonality.
-4. **Adaptive Deferral:** When cores agree on a boundary, tokens lock. When they disagree, it triggers a quick local localized diffusion pass (`disagreement-defer`), boosting seam coherence by +16.97%.
-
-### CPU Scaling:
-On sequence lengths of 16,384 tokens on CPU, 4 parallel shards showed a **3.71x speedup** over the sequential forward pass.
+1. **Spatial Sharding:** Text is divided into 128-token shards handled concurrently by independent CPU cores. On 4 workers, median generation latency dropped from ~41.8ms to ~11.9ms (**3.5x speedup** on standard CPU threads).
+2. **Boundary Coordination & The V5 Audit:** We initially tested parameter-free Hadamard orthogonal keys to coordinate shard boundaries. In our audit, we stress-tested this against classic message envelopes (`request_id, generation_step, boundary_id`). We found that exact envelopes match the output with 0.0000000 difference while completely eliminating staleness and modulo collisions.
+3. **Adaptive Seam Deferral:** When neighboring cores disagree on the overlapping seam, the system defers commitment and schedules a quick localized denoising pass (`disagreement-defer`), boosting boundary coherence by +16.97%.
 
 It has a 10-second interactive CLI demo that requires ZERO dependencies (pure Python):
 ```bash
@@ -71,7 +68,7 @@ cd SeedPlane
 python3 demo.py
 ```
 
-GitHub: https://github.com/robson-apk/SeedPlane
+Full audit write-up & code: https://github.com/robson-apk/SeedPlane
 
 Would love to hear thoughts on how we can push non-autoregressive local inference further!
 ```
@@ -85,28 +82,28 @@ Would love to hear thoughts on how we can push non-autoregressive local inferenc
 >
 > What if we rendered text like a procedural video game world across independent CPU cores?
 >
-> Introducing SeedPlane: Asynchronous Text Diffusion via Hadamard Coordination Codes. 🧵👇
+> Introducing SeedPlane: Spatial Text Diffusion across CPU cores. 🧵👇
 
-**Tweet 2 (The Problem):**
-> Autoregressive models are memory-bound. Distributing them requires expensive NVLink/InfiniBand clusters just to synchronize every token.
+**Tweet 2 (The Multi-Core Speedup):**
+> In autoregressive models, distributing across cores hits a memory wall.
 >
-> Diffusion models could generate in parallel, but sharding text causes severe "seam divergence" at the boundaries between cores.
+> With spatial diffusion sharding, 4 persistent CPU worker processes dropped latency from 41.8ms to 11.9ms (3.5x speedup) on context L=1024.
 
-**Tweet 3 (The Core Innovation):**
-> SeedPlane solves this with zero network locks using Hadamard Orthogonal Codes:
+**Tweet 3 (The Hadamard Hypothesis & The Audit):**
+> We first tested Sylvester Hadamard orthogonal keys for lock-free boundary routing.
 >
-> 🔹 Each core boundary gets a key K_b from an H_32 Hadamard matrix.
-> 🔹 Owner core: +K_b | Borrowed Halo: -K_b
-> 🔹 Matching cost: ~0.006 ms!
-> 🔹 Foreign / out-of-order packets receive cos ≈ 0 and vanish.
+> Then we audited it against simple message envelopes (request_id, step, boundary_id).
+>
+> Result: Envelopes produce identical outputs with zero modulo collisions and detect staleness. Real science > hype!
 
-**Tweet 4 (The Numbers):**
-> 📊 Stress-test results:
-> • Under 50% simulated asynchronous cross-talk & corruption: +0.0000000 NLL degradation.
-> • Adaptive disagreement-defer scheduler: +16.97% boundary coherence.
-> • 3.71x speedup on CPU at 16k context length.
+**Tweet 4 (Adaptive Seam Deferral):**
+> When cores disagree on overlapping boundaries, naive systems guess.
+>
+> SeedPlane uses `disagreement-defer`: defer commitment and allocate a local localized diffusion pass.
+> 
+> Result: +16.97% boost in boundary coherence.
 
-**Tweet 5 (Call to Action):**
+**Tweet 5 (Open Source & Demo):**
 > Built on commodity hardware (Ryzen 5600X). 
 >
 > Try the zero-dependency interactive demo right now in your terminal:
@@ -120,15 +117,14 @@ Would love to hear thoughts on how we can push non-autoregressive local inferenc
 ## 4. LinkedIn Post
 
 ```text
-Excited to release SeedPlane — an open-source research architecture exploring asynchronous, non-blocking text diffusion across independent CPU cores.
+Excited to share SeedPlane — an open-source research project exploring spatial text diffusion across independent CPU cores.
 
-In traditional Large Language Models (LLMs), generation is inherently sequential: token t+1 depends strictly on token t. This creates massive memory-bandwidth bottlenecks and requires ultra-low-latency interconnects to distribute.
+In traditional Large Language Models (LLMs), generation is inherently sequential: token t+1 depends strictly on token t. 
 
-SeedPlane re-imagines text generation as spatial rendering:
-- Text is partitioned into autonomous shards processed concurrently by independent cores.
-- Boundaries are coordinated through deterministic Hadamard orthogonal codes (+K_b / -K_b).
-- Boundary matching executes in ~0.006 ms without shared memory locks.
-- Even under 50% simulated asynchronous message corruption, boundary NLL degradation remained +0.0000000.
+SeedPlane explores spatial rendering:
+- Text is partitioned into autonomous shards processed concurrently by independent CPU workers, achieving a 3.5x wall-clock speedup across 4 cores.
+- An adaptive disagreement-defer scheduler boosts boundary coherence by +16.97%.
+- In our V5 peer-audit (270,000 decisions), we compared our initial Hadamard routing against exact message envelopes, establishing clear trade-offs between algebraic keys and classic networking envelopes.
 
 Try the interactive demo (pure Python, zero dependencies required):
 https://github.com/robson-apk/SeedPlane

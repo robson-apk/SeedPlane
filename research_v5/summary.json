@@ -1,0 +1,162 @@
+{
+  "verdict": "NO_INCREMENTAL_ADVANTAGE_OVER_EXACT_ENVELOPE",
+  "routing_cases": 54000,
+  "runtime_batches": 108,
+  "independent_paired_comparisons": 180,
+  "max_output_difference_exact_vs_v5": 0.0,
+  "comparisons": [
+    {
+      "workers": 1,
+      "seed": 11,
+      "n_pairs": 20,
+      "baseline_median_ms": 41.89533350000008,
+      "v5_median_ms": 40.74941600000015,
+      "relative_time_reduction": -0.002606607800694105,
+      "ci95": [
+        -0.026420275028944045,
+        0.025506033994248407
+      ],
+      "passes_10pct_gate": false
+    },
+    {
+      "workers": 1,
+      "seed": 23,
+      "n_pairs": 20,
+      "baseline_median_ms": 43.42943749999995,
+      "v5_median_ms": 45.27008300000013,
+      "relative_time_reduction": 0.00247017485054557,
+      "ci95": [
+        -0.030153491730172677,
+        0.03184728804539715
+      ],
+      "passes_10pct_gate": false
+    },
+    {
+      "workers": 1,
+      "seed": 37,
+      "n_pairs": 20,
+      "baseline_median_ms": 41.53410399999969,
+      "v5_median_ms": 41.909583000000254,
+      "relative_time_reduction": -0.012799066771070677,
+      "ci95": [
+        -0.04981934247233076,
+        0.021213050285176893
+      ],
+      "passes_10pct_gate": false
+    },
+    {
+      "workers": 2,
+      "seed": 11,
+      "n_pairs": 20,
+      "baseline_median_ms": 20.60181250000026,
+      "v5_median_ms": 20.53483349999974,
+      "relative_time_reduction": 0.006104152667348872,
+      "ci95": [
+        -0.008653825877472775,
+        0.020129067342295616
+      ],
+      "passes_10pct_gate": false
+    },
+    {
+      "workers": 2,
+      "seed": 23,
+      "n_pairs": 20,
+      "baseline_median_ms": 22.007645499998674,
+      "v5_median_ms": 21.949604500000497,
+      "relative_time_reduction": 0.005535273530722917,
+      "ci95": [
+        -0.0041154636593305595,
+        0.014883614276542275
+      ],
+      "passes_10pct_gate": false
+    },
+    {
+      "workers": 2,
+      "seed": 37,
+      "n_pairs": 20,
+      "baseline_median_ms": 22.683583000000063,
+      "v5_median_ms": 22.447145499999266,
+      "relative_time_reduction": -0.008044148314243271,
+      "ci95": [
+        -0.020316843937705564,
+        0.004502885211251257
+      ],
+      "passes_10pct_gate": false
+    },
+    {
+      "workers": 4,
+      "seed": 11,
+      "n_pairs": 20,
+      "baseline_median_ms": 11.95320849999959,
+      "v5_median_ms": 12.561020499999742,
+      "relative_time_reduction": -0.0443101056466213,
+      "ci95": [
+        -0.08357257821156729,
+        -0.01053926325116473
+      ],
+      "passes_10pct_gate": false
+    },
+    {
+      "workers": 4,
+      "seed": 23,
+      "n_pairs": 20,
+      "baseline_median_ms": 12.955729499998903,
+      "v5_median_ms": 12.877520500000017,
+      "relative_time_reduction": 0.005398170934133084,
+      "ci95": [
+        -0.007759776188658568,
+        0.018103889769138286
+      ],
+      "passes_10pct_gate": false
+    },
+    {
+      "workers": 4,
+      "seed": 37,
+      "n_pairs": 20,
+      "baseline_median_ms": 13.282562500000594,
+      "v5_median_ms": 13.535854000000569,
+      "relative_time_reduction": -0.023370280635635732,
+      "ci95": [
+        -0.03899597033431494,
+        -0.010334060230609935
+      ],
+      "passes_10pct_gate": false
+    }
+  ],
+  "live_stale": {
+    "unfiltered": {
+      "stale_accepted": 120,
+      "current_accepted": 120
+    },
+    "boundary_id": {
+      "stale_accepted": 120,
+      "current_accepted": 120
+    },
+    "hadamard_v4": {
+      "stale_accepted": 120,
+      "current_accepted": 120
+    },
+    "exact_envelope": {
+      "stale_accepted": 0,
+      "current_accepted": 120
+    },
+    "seedplane_v5": {
+      "stale_accepted": 0,
+      "current_accepted": 120
+    }
+  },
+  "engineering_unit_tests": 3,
+  "environment": {
+    "python": "3.9.6 (default, Aug 25 2026, 21:26:21) \n[Clang 21.0.0 (clang-2100.3.34.2)]",
+    "platform": "macOS-27.0-arm64-arm-64bit"
+  },
+  "limitations": [
+    "Single toy checkpoint; seeds vary sampling/scheduling not training.",
+    "Center-head halo fusion, not original five-head fusion or multi-step generation.",
+    "Single host CPU; no cross-machine network, GPU or large-model benchmark.",
+    "Synthetic fault injection and scheduled delays, not measured production failure rates.",
+    "Peak worker RSS is not summed physical memory.",
+    "Metadata byte counts in microbenchmark are hypothetical wire formats; actual Hadamard key may be regenerated from ID, which removes claimed wire-vector cost but retains ID matching equivalence.",
+    "Frozen checkpoint lacks independent tokenizer provenance verification; paired routing comparisons share the same vocabulary and predictions."
+  ]
+}

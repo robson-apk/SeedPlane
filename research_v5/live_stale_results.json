@@ -1,0 +1,2045 @@
+{
+  "scope": "Actual different masked inputs, real concurrent old/current inference with generation bump; 25ms controlled delay on old tasks. No word permutation. Not multi-step diffusion training.",
+  "rows": [
+    {
+      "seed": 11,
+      "rep": 0,
+      "completion_order": [
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.032529416999999894,
+      "old_current_max_probability_difference": 0.01924022287130356,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "rep": 1,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.033821791999999906,
+      "old_current_max_probability_difference": 0.021816961467266083,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "rep": 2,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03096366599999989,
+      "old_current_max_probability_difference": 0.015649564564228058,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "rep": 3,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03170050000000013,
+      "old_current_max_probability_difference": 0.016862884163856506,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "rep": 4,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03167383299999993,
+      "old_current_max_probability_difference": 0.015437327325344086,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "rep": 5,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03339470899999997,
+      "old_current_max_probability_difference": 0.02227281779050827,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "rep": 6,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.033615790999999895,
+      "old_current_max_probability_difference": 0.01681438833475113,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "rep": 7,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.0332913749999999,
+      "old_current_max_probability_difference": 0.015465512871742249,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "rep": 8,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.033535917000000026,
+      "old_current_max_probability_difference": 0.016604676842689514,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 11,
+      "rep": 9,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.034656250000000055,
+      "old_current_max_probability_difference": 0.01847686618566513,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 0,
+      "completion_order": [
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03426075000000006,
+      "old_current_max_probability_difference": 0.01747671514749527,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 1,
+      "completion_order": [
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03360679199999983,
+      "old_current_max_probability_difference": 0.016784004867076874,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 2,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03266608399999993,
+      "old_current_max_probability_difference": 0.019248440861701965,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 3,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.036145207999999984,
+      "old_current_max_probability_difference": 0.01603994518518448,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 4,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.035209874999999835,
+      "old_current_max_probability_difference": 0.015636734664440155,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 5,
+      "completion_order": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03418362500000005,
+      "old_current_max_probability_difference": 0.017815977334976196,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 6,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03548941700000019,
+      "old_current_max_probability_difference": 0.01983417570590973,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 7,
+      "completion_order": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.030983709000000026,
+      "old_current_max_probability_difference": 0.01975303143262863,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 8,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          1
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03259295799999995,
+      "old_current_max_probability_difference": 0.02048332244157791,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 23,
+      "rep": 9,
+      "completion_order": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.034257333,
+      "old_current_max_probability_difference": 0.017789140343666077,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 0,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.035635875000000095,
+      "old_current_max_probability_difference": 0.017782792448997498,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 1,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          0,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.030338959000000054,
+      "old_current_max_probability_difference": 0.01671350747346878,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 2,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03553800000000007,
+      "old_current_max_probability_difference": 0.016466937959194183,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 3,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.032357791999999996,
+      "old_current_max_probability_difference": 0.016163259744644165,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 4,
+      "completion_order": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03455633399999991,
+      "old_current_max_probability_difference": 0.016179516911506653,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 5,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.0353128749999998,
+      "old_current_max_probability_difference": 0.019275039434432983,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 6,
+      "completion_order": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03358470900000032,
+      "old_current_max_probability_difference": 0.018986523151397705,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 7,
+      "completion_order": [
+        [
+          0,
+          2
+        ],
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          0,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          3
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03259891700000006,
+      "old_current_max_probability_difference": 0.018084026873111725,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 8,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.03152529199999998,
+      "old_current_max_probability_difference": 0.02050212025642395,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    },
+    {
+      "seed": 37,
+      "rep": 9,
+      "completion_order": [
+        [
+          0,
+          3
+        ],
+        [
+          0,
+          1
+        ],
+        [
+          0,
+          2
+        ],
+        [
+          1,
+          0
+        ],
+        [
+          1,
+          1
+        ],
+        [
+          1,
+          3
+        ],
+        [
+          1,
+          2
+        ],
+        [
+          0,
+          0
+        ]
+      ],
+      "distinct_worker_pids": [
+        77340,
+        77341,
+        77342,
+        77343
+      ],
+      "seconds": 0.029478708000000076,
+      "old_current_max_probability_difference": 0.018472820520401,
+      "metrics": {
+        "unfiltered": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "boundary_id": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "hadamard_v4": {
+          "stale_accepted": 4,
+          "current_accepted": 4
+        },
+        "exact_envelope": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        },
+        "seedplane_v5": {
+          "stale_accepted": 0,
+          "current_accepted": 4
+        }
+      }
+    }
+  ]
+}

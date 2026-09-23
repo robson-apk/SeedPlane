@@ -1,31 +1,39 @@
-# SeedPlane: Asynchronous Text Diffusion Across CPU Cores via Hadamard Coordination Codes
+# SeedPlane: Spatial Text Diffusion Across Independent CPU Cores
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-brightgreen.svg)](https://www.python.org/)
 [![Hardware Agnostic](https://img.shields.io/badge/hardware-CPU%20%7C%20Intel%20Arc%20%7C%20CUDA-orange.svg)]()
-[![Zero-CrossTalk](https://img.shields.io/badge/crosstalk%20degradation-0.00000%20NLL-success.svg)]()
+[![Peer-Audited](https://img.shields.io/badge/audit-V5%20Verified-success.svg)](research_v5/RESULTS.md)
 
 > **"What if text generation didn't have to be sequential token-by-token? What if we could render text like a procedural video game world across independent CPU cores?"**
 
-SeedPlane is a research architecture and distributed execution protocol that enables **asynchronous, non-blocking text diffusion across independent hardware cores** without quadratic attention costs, centralized KV-caches, or communication bottlenecks.
+SeedPlane is an open-source research architecture exploring **asynchronous, non-blocking spatial text diffusion across commodity hardware cores** without quadratic attention costs, centralized KV-caches, or sequential synchronization locks.
 
 ---
 
-## ⚡ The Breakthrough in 30 Seconds
+> [!NOTE]
+> ### 🔬 Scientific Status & V5 Peer-Audit Update
+> This repository documents an open and transparent research trajectory:
+> - **In V4:** We hypothesized that deterministic Hadamard orthogonal keys ($K_b \in \{-1, +1\}^D$) could act as a parameter-free coordination field to route boundary proposals without shared-memory locks.
+> - **In V5 Audit (270,000 decisions, 180 paired runs):** We tested this hypothesis against the simplest possible engineering baseline: a lightweight message envelope with explicit identifiers (`request_id, generation_step, boundary_id`).
+> - **The Finding:** While multi-core spatial sharding **successfully delivers a 3.5x wall-clock speedup** on commodity CPUs (scaling from ~41 ms down to ~12 ms across 4 workers), the Hadamard tensor matching was found to be mathematically isomorphic to integer boundary matching, while admitting modulo-32 collisions and missing temporal staleness. The exact envelope baseline matched V5's output with **0.0000000 difference** at lower routing overhead.
+> 
+> Full paired benchmarks, unit tests, and replication scripts are archived in [**`research_v5/RESULTS.md`**](research_v5/RESULTS.md).
 
-Modern LLMs are trapped in an **$O(N)$ sequential memory wall**: generating token $t+1$ strictly requires waiting for token $t$. Distributing this across GPUs requires ultra-low-latency InfiniBand/NVLink networks to synchronize every single step.
+---
 
-**SeedPlane takes a completely different path:**
-1. **Spatial Text Sharding:** The sequence is partitioned into independent spatial chunks (e.g. 128 tokens per core).
-2. **The Seed is NOT an Embedding:** Rather than cluttering the latent space with coordinates, the seed acts as an **algebraic coordination plane**.
-3. **Zero-Cost Hadamard Orthogonal Codes:** Each boundary $b$ between cores receives a deterministic Hadamard key $K_b \in \{-1, +1\}^D$:
-   - Owner core holds $+K_b$
-   - Borrowed halo proposal carries $-K_b$
-   - Affinity score: $\max\left(0, -\cos(K_{\text{source}}, K_{\text{owner}})\right)$
-4. **Zero Cross-Talk Degradation:** In asynchronous stress tests with **50% corrupted / stale packets**, SeedPlane achieved **+0.0000000 boundary NLL delta** (100% rejection of foreign boundary noise) at a matching latency of **~0.006 ms**.
+## ⚡ The Core Problem & The SeedPlane Approach
+
+Modern LLMs are bound to an **$O(N)$ sequential memory wall**: generating token $t+1$ strictly requires waiting for token $t$. Distributing autoregressive generation across hardware nodes requires expensive, ultra-low-latency interconnects (InfiniBand/NVLink) to keep GPUs synchronized at every single token.
+
+**SeedPlane investigates spatial text sharding:**
+1. **Spatial Decomposition:** Text sequences are partitioned into autonomous spatial chunks (e.g., 128 tokens per core).
+2. **Decoupling Semantics from Topology:** The language model focuses strictly on local denoising, while an external coordination protocol handles seam stitching ("halos").
+3. **Adaptive Seam Deferral (`disagreement-defer`):** When adjacent shards disagree on the overlapping seam, rather than trusting raw confidence, the system defers commitment and schedules a quick localized denoising pass (+16.97% boundary coherence).
+4. **Multi-Worker Scaling:** Shards execute concurrently across persistent workers, achieving linear scaling on standard multi-core CPUs.
 
 ```
-                         SeedPlane (Hadamard Routing)
+                         SeedPlane Coordination Plane
            K_1                         K_2                         K_3
             │                           │                           │
       ┌─────┴─────┐               ┌─────┴─────┐               ┌─────┴─────┐
@@ -40,74 +48,66 @@ Modern LLMs are trapped in an **$O(N)$ sequential memory wall**: generating toke
 
 ---
 
-## 📊 Empirical Results
+## 📊 Empirical Benchmarks
 
-### 1. Robustness Against Asynchronous Cross-Talk (Context 1024)
+### 1. Multi-Core CPU Scaling (Sequence Length L=1024)
 
-Under simulated multi-worker latency where boundary proposals were corrupted, delayed, and foreign tokens were injected:
+Empirical runtime measured across persistent processes on commodity CPU threads:
 
-| Foreign Cross-Talk Noise | Unseeded Baseline (Boundary NLL Drift) | **SeedPlane Router (Boundary NLL Drift)** |
+| Workers | Median Latency (Envelope Baseline) | Median Latency (SeedPlane V5) | Measured Speedup |
+|:---:|:---:|:---:|:---:|
+| **1 Worker** | ~41.89 ms | ~40.75 ms | 1.00x (Baseline) |
+| **2 Workers** | ~20.60 ms | ~20.53 ms | **2.03x** |
+| **4 Workers** | ~11.95 ms | ~12.56 ms | **3.50x** |
+
+*Both methods share the identical underlying speedup from spatial parallelism. The difference in final generated probabilities between exact envelope routing and SeedPlane V5 was **0.0000000**.*
+
+### 2. Boundary Noise Rejection (Context 1024)
+
+Under simulated multi-worker latency where foreign tokens and corrupt boundary proposals were injected:
+
+| Foreign Cross-Talk Noise | Unfiltered Baseline (Boundary NLL Drift) | **SeedPlane / Exact Envelope (Boundary NLL Drift)** |
 |---|:---:|:---:|
 | **10% Corruption** | +0.0002964 | **+0.0000000 (100% Filtered)** |
 | **25% Corruption** | +0.0009342 | **+0.0000000 (100% Filtered)** |
 | **50% Corruption** | +0.0024969 | **+0.0000000 (100% Filtered)** |
 
-*Because Hadamard keys for distinct boundaries are strictly orthogonal ($\cos(K_i, K_j) \approx 0$), foreign packets receive zero compatibility and are annihilated before touching the denoiser.*
-
-### 2. Multi-Core CPU Scaling vs Global Forward Pass
-
-Benchmark running on commodity CPU threads (no GPU required):
-
-| Sequence Length | Global Sequential Forward | 4 Shards Parallel | Measured Speedup |
-|---|:---:|:---:|:---:|
-| **1,024 tokens** | 5.12 ms | 9.37 ms | 0.55x (overhead bound) |
-| **4,096 tokens** | 17.71 ms | 12.01 ms | **1.47x** |
-| **8,192 tokens** | 48.54 ms | 18.08 ms | **2.68x** |
-| **16,384 tokens** | 94.25 ms | 25.40 ms | **3.71x** |
-
 ---
 
 ## 🚀 1-Minute Quickstart
 
-### Prerequisites
-Clone this repository:
+### Clone & Run the Interactive Demo
+The standalone demo runs in pure Python with zero external dependencies:
 ```bash
 git clone https://github.com/robson-apk/SeedPlane.git
 cd SeedPlane
-```
-
-### Run the Standalone Interactive Demo (Zero Dependencies!)
-You don't even need PyTorch installed to see the core algebra and live multi-core simulation:
-```bash
 python3 demo.py
 ```
 
-### Full PyTorch Verification
+### Full PyTorch & Audit Suite
 ```bash
 pip install -r requirements.txt
+
+# Run the core Hadamard tests
 python3 seedplane_hadamard_test_v4.py
+
+# Run the V5 paired audit suite (reproduces 180 comparisons)
+OPENBLAS_NUM_THREADS=1 python3 research_v5/paired_runtime.py
+python3 research_v5/summarize.py
 ```
 
 ---
 
-## 🔬 Architecture Details
+## 🔬 Lessons Learned & Open Questions
 
-### The Deferral Scheduler (`disagreement-defer`)
-In diffusion models, when two neighboring shards disagree about what belongs in the overlapping boundary halo, naive systems lock tokens based on raw confidence. SeedPlane uses an adaptive agreement protocol:
-* If both cores agree: token is immediately committed.
-* If cores disagree: the token is **deferred**, scheduling an additional localized denoising pass only on the seam.
-* **Empirical gain:** **+16.97%** relative improvement in boundary coherence.
+1. **Why Hadamard Keys Were Replaced by Envelopes:**
+   * Computing $\max(0, -\cos(K_{\text{src}}, K_{\text{owner}}))$ on Sylvester Hadamard vectors is isomorphic to testing `boundary_src == boundary_target`.
+   * Furthermore, fixed $H_{32}$ keys suffer from modulo collisions ($bid \pmod{32}$) and cannot detect temporal staleness (an outdated step from the same boundary).
+   * Explicit message envelopes containing `(request_id, generation_step, boundary_id)` eliminate both issues at lower computational overhead.
 
-### The Hadamard Matrix Generator
-SeedPlane constructs deterministic Sylverster Hadamard matrices recursively:
-```python
-def hadamard(n):
-    H = torch.ones(1, 1)
-    while H.shape[0] < n:
-        H = torch.cat([torch.cat([H, H], 1), torch.cat([H, -H], 1)], 0)
-    return H / math.sqrt(n)
-```
-At `KEY_DIM = 32`, 32 orthogonal keys cover up to 4,096 tokens across shards of 128 before key hierarchy is needed. Matching 32 boundaries takes **0.006 milliseconds**.
+2. **What Remains Strong and Valid:**
+   * **Spatial text sharding works:** Decoupling sequences into autonomous fragments and denoising them concurrently achieves near-linear speedups on commodity multi-core CPUs.
+   * **Adaptive Deferral works:** Deferring boundary resolution when workers disagree produces a measurable +16.97% boost in seam coherence.
 
 ---
 
@@ -122,6 +122,12 @@ SeedPlane/
 ├── clmp_seed_router_v4.py            # Trainer and router module
 ├── clmp_parity_seed_v3.py            # Parity denoiser baseline
 ├── clmp_parity_ctx1024.pt            # Pre-trained checkpoint (368 KB)
+├── research_v5/                      # The V5 Peer-Audit Suite
+│   ├── RESULTS.md                    # Detailed audit write-up & falsification data
+│   ├── PROTOCOL.md                   # Strict evaluation criteria
+│   ├── paired_runtime.py             # 180-run paired benchmark
+│   ├── live_stale_test.py            # Real concurrent stale-inference test
+│   └── summarize.py                  # Report generator & bootstrap CI calculator
 ├── requirements.txt                  # Minimal dependencies
 ├── LAUNCH_KIT.md                     # Ready-to-publish posts (HN, Reddit, X)
 └── LICENSE                           # MIT License
@@ -129,24 +135,12 @@ SeedPlane/
 
 ---
 
-## 🗺️ Roadmap
-
-- [x] **Phase 1:** Mathematical proof of concept & zero-cost Hadamard key routing.
-- [x] **Phase 2:** Multi-core CPU shard benchmarks & cross-talk stress tests.
-- [ ] **Phase 3:** True asynchronous worker runtime (Ray / multiprocessing) with zero shared memory locks.
-- [ ] **Phase 4:** Subword BPE scaling to 50M+ parameter denoisers.
-- [ ] **Phase 5:** Native Intel Arc (SYCL/IPEX) & Metal (Apple Silicon) multi-device distributed mesh.
-
----
-
 ## 🤝 Citation & Community
-
-If you find this concept interesting or build upon it, please cite or star the repo:
 
 ```bibtex
 @software{seedplane2026,
   author = {Robson},
-  title = {SeedPlane: Asynchronous Text Diffusion Across CPU Cores via Hadamard Coordination Codes},
+  title = {SeedPlane: Spatial Text Diffusion Across Independent CPU Cores},
   url = {https://github.com/robson-apk/SeedPlane},
   year = {2026}
 }
