@@ -10,7 +10,7 @@ import numpy as np
 MAGIC = 0x31575053                      # "SPW1"
 REQ = struct.Struct('<IIIIIi')           # magic, want, n_tok, core_off, score_from, next_tok
 RESP = struct.Struct('<IdIif')           # magic, nll_sum, n_scored, argmax_last, compute_ms
-WANT = {'prefill': 0, 'nll': 1, 'close': 2}
+WANT = {'prefill': 0, 'nll': 1, 'close': 2, 'span': 3, 'span_nll': 4}   # span*: KV halo reuse (worker --span-chunk/--span-keep)
 
 
 class Worker:
@@ -36,7 +36,7 @@ class Worker:
 
     def send_window(self, ids, win, want, score_from=0):
         c0, c1, idx = win; tok = np.ascontiguousarray(ids[idx], dtype=np.int32); pos = np.ascontiguousarray(idx, dtype=np.int32)
-        core_off = len(idx) - (c1 - c0); nxt = int(ids[c1]) if (want == 'nll' and c1 < len(ids)) else -1
+        core_off = len(idx) - (c1 - c0); nxt = int(ids[c1]) if (want in ('nll', 'span_nll') and c1 < len(ids)) else -1
         self.s.sendall(REQ.pack(MAGIC, WANT[want], len(tok), core_off, max(0, score_from - (c0 - core_off)), nxt) + tok.tobytes() + pos.tobytes())
 
     def recv(self):
@@ -64,12 +64,22 @@ def spawn(exe, gguf, port, dev='CPU', slots=1, threads=1, ctx=4096, extra_env=No
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
 
 
+def calibrate(workers, ids, win, want='prefill'):
+    """Pre-bench ONCE (at startup, models stay loaded): round-trip seconds of one window per worker, network included.
+    Stored on each worker (w.est) and reused by every later request instead of re-probing inside the request."""
+    for w in workers:
+        w.send_window(ids, win, want); w.recv()
+        t = time.perf_counter(); w.send_window(ids, win, want); w.recv(); w.est = time.perf_counter() - t
+    return {w.name: w.est for w in workers}
+
+
 def run_windows(workers, ids, wins, want='prefill', score_from=0, timeline=None):
-    """Dynamic pull queue with a tail guard (same policy as seedplane.cli.distribute_dynamic)."""
-    wins = list(wins); est = {}
-    for w in workers:                                   # 1-window probe per worker (round trip, network included)
-        w.send_window(ids, wins[0], want, score_from); w.recv()
-        t = time.perf_counter(); w.send_window(ids, wins[0], want, score_from); w.recv(); est[w.name] = time.perf_counter() - t
+    """Dynamic pull queue with a tail guard (same policy as seedplane.cli.distribute_dynamic).
+    Uses w.est from calibrate() when present; only uncalibrated workers are probed here (and that probe is timed)."""
+    wins = list(wins)
+    todo = [w for w in workers if getattr(w, 'est', None) is None]
+    if todo: calibrate(todo, ids, wins[0], want)
+    est = {w.name: w.est for w in workers}
     queue = list(range(len(wins))); out = [None] * len(wins); busy, sent = {}, {}; count = {w.name: 0 for w in workers}; t0 = time.perf_counter()
 
     def worth_it(w):
@@ -94,7 +104,7 @@ def run_windows(workers, ids, wins, want='prefill', score_from=0, timeline=None)
     return out, time.perf_counter() - t0, count
 
 
-def plan_pieces(L, rates, S=512, H=256, min_core=16):
+def plan_pieces(L, rates, S=512, H=256, min_core=16, span=False):
     """Size each device's piece so that ALL devices finish together (no device is dropped by policy).
 
     rates: {worker_name: tok/s measured on ~S+H token windows}. Each window costs (core + halo) / rate; a device gets
@@ -103,6 +113,8 @@ def plan_pieces(L, rates, S=512, H=256, min_core=16):
     prompt (it stays loaded and takes the next request) - reported, never hidden.
     """
     def capacity(r, T):
+        if span:                                 # one contiguous span per device: the halo is paid once, not per window
+            c = int(r * T - H); return c if c >= min_core else 0
         budget = r * T; n = int(budget // (S + H)); rest = budget - n * (S + H) - H
         return n * S + (int(rest) if rest >= min_core else 0)
     lo, hi = 0.0, (L + H * (L // S + 1)) / max(rates.values())
@@ -114,7 +126,7 @@ def plan_pieces(L, rates, S=512, H=256, min_core=16):
     for n in sorted(rates, key=lambda n: rates[n]):  # slow devices take the first, small pieces; the fastest takes the rest
         left = min(caps[n], L - c0)
         while left > 0 and c0 < L:
-            c1 = min(L, c0 + min(S, left)); out[n].append((c0, c1)); left -= c1 - c0; c0 = c1
+            c1 = min(L, c0 + (left if span else min(S, left))); out[n].append((c0, c1)); left -= c1 - c0; c0 = c1
     return out, hi
 
 

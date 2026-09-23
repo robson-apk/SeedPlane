@@ -14,6 +14,9 @@
 // Request : u32 magic 'SPW1', u32 want (0 prefill, 1 nll, 2 close), u32 n_tok, u32 core_off, u32 score_from, i32 next_tok,
 //           i32 tokens[n_tok], i32 pos[n_tok]
 // Response: u32 magic, f64 nll_sum, u32 n_scored, i32 argmax_last, f32 compute_ms
+// want 3 (span prefill) / 4 (span nll): the window is a long SPAN (halo prefix of core_off tokens + many cores). It is
+// decoded in chunks of --span-chunk tokens; before each chunk the KV cache drops every position older than
+// --span-keep tokens before the chunk, so the halo is REUSED from the previous chunk instead of recomputed.
 #include "llama.h"
 #include <algorithm>
 #include <chrono>
@@ -64,24 +67,29 @@ static bool write_all(sock_t s, const void* buf, size_t n) {
 }
 
 struct Slot { llama_context* ctx; llama_batch batch; int n_batch; };
+static int g_span_chunk = 512, g_span_keep = 256;
 
 // Decode one window from an empty cache; fills r (nll over scored positions and/or argmax of the last token).
 static bool run_window(Slot& sl, int n_vocab, const Req& q, const std::vector<int32_t>& tok, const std::vector<int32_t>& pos, Resp& r) {
     llama_memory_clear(llama_get_memory(sl.ctx), true);
     const uint32_t first_scored = std::max(q.core_off, q.score_from);
-    for (uint32_t b0 = 0; b0 < q.n_tok; b0 += sl.n_batch) {
-        const uint32_t b1 = std::min<uint32_t>(q.n_tok, b0 + sl.n_batch); llama_batch& batch = sl.batch; batch.n_tokens = 0;
+    const bool span = q.want >= 3; const uint32_t want_nll = (q.want == 1 || q.want == 4);
+    for (uint32_t b0 = 0, b1 = 0; b0 < q.n_tok; b0 = b1) {
+        b1 = std::min<uint32_t>(q.n_tok, b0 + (span ? (b0 == 0 ? q.core_off + g_span_chunk : g_span_chunk) : sl.n_batch));
+        if (span && b1 - b0 > (uint32_t)sl.n_batch) { fprintf(stderr, "span chunk > n_batch\n"); return false; }
+        if (span && b0 > 0) llama_memory_seq_rm(llama_get_memory(sl.ctx), 0, -1, pos[b0] - g_span_keep);  // slide the KV window
+        llama_batch& batch = sl.batch; batch.n_tokens = 0;
         for (uint32_t i = b0; i < b1; i++) {
             const int k = batch.n_tokens++;
             batch.token[k] = tok[i]; batch.pos[k] = pos[i]; batch.n_seq_id[k] = 1; batch.seq_id[k][0] = 0;
-            batch.logits[k] = (q.want == 1) ? (i >= first_scored) : (i == q.n_tok - 1);
+            batch.logits[k] = want_nll ? (i >= first_scored) : (i == q.n_tok - 1);
         }
         if (llama_decode(sl.ctx, batch) != 0) { fprintf(stderr, "llama_decode failed\n"); return false; }
         for (uint32_t i = b0; i < b1; i++) {
             if (!batch.logits[i - b0]) continue;
             const float* lg = llama_get_logits_ith(sl.ctx, (int32_t)(i - b0));
             if (i == q.n_tok - 1) r.argmax_last = (int32_t)(std::max_element(lg, lg + n_vocab) - lg);
-            if (q.want == 1) {
+            if (want_nll) {
                 const int32_t target = (i + 1 < q.n_tok) ? tok[i + 1] : q.next_tok; if (target < 0) continue;
                 double m = lg[0]; for (int v = 1; v < n_vocab; v++) m = std::max(m, (double)lg[v]);
                 double s = 0; for (int v = 0; v < n_vocab; v++) s += std::exp((double)lg[v] - m);
@@ -117,6 +125,7 @@ int main(int argc, char** argv) {
         else if (a == "-ub") n_ubatch = std::stoi(next()); else if (a == "--host") host = next();
         else if (a == "--dev") dev_name = next(); else if (a == "--slots") slots = std::max(1, std::stoi(next()));
         else if (a == "--bench") bench = std::stoi(next()); else if (a == "--list-devices") list = true;
+        else if (a == "--span-chunk") g_span_chunk = std::stoi(next()); else if (a == "--span-keep") g_span_keep = std::stoi(next());
     }
     llama_backend_init(); ggml_backend_load_all();
     if (list) { list_devices(); return 0; }
@@ -193,7 +202,7 @@ int main(int argc, char** argv) {
             std::vector<int32_t> tok, pos;
             while (ok) {
                 Req q; if (!read_all(cs, &q, sizeof(q)) || q.magic != MAGIC || q.want == 2) break;
-                if ((int)q.n_tok > n_ctx || q.n_tok == 0) { fprintf(stderr, "window of %u tokens > ctx %d\n", q.n_tok, n_ctx); break; }
+                if ((q.want < 3 && (int)q.n_tok > n_ctx) || q.n_tok == 0 || q.n_tok > (1u << 24)) { fprintf(stderr, "window of %u tokens > ctx %d\n", q.n_tok, n_ctx); break; }
                 tok.resize(q.n_tok); pos.resize(q.n_tok);
                 if (!read_all(cs, tok.data(), 4 * q.n_tok) || !read_all(cs, pos.data(), 4 * q.n_tok)) break;
                 auto t0 = std::chrono::high_resolution_clock::now(); Resp r{MAGIC, 0.0, 0, -1, 0.f};

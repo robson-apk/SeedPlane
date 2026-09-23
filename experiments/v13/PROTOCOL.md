@@ -75,3 +75,18 @@ Critérios novos (substituem a regra de "deixar de fora" do adendo 1; P4–P6 co
 - **M1 (memória):** memória de execução do llama.cpp além dos pesos (buffers de KV + compute, lidos do log do próprio
   llama.cpp), por processo, SeedPlane (contexto de janela 1.024) vs atenção completa (contexto L). SeedPlane ≤ 0,5 ×
   em L ≥ 8.192. Também reportado: pico de memória do processo na CPU (working set).
+
+## Adendo 3 (2026-09-23, antes da 2ª execução): execução 1 abortada, modo span e coordenador calibrado uma vez
+- **Execução 1 abortada** (`results/speed.json`, mantido e marcado como inválido). Motivos:
+  (a) `llama-bench -ngl 0` do llama.cpp atual manda as multiplicações grandes do prompt para a GPU (op offload), então
+  "CPU nativo" = 3.610 tok/s não era CPU. Agora usa `-nopo 1`.
+  (b) `run_windows` recalibrava cada worker DENTRO do tempo medido, a cada requisição (2 janelas em série por worker),
+  o que destruiu a escala de slots (79/92/82 tok/s com 1/2/3 slots). Agora `calibrate()` roda uma vez no início,
+  com os modelos mantidos quentes. Autobench dos slots no mesmo processo, sem coordenador: 136/235/272 tok/s.
+- Worker da execução 2: build sem OpenMP (`build_vk2`, evita espera ativa do OpenMP do MSVC). Nativo: `build_vk` padrão.
+- **Modo span (novo):** cada dispositivo recebe UM trecho contíguo; o worker decodifica em blocos de 512 e, antes de
+  cada bloco, remove do KV as posições mais antigas que 256 tokens (`llama_memory_seq_rm`). O halo é REUSADO em vez de
+  recalculado (antes: 768 tokens computados para cada 512). Visibilidade igual à das janelas (≤ 256 + posição no
+  bloco), mas as chaves e valores do halo carregam contexto mais profundo (estilo Transformer-XL).
+- **P9:** span só na GPU ≥ 1,3 × janelas só na GPU, em L ≥ 8.192.
+- **C3:** qualidade do span: NLL span ≤ 1,01 × NLL janelas (L=16.384, 3 trechos, média).
