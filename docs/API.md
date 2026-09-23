@@ -1,0 +1,114 @@
+# SeedPlane — tools & API
+
+SeedPlane runs an existing Hugging Face causal language model as **independent shard windows** that can be spread over
+any mix of devices: CPU cores, GPUs (CUDA, Intel XPU, Apple MPS) and other computers on your network.
+Weights are never modified — SeedPlane only changes *which tokens each position attends to* and *where the work runs*.
+
+```bash
+pip install -e .            # from a clone of this repository (Python ≥ 3.9, PyTorch ≥ 2.2)
+seedplane --help
+```
+
+---
+
+## 1. The idea in one picture
+
+```text
+prompt (L tokens) ──► shard 0 │ shard 1 │ shard 2 │ …      each shard = S tokens it owns
+                       window k = [sinks] + [H halo tokens of shard k−1] + [shard k]   (original position ids)
+                                     │           │           │
+                                  GPU        CPU core     other PC      windows never talk to each other
+```
+
+A token inside shard *k* sees, causally, its own shard plus the last *H* tokens of the previous shard
+(and optionally the first *K* "sink" tokens). With `S ≥ L` the output is **bit-identical** to the original model.
+
+---
+
+## 2. Command line
+
+### `seedplane convert` — make a bundle
+```bash
+seedplane convert Qwen/Qwen2.5-0.5B-Instruct ./qwen05.sp --shard 512 --halo 256 --sinks 0
+```
+Writes the original `model.safetensors` + tokenizer + `seedplane.json` (shard plan and provenance) into `./qwen05.sp`.
+Any Hugging Face `AutoModelForCausalLM` checkpoint that accepts `position_ids` works (Qwen2/2.5, Llama, Mistral, …).
+
+### `seedplane serve` — turn a device into a worker
+```bash
+export SEEDPLANE_AUTHKEY="a long random secret"          # same value on every machine
+seedplane serve --bundle ./qwen05.sp --device cpu  --port 52000 --threads 1   # one CPU core
+seedplane serve --bundle ./qwen05.sp --device cuda --port 52001               # an NVIDIA GPU
+seedplane serve --bundle ./qwen05.sp --device xpu  --port 52002               # an Intel Arc GPU
+seedplane serve --bundle ./qwen05.sp --device mps  --port 52003               # an Apple GPU
+```
+One worker = one process on one device. Start as many as you have cores/GPUs, on as many machines as you like.
+
+### `seedplane run` — process a long prompt across workers
+```bash
+seedplane run --bundle ./qwen05.sp --prompt-file long.txt \
+              --workers local:xpu:1,local:cpu:4,other-pc:52000,other-pc:52001 \
+              --scheduler dynamic
+```
+`--workers` mixes locally spawned workers (`local:<device>:<count>`) and remote ones (`host:port`).
+Output: tokens/s, perplexity of the prompt under the shard plan, and how many windows each worker took.
+
+**Schedulers**
+| `--scheduler` | How work is split | Use when |
+|---|---|---|
+| `dynamic` *(default)* | Pull queue: a worker gets the next window when it finishes. Round-trip time per worker is tracked continuously (network included). **Tail guard:** a worker only gets a window if it can finish it before the rest of the pool would finish the whole remaining queue without it. | Mixed hardware, remote machines, thermal throttling |
+| `static` | One upfront split proportional to a 1-window speed probe | Identical workers on one machine |
+
+### `seedplane bench` — quality and speed vs. the original model
+```bash
+seedplane bench --bundle ./qwen05.sp --text-file corpus.txt --length 4096 --samples 3 --device cpu
+```
+Reports perplexity with full attention vs. the shard plan, the ratio, and the time of each.
+
+---
+
+## 3. Python API (`seedplane.engine`)
+
+| Function | What it does |
+|---|---|
+| `ShardPlan(shard=512, halo=256, sinks=0)` | The shard layout. `plan.windows(L)` yields `(core_start, core_end, token_index_array)`. |
+| `load_model(path_or_id, device='cpu')` | Loads a Hugging Face causal LM + tokenizer in eval mode. |
+| `window_logits(model, ids, index, device)` | Logits of one window, with the original position ids. |
+| `nll_full(model, ids, device)` / `nll_shards(model, ids, plan, device)` | Next-token NLL with full attention / with the shard plan (computed on the device). |
+| `prefill_full(model, ids, device)` / `prefill_window(model, ids, index, device, last)` | Prompt processing like `llama.cpp -p`: hidden states for all tokens, logits only for the last one. |
+| `save_bundle(out_dir, model_id, plan)` | What `seedplane convert` calls. |
+
+Distribution helpers in `seedplane.cli`: `start_workers(spec, bundle)`, `distribute(...)` (static) and
+`distribute_dynamic(..., timeline=[])` (dynamic; optional per-window timeline for plotting).
+
+```python
+from seedplane import engine
+model, tok = engine.load_model("Qwen/Qwen2.5-0.5B-Instruct")
+ids = tok(open("long.txt").read(), return_tensors="np").input_ids[0][:4096]
+full, n = engine.nll_full(model, ids, "cpu")
+shard, _ = engine.nll_shards(model, ids, engine.ShardPlan(512, 256), "cpu")
+print("perplexity cost of sharding:", (shard - full) / n)
+```
+
+---
+
+## 4. Worker protocol
+
+Workers are `multiprocessing.connection.Listener`s. The coordinator sends
+`('windows', ids, [(core_start, core_end, index), …], want)` with `want ∈ {'nll', 'prefill', 'next'}` and receives
+`(results, compute_seconds)`. `('close',)` ends the session; the worker keeps listening for the next coordinator.
+
+**Security.** The transport uses pickle. Anyone who can reach a worker port and knows the key can run code on that
+machine. Use a trusted LAN only, set `SEEDPLANE_AUTHKEY` to a long random secret on every machine, and never forward
+worker ports to the internet.
+
+---
+
+## 5. What is and is not supported (measured, see `experiments/`)
+
+- ✅ Any Hugging Face causal LM that accepts `position_ids`, unchanged weights.
+- ✅ CPU, CUDA, Intel XPU, Apple MPS workers; any mix; other machines over TCP.
+- ⚠️ Quality cost depends on how far the text looks back: Qwen2.5-0.5B, 4,096 tokens, S=512/H=256 → +3.7% perplexity on
+  short stories, +13% on Wikipedia text (V12). Larger halos cost less quality and more compute.
+- ❌ Not a drop-in for tasks that must connect information many shards apart (V7).
+- 🧪 Token-by-token generation after a sharded prefill is not implemented yet (prefill/scoring only).

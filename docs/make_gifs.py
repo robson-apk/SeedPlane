@@ -116,6 +116,33 @@ def how(mode):
     anim.save(OUT / f'how-it-works-{mode}.gif', writer=PillowWriter(fps=10)); plt.close(fig)
 
 
+def long_race(mode):
+    """8,192-token page on the Arc B580, real V11 timings (3,814 ms vs 323 ms). Fill order is illustrative (timing is real)."""
+    t = THEMES[mode]; pb = json.loads((REPO / 'experiments/v11/results/part_b_analysis.json').read_text())['per']
+    T = {k: float(np.mean([pb[f'L8192_{s}'][f'{k}_ms_median'] for s in (11, 23, 37)])) for k in ('trad', 'sp')}
+    rows, cols = 64, 128; rng = np.random.default_rng(7); masked = rng.random(rows * cols) < 0.5
+    order = {k: rng.permutation(np.flatnonzero(masked)) for k in ('trad', 'sp')}
+    fig = plt.figure(figsize=(8.4, 4.6), dpi=90); fig.patch.set_facecolor(t['surface'])
+    fig.text(0.03, 0.955, '8,192 tokens on one GPU: 11.8× faster', fontsize=16, fontweight='bold', color=t['text'], va='top')
+    fig.text(0.03, 0.885, 'Intel Arc B580 · one page · real measured time, shown in real time · fill pattern illustrative', fontsize=9.5, color=t['text2'], va='top')
+    ims, clocks = {}, {}
+    for j, (k, title) in enumerate((('trad', 'Traditional Transformer'), ('sp', 'SeedPlane'))):
+        ax = fig.add_axes([0.03 + j * 0.49, 0.12, 0.45, 0.63]); ax.axis('off')
+        ax.text(0, 1.03, title, transform=ax.transAxes, fontsize=12, fontweight='bold', color=t['text'], va='bottom')
+        ims[k] = ax.imshow(np.zeros((rows, cols, 3)), interpolation='nearest', aspect='auto')
+        clocks[k] = ax.text(0, -0.08, '', transform=ax.transAxes, fontsize=11, color=t['text'], va='top', fontfamily='monospace')
+    rgb = lambda h: np.array([int(h[i:i + 2], 16) / 255 for i in (1, 3, 5)])
+    FPS2 = 25; total = T['trad'] / 1000; frames = int(total * FPS2) + 30
+    def draw(f):
+        now = min(f / FPS2, total) * 1000
+        for k in ('trad', 'sp'):
+            done = int(min(1.0, now / T[k]) * len(order[k])); img = np.tile(rgb(t['given']), (rows * cols, 1)); img[masked] = rgb(t['empty']); img[order[k][:done]] = rgb(t[k])
+            ims[k].set_data(img.reshape(rows, cols, 3)); fin = now >= T[k]
+            clocks[k].set_text(f'{min(now, T[k]):7,.0f} ms' + ('   ✓ done' if fin else ''))
+        return []
+    FuncAnimation(fig, draw, frames=frames, interval=1000 / FPS2).save(OUT / f'long-race-{mode}.gif', writer=PillowWriter(fps=FPS2)); plt.close(fig)
+
+
 if __name__ == '__main__':
-    for mode in THEMES: hero(mode); how(mode)
+    for mode in THEMES: hero(mode); how(mode); long_race(mode)
     print('T_trad %.0f ms, T_sp %.0f ms' % (T_TRAD, T_SP), sorted(p.name for p in OUT.glob('*.gif')))

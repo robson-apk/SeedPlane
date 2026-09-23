@@ -1,25 +1,31 @@
 """seedplane — run existing Hugging Face models with SeedPlane shard windows, on any mix of devices.
 
-  seedplane convert Qwen/Qwen2.5-0.5B-Instruct ./qwen05.sp --shard 512 --halo 256 --sinks 4
+  seedplane convert Qwen/Qwen2.5-0.5B-Instruct ./qwen05.sp --shard 512 --halo 256
   seedplane serve   --bundle ./qwen05.sp --device cpu --port 52000        # turn this machine/core/GPU into a worker
-  seedplane run     --bundle ./qwen05.sp --prompt-file long.txt --workers local:cpu:4,local:xpu:1,10.0.0.92:52000
+  seedplane run     --bundle ./qwen05.sp --prompt-file long.txt --workers local:xpu:1,local:cpu:4,OTHER-PC:52000
   seedplane bench   --bundle ./qwen05.sp --text-file corpus.txt --length 4096
 
 A worker is one process on one device (a CPU core, a GPU, or another computer over the LAN).
-`run` splits the prompt into shard windows, sends each window to a worker in proportion to its measured speed,
-and stitches the results. Windows are independent, so there is no synchronization between workers.
+`run` splits the prompt into shard windows and hands them out from a queue: each worker asks for the next window when it
+finishes, and a tail guard keeps slow workers from holding the last windows. Windows are independent, so workers never wait
+for each other.
+
+SECURITY: workers talk over Python's multiprocessing.connection (pickle). Only run them on a trusted LAN and set the same
+secret on every machine: export SEEDPLANE_AUTHKEY=<long random string>. Never expose a worker port to the internet.
 """
-import argparse, json, subprocess, sys, time
+import argparse, json, os, subprocess, sys, time
 from multiprocessing.connection import Listener, Client
 from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import engine
+try:
+    from . import engine                                   # installed package: `seedplane ...`
+except ImportError:
+    sys.path.insert(0, str(Path(__file__).resolve().parent)); import engine   # plain script: `python seedplane/cli.py ...`
 
-AUTH = b'seedplane-cli'
+AUTH = os.environ.get('SEEDPLANE_AUTHKEY', 'seedplane-local-default').encode()
 
 
 def plan_of(bundle):
@@ -101,7 +107,7 @@ def distribute(clients, ids, wins, want):
     return out, time.perf_counter() - t0, {n: len(v) for n, v in assign.items()}
 
 
-def distribute_dynamic(clients, ids, wins, want, prior=None):
+def distribute_dynamic(clients, ids, wins, want, prior=None, timeline=None):
     """Pull-based work queue with a tail guard.
     Each worker gets one window at a time and asks for more when done (fast devices naturally take more).
     Per-window time of each worker is tracked (EMA, seeded by `prior` or a 1-window probe). A worker only receives a
@@ -123,7 +129,8 @@ def distribute_dynamic(clients, ids, wins, want, prior=None):
 
     def feed(name, c):
         if queue and (worth_it(name) or all(n not in busy for n, _ in clients if n != name)):
-            k = queue.pop(0); c.send(('windows', ids, [wins[k]], want)); busy[name] = k; sent_at[name] = time.perf_counter(); return True
+            k = queue.pop(0); c.send(('windows', ids, [wins[k]], want)); busy[name] = k; sent_at[name] = time.perf_counter()
+            return True
         return False
 
     for name, c in sorted(clients, key=lambda nc: est[nc[0]]):
@@ -131,6 +138,7 @@ def distribute_dynamic(clients, ids, wins, want, prior=None):
     while busy:
         for conn in wait([c for n, c in clients if n in busy]):
             name = by_conn[conn]; res, _ = conn.recv(); k = busy.pop(name); out[k] = res[0]; count[name] += 1
+            if timeline is not None: timeline.append({'worker': name, 'window': k, 'start': sent_at[name] - t0, 'end': time.perf_counter() - t0})
             est[name] = 0.7 * est[name] + 0.3 * (time.perf_counter() - sent_at[name])   # round-trip time, network included
             feed(name, conn)
         for name, c in clients:
@@ -172,7 +180,7 @@ def cmd_bench(a):
 def main():
     ap = argparse.ArgumentParser(prog='seedplane', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter); sub = ap.add_subparsers(dest='cmd', required=True)
     c = sub.add_parser('convert', help='make a SeedPlane bundle from a Hugging Face model'); c.add_argument('model'); c.add_argument('out')
-    c.add_argument('--shard', type=int, default=512); c.add_argument('--halo', type=int, default=256); c.add_argument('--sinks', type=int, default=4)
+    c.add_argument('--shard', type=int, default=512); c.add_argument('--halo', type=int, default=256); c.add_argument('--sinks', type=int, default=0)
     s = sub.add_parser('serve', help='run a worker on this device'); s.add_argument('--bundle', required=True); s.add_argument('--device', default='cpu')
     s.add_argument('--port', type=int, default=52000); s.add_argument('--host', default='0.0.0.0'); s.add_argument('--threads', type=int, default=1)
     r = sub.add_parser('run', help='process a long prompt across workers'); r.add_argument('--bundle', required=True); r.add_argument('--prompt-file', required=True)
