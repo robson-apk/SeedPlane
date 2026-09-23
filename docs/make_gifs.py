@@ -1,0 +1,121 @@
+"""Render README GIFs (light + dark) from a REAL decoding trajectory (docs/trajectory.json) and REAL measured timings (V8).
+
+python docs/make_gifs.py     (from the repo root)
+"""
+import json, textwrap
+from pathlib import Path
+import numpy as np
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation, PillowWriter
+from matplotlib.patches import Rectangle, FancyBboxPatch
+
+REPO = Path(__file__).resolve().parents[1]; OUT = REPO / 'docs' / 'img'; OUT.mkdir(parents=True, exist_ok=True)
+TR = json.loads((REPO / 'docs/trajectory.json').read_text())
+V8 = json.loads((REPO / 'experiments/v8/results/analysis.json').read_text())
+T_TRAD = np.mean([V8['per'][f'L1024_s{s}']['time_traditional_ms_median'] for s in (11, 23, 37)])
+T_SP = np.mean([V8['per'][f'L1024_s{s}']['time_seedplane_ms_median'] for s in (11, 23, 37)])
+THEMES = {
+    'light': dict(surface='#fcfcfb', text='#0b0b0b', text2='#52514e', empty='#e9e8e4', given='#c9c8c3', halo='#f3d9b1', sp='#2a78d6', trad='#eb6834'),
+    'dark': dict(surface='#1a1a19', text='#ffffff', text2='#c3c2b7', empty='#2b2b29', given='#4a4a47', halo='#5a4424', sp='#3987e5', trad='#d95926'),
+}
+L, SH, K = TR['L'], TR['shard'], TR['steps']; MASKED = np.array(TR['masked'])
+FPS = 20; SLOW = 3.0                                   # GIF plays at 1/3 of real speed so the steps are visible
+DUR_MS = T_TRAD * SLOW; HOLD = 40                      # frames held at the end
+
+
+def grid_colors(t, kind, step_now):
+    st = np.array(TR[kind]['commit_step']); col = np.empty(L, dtype=object)
+    col[~MASKED] = t['given']; col[MASKED] = t['empty']; done = MASKED & (st >= 0) & (st < step_now); col[done] = t[kind]
+    return col.reshape(32, 32)
+
+
+def hero(mode):
+    t = THEMES[mode]; fig = plt.figure(figsize=(8.4, 4.9), dpi=90); fig.patch.set_facecolor(t['surface'])
+    fig.text(0.03, 0.955, 'Same model. Same text. Half the time.', fontsize=16, fontweight='bold', color=t['text'], va='top')
+    fig.text(0.03, 0.885, f'Real decoding of one 1,024-token page · 16 refinement steps · 4 CPU cores · played at 1/{SLOW:.0f} speed',
+             fontsize=9.5, color=t['text2'], va='top')
+    axes, cells, clocks = {}, {}, {}
+    for j, (kind, title, total) in enumerate((('trad', 'Traditional Transformer', T_TRAD), ('sp', 'SeedPlane', T_SP))):
+        ax = fig.add_axes([0.03 + j * 0.49, 0.1, 0.45, 0.68]); ax.set_xlim(0, 32); ax.set_ylim(33.5, -0.5); ax.axis('off')
+        ax.text(0, -0.9, title, fontsize=12, fontweight='bold', color=t['text'], va='bottom')
+        rects = []
+        for r in range(32):
+            for c in range(32):
+                rects.append(Rectangle((c + 0.08, r + 0.08), 0.84, 0.84, linewidth=0))
+        for rc in rects: ax.add_patch(rc)
+        if kind == 'sp':                                   # shard boundaries: 4 rows = 128 tokens = one core's shard
+            for b in range(4, 32, 4): ax.plot([0, 32], [b, b], color=t['sp'], linewidth=1.4, solid_capstyle='butt')
+            ax.text(32, -0.9, '8 shards · lines = core boundaries', fontsize=8.5, color=t['text2'], va='bottom', ha='right')
+        cells[kind] = rects; axes[kind] = ax
+        clocks[kind] = ax.text(0, 33.3, '', fontsize=10.5, color=t['text'], va='top', fontfamily='monospace')
+    lx = 0.03
+    for label, key in (('given word', 'given'), ('still hidden', 'empty'), ('filled (traditional)', 'trad'), ('filled (SeedPlane)', 'sp')):
+        fig.patches.append(Rectangle((lx, 0.028), 0.014, 0.024, transform=fig.transFigure, facecolor=t[key], linewidth=0))
+        txt = fig.text(lx + 0.02, 0.04, label, fontsize=8.5, color=t['text2'], va='center')
+        lx += 0.02 + txt.get_window_extent(fig.canvas.get_renderer()).width / fig.bbox.width + 0.03
+    n_frames = int(DUR_MS / 1000 * FPS) + HOLD
+
+    def draw(f):
+        ms_real = min(f / FPS * 1000, DUR_MS) / SLOW
+        for kind, total in (('trad', T_TRAD), ('sp', T_SP)):
+            step = min(K, int(ms_real / (total / K)))
+            cols = grid_colors(t, kind, step).ravel()
+            for rc, c in zip(cells[kind], cols): rc.set_facecolor(c)
+            done = step >= K
+            clocks[kind].set_text(f'{min(ms_real, total):6.0f} ms   step {step:2d}/{K}' + ('   ✓ done' if done else ''))
+        return []
+    anim = FuncAnimation(fig, draw, frames=n_frames, interval=1000 / FPS)
+    anim.save(OUT / f'hero-race-{mode}.gif', writer=PillowWriter(fps=FPS)); plt.close(fig)
+
+
+def how(mode):
+    t = THEMES[mode]; words = TR['truth']; st = np.array(TR['sp']['commit_step']); fin = TR['sp']['final']
+    fig = plt.figure(figsize=(8.4, 5.2), dpi=90); fig.patch.set_facecolor(t['surface'])
+    fig.text(0.03, 0.96, 'Every core writes its own paragraph — at the same time', fontsize=15, fontweight='bold', color=t['text'], va='top')
+    fig.text(0.03, 0.9, 'Four shards of the same page, real model output. Hidden words (▢) are filled in parallel by every core, '
+             'step by step.', fontsize=9, color=t['text2'], va='top')
+    shards = [0, 1, 2, 3]; N = 36                                       # first 36 words of each of four shards
+    boxes = []
+    for i, sh in enumerate(shards):
+        y0 = 0.72 - i * 0.175; ax = fig.add_axes([0.03, y0, 0.94, 0.15]); ax.axis('off'); ax.set_xlim(0, 1); ax.set_ylim(0, 1)
+        ax.add_patch(FancyBboxPatch((0, 0), 1, 1, boxstyle='round,pad=0,rounding_size=0.04', facecolor=t['empty'], linewidth=0, alpha=0.55))
+        ax.add_patch(Rectangle((0, 0), 0.012, 1, facecolor=t['sp'], linewidth=0))
+        ax.text(0.025, 0.86, f'Core {i + 1} · tokens {sh * SH}–{sh * SH + SH - 1}', fontsize=8.5, color=t['text2'], va='top')
+        boxes.append((ax, sh * SH))
+    global REND; REND = fig.canvas.get_renderer()
+    stepc = fig.text(0.97, 0.055, '', fontsize=10, color=t['text'], ha='right', fontfamily='monospace')
+    fig.text(0.03, 0.02, '… = word outside the model’s 1,024-word vocabulary', fontsize=8, color=t['text2'])
+
+    def line(ax, start, step_now):
+        for artist in list(ax.texts)[1:]: artist.remove()
+        x, y = 0.025, 0.58
+        for k in range(start, start + N):
+            w = words[k]; hidden = MASKED[k]; shown = (not hidden) or (0 <= st[k] < step_now)
+            txt = fin[k] if hidden and shown else w
+            txt = '…' if txt == '<unk>' else txt
+            if not shown: txt, color, weight = '▢', t['text2'], 'normal'
+            elif hidden: color, weight = t['sp'], 'bold'
+            else: color, weight = t['text'], 'normal'
+            art = ax.text(x, y, txt, fontsize=9.5, color=color, fontweight=weight, va='top', fontfamily='DejaVu Sans')
+            wlen = art.get_window_extent(REND).width / ax.bbox.width
+            if x + wlen > 0.985:
+                x = 0.025; y -= 0.3
+                if y < 0.05: art.remove(); break
+                art.set_position((x, y))
+            x += wlen + 0.009
+
+    frames = [s for s in range(K + 1) for _ in range(6)] + [K] * 30
+    def draw(f):
+        s = frames[f]
+        for ax, start in boxes: line(ax, start, s)
+        stepc.set_text(f'refinement step {s:2d}/{K}')
+        return []
+    anim = FuncAnimation(fig, draw, frames=len(frames), interval=1000 / 10)
+    anim.save(OUT / f'how-it-works-{mode}.gif', writer=PillowWriter(fps=10)); plt.close(fig)
+
+
+if __name__ == '__main__':
+    for mode in THEMES: hero(mode); how(mode)
+    print('T_trad %.0f ms, T_sp %.0f ms' % (T_TRAD, T_SP), sorted(p.name for p in OUT.glob('*.gif')))
