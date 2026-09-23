@@ -26,3 +26,15 @@ Métrica: `llama-bench -p L -n 0` (tok/s de prompt) e `-n 128` (tok/s de geraç�
 Previsão registrada: com um modelo de 0,5B a B580 é tão mais rápida que somar CPU/Mac provavelmente NÃO acelera
 (E3 pode falhar; o custo de rede e de sincronização domina). O ganho de pipeline aparece quando o modelo não cabe
 num dispositivo só ou quando os dispositivos têm velocidades comparáveis.
+
+## Adendo 1 (2026-09-23, antes de qualquer medida)
+- Build: llama.cpp 6e60f35 (Vulkan + RPC) nos dois lados, em vez do oficial b11140, porque o protocolo RPC tem de
+  ser a mesma versão no Mac. `ggml-rpc-server` da CPU local com 5 threads (1 núcleo fica para alimentar a GPU);
+  Mac com 2 threads, `nice`.
+- Ordem de dispositivos: Vulkan0 (B580), RPC0 (CPU 5600X), RPC1 (Mac).
+- Entrada do planejador: pp512 de cada dispositivo sozinho (`llama-bench -dev X`), medida no início (pré-bench).
+- Pela filosofia do autor (nenhum dispositivo fica de fora), cada condição multi-dispositivo roda em 3 divisões:
+  padrão do llama.cpp (proporcional à memória livre), planejador (pode dar 0 camadas) e planejador-min1 (≥ 1 camada
+  por dispositivo). E2 compara planejador × padrão. E1 usa a condição de 3 dispositivos com min1, para que todos
+  participem de fato.
+- Métricas: `llama-bench -p 4096,16384 -n 128 -r 3` (prompt e geração).
