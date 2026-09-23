@@ -23,3 +23,9 @@ A 1ª execução parou na 2ª configuração: o llama.cpp atual rejeita posiçõ
 initialize batch"). Nas janelas, os sumidouros passam a ocupar as posições logo antes do halo, como no StreamingLLM;
 as distâncias entre halo e núcleo continuam as originais. No span, os sumidouros ficam nas posições originais, sem
 mudança. `results/frontier.json` (parcial, só a configuração base) fica guardado; a execução completa vai para `frontier_1.json`.
+
+## V13d: confirmação em 32.768 tokens (pré-registrado após a V13c, antes de medir)
+Dados novos: trechos de 32.768 tokens nº 3 e 4 (tokens 98.304–163.839; a V13c usou até 98.303). Nativo de referência:
+2.096 tok/s (V13, 32.768). Configurações: span 512/2.048/4, span 512/4.096/4 e janelas 512/256/0 (base).
+- **G1:** span 512/2.048: razão de perplexidade média ≤ 1,02 E ≥ 4 × nativo (≥ 8.384 tok/s).
+- **G2:** span 512/4.096: razão ≤ 1,005 E ≥ 3 × nativo (≥ 6.288 tok/s).

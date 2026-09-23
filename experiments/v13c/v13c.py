@@ -14,9 +14,12 @@ def start(exe, gguf, port, ctx, extra=()):
 
 
 def main():
-    ap = argparse.ArgumentParser(); [ap.add_argument(k) for k in ('--exe', '--gguf', '--bundle', '--text')]; a = ap.parse_args()
-    out = ROOT / 'results'; out.mkdir(exist_ok=True); fp = out / 'frontier.json'; k = 1
-    while fp.exists(): fp = out / f'frontier_{k}.json'; k += 1
+    ap = argparse.ArgumentParser(); [ap.add_argument(k) for k in ('--exe', '--gguf', '--bundle', '--text')]
+    ap.add_argument('--L', type=int, default=16384); ap.add_argument('--chunks', default='3,4,5'); ap.add_argument('--configs', default='')
+    ap.add_argument('--tag', default='frontier'); a = ap.parse_args()
+    global L, CHUNKS; L = a.L; CHUNKS = tuple(int(c) for c in a.chunks.split(','))
+    out = ROOT / 'results'; out.mkdir(exist_ok=True); fp = out / f'{a.tag}.json'; k = 1
+    while fp.exists(): fp = out / f'{a.tag}_{k}.json'; k += 1
     from transformers import AutoTokenizer
     ids_all = np.array(AutoTokenizer.from_pretrained(a.bundle)(Path(a.text).read_text(encoding='utf-8', errors='ignore')).input_ids, dtype=np.int64)
     chunks = {c: ids_all[c * L:(c + 1) * L] for c in CHUNKS}; res = {'L': L, 'chunks': CHUNKS, 'full': {}, 'configs': []}
@@ -31,6 +34,7 @@ def main():
     save(); print('full', res['full'], flush=True)
     configs = [('windows', 512, 256, 0), ('windows', 512, 256, 4), ('windows', 1024, 1024, 4), ('windows', 2048, 2048, 4), ('windows', 4096, 4096, 4),
                ('span', 512, 256, 4), ('span', 512, 1024, 4), ('span', 512, 2048, 4), ('span', 512, 4096, 4), ('span', 1024, 8192, 4)]
+    if a.configs: configs = [(m, int(x), int(y), int(z)) for m, x, y, z in (c.split(':') for c in a.configs.split(','))]
     for mode, S, H, K in configs:
         port += 1; ctx = S + H + K + 64 if mode == 'windows' else H + K + S + 64
         extra = ('--span-chunk', str(S), '--span-keep', str(H), '--span-sinks', str(K)) if mode == 'span' else ()
