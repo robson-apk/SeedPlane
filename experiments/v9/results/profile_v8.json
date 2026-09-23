@@ -1,0 +1,13 @@
+{
+ "global_forward_1t_ms": 209.67505002045073,
+ "one_shard_forward_1t_ms": 17.97275000717491,
+ "batched_6_interior_shards_1t_ms": 98.72039998299442,
+ "softmax_max_1024x1024_1t_ms": 5.427550000604242,
+ "global_forward_4t_ms": 90.04964999621734,
+ "one_shard_forward_4t_ms": 10.371149983257055,
+ "batched_6_interior_shards_4t_ms": 40.33329998492263,
+ "softmax_max_1024x1024_4t_ms": 4.427450039656833,
+ "v8_one_step_4workers_ms": 47.63715001172386,
+ "ipc_roundtrip_empty_4workers_ms": 1.191799994558096,
+ "v8_full_decode_traditional_ms": 1517.6001000218093
+}

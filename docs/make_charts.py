@@ -36,10 +36,17 @@ def base(t, title, subtitle, w=7.2, h=3.9):
     return fig, ax
 
 
-def lines(ax, t, xs, series, fmt):
+def lines(ax, t, xs, series, fmt, min_gap_px=38):
+    """Direct labels at the line ends, nudged apart so they never collide."""
     for key, ys in series.items():
         ax.plot(xs, ys, color=t[key], linewidth=2, marker='o', markersize=6, markeredgecolor=t['surface'], markeredgewidth=1.5, zorder=3)
-        ax.annotate(f'{NAMES[key]}\n{fmt(ys[-1])}', (xs[-1], ys[-1]), xytext=(10, 0), textcoords='offset points',
+    ax.figure.canvas.draw()
+    ends = sorted(((ax.transData.transform((xs[-1], ys[-1]))[1], key, ys[-1]) for key, ys in series.items()), reverse=True)
+    placed = []
+    for y_px, key, v in ends:
+        y_lab = y_px if not placed else min(y_px, placed[-1] - min_gap_px)
+        placed.append(y_lab)
+        ax.annotate(f'{NAMES[key]}\n{fmt(v)}', (xs[-1], v), xytext=(10, y_lab - y_px), textcoords='offset pixels',
                     va='center', fontsize=8.5, color=t['text'], annotation_clip=False)
 
 

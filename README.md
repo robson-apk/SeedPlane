@@ -21,11 +21,11 @@
 
 <div align="center">
 
-| 🚀 **2.0× faster** | 🎯 **+0.4 to +1.4 pp accuracy** | 🧮 **6.4× less attention work** |
-|:---:|:---:|:---:|
-| 760 ms vs 1,555 ms per 1,024-token page | same model, same text, 3/3 seeds | 51× less at 8,192 tokens |
+| 🚀 **2.0× faster** | ⚡ **682 vs 341 tok/s** | 🎯 **+0.4 to +1.4 pp accuracy** | 🧮 **6.4× less attention work** |
+|:---:|:---:|:---:|:---:|
+| 760 ms vs 1,555 ms per 1,024-token page | 6 CPU cores; 1.6× faster even on 1 core | same model, same text, 3/3 seeds | 51× less at 8,192 tokens |
 
-<sub>Same checkpoint · same inputs · same 4 CPU cores (Ryzen 5600X) · criteria committed to git <i>before</i> the run — <a href="experiments/v8/RESULTS.md">V8 results</a></sub>
+<sub>Same checkpoint · same inputs · same CPU cores (Ryzen 5600X) · criteria committed to git <i>before</i> each run — <a href="experiments/v8/RESULTS.md">V8</a> · <a href="experiments/v9/RESULTS.md">V9</a></sub>
 
 </div>
 
@@ -61,7 +61,35 @@ A traditional Transformer makes every word attend to every other word — cost g
   </picture>
 </p>
 
-<!-- V9_CHARTS -->
+### More tokens per second on every core count
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/tokens_per_second-dark.svg">
+    <img src="docs/img/tokens_per_second-light.svg" alt="Tokens per second from 1 to 6 CPU cores: SeedPlane 247 to 682, traditional 154 to 341" width="720">
+  </picture>
+</p>
+
+**1.6× faster on a single core, 2.0× on six.** The traditional Transformer stops scaling around 5 cores; SeedPlane's shards are independent, so each core gets its own work.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/scaling-dark.svg">
+    <img src="docs/img/scaling-light.svg" alt="Speed-up over one core: SeedPlane reaches 2.7x, traditional peaks at 2.4x and drops at 6 cores" width="720">
+  </picture>
+</p>
+
+### The price: memory
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/memory-dark.svg">
+    <img src="docs/img/memory-light.svg" alt="Peak RAM: traditional stays near 400 MB, SeedPlane grows from 700 MB to 2.3 GB with 6 cores" width="720">
+  </picture>
+</p>
+
+Today every SeedPlane core is a separate process with its own copy of the runtime and model (~330 MB each). The compute is cheap; the duplication is not — sharing one copy across cores is the next optimization.
+
 
 ### Where it loses — on purpose, in public
 
@@ -85,7 +113,7 @@ No hidden footnotes: every experiment has its pass/fail criteria written *before
 | | Question | Verdict |
 |---|---|---|
 | **V8** | Same model — faster *and* at least as good? | ✅ 2.0× faster · +0.4 to +1.4 pp · lower loss |
-| **V9** | How does it scale from 1 to 6 cores? | ⏳ running |
+| **V9** | Faster than the traditional Transformer on every core count, 1 → 6? | ✅ 1.6× to 2.0× faster, identical output to V8 · ❌ optimizations gained only 4–6% (10% needed) · ⚠️ uses 1.7–5.8× more RAM |
 | V7 | Can shards recall far-away information? | ❌ not with halos or latent messages (yet) |
 | V6 | Same question on TinyStories | ⚪ inconclusive — too little long-range signal |
 | V5 | Is the message router safe? | ✅ 0 invalid updates accepted out of 54,000 adversarial ones |
