@@ -71,29 +71,23 @@ keep quality as texts get longer. That one is logged as a falsified claim.
   </picture>
 </p>
 
-### How the work is shared — and how scheduling latency stays near zero
+### How the work is shared
 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/img/scheduler-dark.gif">
-    <img src="docs/img/scheduler-light.gif" alt="Animation of a real run: devices are measured once, the prompt is cut so every device finishes together, then all pieces run in parallel" width="760">
+    <img src="docs/img/scheduler-light.gif" alt="A real run: devices are measured once, the prompt is split by speed, and the pieces run in parallel" width="760">
   </picture>
 </p>
 
-1. **Measure once, stay warm.** At startup every device processes one window and the round trip, network included, is
-   timed (`calibrate()`). Weights are loaded once and never reloaded. Re-measuring inside each request cost us
-   33–47% of multi-slot CPU throughput before we fixed it (V13 adendo 3).
-2. **Cut to finish together.** `plan_pieces()` bisects on a common finish time *T* and gives each device exactly the tokens
-   it can finish by *T*. Slow devices get small pieces. If a device cannot finish even its smallest piece in time, it gets
-   0 tokens for that request, which is logged, and it stays warm for the next one. Measured runs landed at 0.97–1.21×
-   the planned speed.
-3. **Run with almost no overhead.** Binary protocol (no pickle), `TCP_NODELAY`, one request and one reply per piece, and
-   the halo reused in the KV cache. The coordinator takes **0.1–0.3%** of wall time, so it does not need rewriting in C++.
+| Step | What happens | Measured |
+|---|---|---|
+| **1 · Measure once** | Each device is timed at startup (network included); weights stay loaded | no per-request cost |
+| **2 · Split by speed** | Each device gets what it can finish by a common deadline; too slow → waits for the next request | 0.97–1.21× the planned speed |
+| **3 · Run in parallel** | One message per piece, binary protocol, halo reused in the KV cache | coordinator = 0.1–0.3% of time |
 
-**Still open:** the plan ignores network time, which is why the Mac finishes early and why adding it to *short* prompts
-costs 5–8%. A CPU next to a GPU that is 74× faster gets ~0 tokens in a single prompt; its place is concurrent requests
-or models larger than VRAM. Why not llama.cpp's RPC instead? Measured on the same Mac: **210 tok/s** through RPC (it syncs
-over the network at every compute step) vs **1,250 tok/s** as a SeedPlane worker (one message per piece).
+<sub>Open: network time isn't in the plan yet (adding the Mac to short prompts costs 5–8%). Via llama.cpp's RPC the same Mac
+does 210 tok/s; as a SeedPlane worker, 1,250.</sub>
 
 ```bash
 python -m seedplane.probe --model qwen.gguf --worker ./seedplane-worker          # which API/device layout is fastest here?

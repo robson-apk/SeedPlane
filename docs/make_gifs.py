@@ -143,75 +143,90 @@ def long_race(mode):
     FuncAnimation(fig, draw, frames=frames, interval=1000 / FPS2).save(OUT / f'long-race-{mode}.gif', writer=PillowWriter(fps=FPS2)); plt.close(fig)
 
 
+def _blend(c1, c2, a):
+    import matplotlib.colors as mc
+    x, y = np.array(mc.to_rgb(c1)), np.array(mc.to_rgb(c2)); return tuple(x * (1 - a) + y * a)
+
+
 def scheduler(mode):
-    """How one prompt is split across B580 + CPU slots + Mac: REAL numbers from V13 run 2 (gpu+cpu4+mac, span, 16,384)."""
+    """One prompt shared by B580 + 2 CPU slots + Mac. REAL numbers from V13 run 2 (gpu+cpu4+mac, span mode, 16,384 tokens)."""
     d = json.loads((REPO / 'experiments/v13/results/speed_run2.json').read_text())['sp']
     rates = d['gpu+cpu4+mac|16384']['rates']; row = d['gpu+cpu4+mac|span|16384']; tpw = row['tokens_per_worker']
-    tl = {e['worker']: e['end'] for e in row['timeline']}; L_ = 16384; H = 256
-    t = THEMES[mode]
-    lanes = [('127.0.0.1:54000', 'Arc B580 GPU', 'sp'), ('127.0.0.1:54002', 'CPU slot 1 (2 threads)', 'trad'),
-             ('127.0.0.1:54002#1', 'CPU slot 2 (2 threads)', 'trad'), ('10.0.0.92:54110', 'Mac M4 over the LAN', 'v8')]
+    tl = {e['worker']: e['end'] for e in row['timeline']}; L_ = 16384; t = THEMES[mode]
+    devs = [('127.0.0.1:54000', 'Arc B580', 'GPU', 'sp'), ('127.0.0.1:54002', 'Ryzen', 'CPU slot', 'trad'),
+            ('127.0.0.1:54002#1', 'Ryzen', 'CPU slot', 'trad'), ('10.0.0.92:54110', 'Mac M4', 'over LAN', 'v8')]
     spans, c0 = {}, 0
-    for w, _, _ in sorted(lanes, key=lambda x: rates[x[0]]):          # slow devices take the first, small pieces
+    for w, *_ in sorted(devs, key=lambda x: rates[x[0]]):
         if tpw[w]: spans[w] = (c0, c0 + tpw[w]); c0 += tpw[w]
-    T_END = max(tl.values()); FPS_ = 12; P1, P2, P3, HOLD_ = 36, 48, 60, 48
-    fig = plt.figure(figsize=(8.4, 4.9), dpi=90); fig.patch.set_facecolor(t['surface'])
-    fig.text(0.03, 0.955, 'How one prompt is shared between a GPU, CPU cores and a Mac', fontsize=15, fontweight='bold', color=t['text'], va='top')
-    fig.text(0.03, 0.885, 'Real run (V13): Qwen2.5-0.5B · one 16,384-token prompt · span mode · numbers measured, not simulated',
-             fontsize=9.5, color=t['text2'], va='top')
-    ax = fig.add_axes([0.27, 0.2, 0.68, 0.56]); phase_t = fig.text(0.03, 0.8, '', fontsize=12, fontweight='bold', color=t['text'], va='top')
-    cap = fig.text(0.03, 0.1, '', fontsize=9.5, color=t['text'], va='top', wrap=True)
+    T_END = max(tl.values()); FPS_ = 15
+    F1, F2, F3, F4 = 30, 30, 60, 45                                   # measure · cut · run · result (frames)
+    COLS, ROWS = 64, 4; blk = L_ / (COLS * ROWS)                      # 256 blocks of 64 tokens
+    owner = {}
+    for b in range(COLS * ROWS):
+        mid = (b + 0.5) * blk; owner[b] = next((w for w, (a, e) in spans.items() if a <= mid < e), None)
 
-    def lane_labels():
-        for i, (w, name, key) in enumerate(lanes):
-            fig.text(0.03, 0.2 + 0.56 * (1 - (i + 0.5) / len(lanes)), name, fontsize=10, color=t['text'], va='center')
-    lane_labels()
+    fig = plt.figure(figsize=(8.4, 4.6), dpi=100); fig.patch.set_facecolor(t['surface'])
+    ax = fig.add_axes([0, 0, 1, 1]); ax.set_xlim(0, 84); ax.set_ylim(46, 0); ax.axis('off')
+    ax.text(3, 3.2, 'Split by speed. Run in parallel.', fontsize=17, fontweight='bold', color=t['text'], va='center')
+    ax.text(3, 6.6, 'Real run · Qwen2.5-0.5B · 16,384-token prompt', fontsize=10, color=t['text2'], va='center')
+    chip = ax.text(70, 6.6, '', fontsize=10.5, fontweight='bold', color=t['text'], va='center', ha='right')
+    clock = ax.text(81, 6.6, '', fontsize=10, color=t['text2'], va='center', ha='right', fontfamily='monospace')
+    cells = []
+    x0, y0, cw, ch = 3, 10, 78 / COLS, 1.9
+    for r in range(ROWS):
+        for c in range(COLS):
+            p_ = Rectangle((x0 + c * cw + 0.08, y0 + r * ch + 0.12), cw - 0.16, ch - 0.24, linewidth=0, facecolor=t['empty']); ax.add_patch(p_); cells.append(p_)
+    ax.text(3, y0 + ROWS * ch + 1.3, 'the prompt: 16,384 tokens', fontsize=8.5, color=t['text2'], va='center')
+    cards = []
+    for k, (w, name, kind, key) in enumerate(devs):
+        cx = 3 + k * 19.8; cy = 23
+        box = FancyBboxPatch((cx, cy), 18.4, 15.5, boxstyle='round,pad=0,rounding_size=1.2', linewidth=1.4, edgecolor=t['given'], facecolor=t['surface'])
+        ax.add_patch(box)
+        ax.text(cx + 1.2, cy + 2.4, name, fontsize=12, fontweight='bold', color=t['text'], va='center')
+        ax.text(cx + 1.2, cy + 4.9, kind, fontsize=9, color=t['text2'], va='center')
+        ax.add_patch(Rectangle((cx + 1.2, cy + 1.3), 0.5, 0.01, linewidth=0))
+        stripe = Rectangle((cx, cy + 0.2), 0.7, 15.1, linewidth=0, facecolor=t[key]); ax.add_patch(stripe)
+        speed = ax.text(cx + 1.2, cy + 8.3, '', fontsize=15, fontweight='bold', color=t['text'], va='center')
+        sub = ax.text(cx + 1.2, cy + 10.8, '', fontsize=8.5, color=t['text2'], va='center')
+        track = Rectangle((cx + 1.2, cy + 12.6), 16, 1.2, linewidth=0, facecolor=t['empty']); ax.add_patch(track)
+        bar = Rectangle((cx + 1.2, cy + 12.6), 0, 1.2, linewidth=0, facecolor=t[key]); ax.add_patch(bar)
+        cards.append(dict(w=w, key=key, box=box, speed=speed, sub=sub, bar=bar, track=track))
+    footer = ax.text(42, 42.8, '', fontsize=10.5, color=t['text'], va='center', ha='center')
 
     def frame(f):
-        ax.clear(); ax.set_facecolor(t['surface']); ax.set_ylim(len(lanes), 0); ax.set_yticks([])
-        for sp_ in ax.spines.values(): sp_.set_visible(False)
-        ax.tick_params(colors=t['text2'], labelsize=8.5, length=0)
-        if f < P1:                                   # 1. pre-bench once
-            phase_t.set_text('① Measure every device once, at startup')
-            cap.set_text('Each device processes one window; the round trip (network included) is timed. Weights stay loaded and\n'
-                         'warm, so later requests never pay for measuring again.')
-            ax.set_xlim(0, 1); ax.set_xticks([])
-            shown = int(f / (P1 / (len(lanes) + 1)))
-            for i, (w, name, key) in enumerate(lanes[:shown]):
-                ax.add_patch(Rectangle((0.0, i + 0.3), 0.012, 0.4, facecolor=t[key], linewidth=0))
-                ax.text(0.03, i + 0.5, f'{rates[w]:,.0f} tok/s', fontsize=13, fontweight='bold', color=t['text'], va='center')
-            if shown > len(lanes) - 1:
-                ax.text(0.55, 1.0, 'the GPU is ~160× faster\nthan one CPU slot', fontsize=10, color=t['text2'], va='center')
-        elif f < P1 + P2:                            # 2. cut the text so everyone finishes together
-            k = min(1.0, (f - P1) / (P2 * 0.6))
-            phase_t.set_text('② Cut the text so every device finishes at the same moment')
-            cap.set_text('Bisection finds the common finish time T; each device gets exactly what it can do by T (+ one 256-token halo).\n'
-                         'A CPU slot would need 2.4 s for its smallest piece while the rest finish in 0.8 s → 0 tokens this time, kept warm.')
-            ax.set_xlim(0, L_); ax.set_xlabel('position in the prompt (tokens)', color=t['text2'], fontsize=9)
-            ax.set_xticks([0, 4096, 8192, 12288, 16384], ['0', '4,096', '8,192', '12,288', '16,384'])
-            for i, (w, name, key) in enumerate(lanes):
-                if w in spans:
-                    a, b = spans[w]; ax.add_patch(Rectangle((a, i + 0.2), (b - a) * k, 0.6, facecolor=t[key], linewidth=0))
-                    ax.text(a + (b - a) * k + 150, i + 0.5, f'{b - a:,} tokens', fontsize=9, color=t['text'], va='center')
-                else:
-                    ax.text(150, i + 0.5, '0 tokens — stays loaded for the next request', fontsize=9, color=t['text2'], va='center')
-        else:                                        # 3. run in parallel (real finish times, slowed down)
-            g = min(1.0, (f - P1 - P2) / P3); now = g * T_END * 1.02
-            phase_t.set_text('③ Run all pieces at the same time')
-            ax.set_xlim(0, T_END * 1.25); ax.set_xlabel('time (seconds)', color=t['text2'], fontsize=9)
-            for i, (w, name, key) in enumerate(lanes):
-                if w not in spans:
-                    ax.text(0.01, i + 0.5, 'idle this request (0 tokens)', fontsize=9, color=t['text2'], va='center'); continue
-                end = tl[w]; ax.add_patch(Rectangle((0, i + 0.2), min(now, end), 0.6, facecolor=t[key], linewidth=0))
-                if now >= end: ax.text(end + 0.01, i + 0.5, f'done {end:.2f} s', fontsize=9, color=t['text'], va='center')
-            ax.axvline(now, color=t['text2'], linewidth=1)
-            if g >= 1:
-                cap.set_text(f'Done in {T_END:.2f} s → {row["tok_s"]:,.0f} tok/s, vs 19,413 tok/s on the GPU alone (+3%). An equal 4-way split would\n'
-                             f'wait ≈ 38 s for a CPU slot (projected). The Mac finished {T_END - tl["10.0.0.92:54110"]:.2f} s early: network time is not in the plan yet.')
-            else:
-                cap.set_text('Each device reuses its halo in the KV cache; the coordinator costs 0.1–0.3% of the time.')
+        if f < F1:                                                        # 1 · measure once
+            a = f / (F1 - 1); chip.set_text('1 · measure each device once'); clock.set_text('')
+            for c in cards:
+                c['speed'].set_text(f'{rates[c["w"]] * min(1, a * 1.3):,.0f} tok/s'); c['sub'].set_text('measured at startup')
+            footer.set_text('Weights load once and stay warm. No re-measuring per request.')
+        elif f < F1 + F2:                                                 # 2 · cut so all finish together
+            a = (f - F1) / (F2 - 1); chip.set_text('2 · cut the prompt by speed')
+            n = int(a * len(cells))
+            for b, p_ in enumerate(cells):
+                w = owner[b]; col = next(c['key'] for c in cards if c['w'] == w)
+                p_.set_facecolor(_blend(t['empty'], t[col], 0.35) if b < n else t['empty'])
+            for c in cards:
+                tok = tpw[c['w']]
+                c['sub'].set_text(f'{tok:,} tokens' if tok else 'standby: too slow for this one')
+                c['box'].set_alpha(1.0); c['speed'].set_color(t['text'] if tok else t['text2'])
+            footer.set_text('Each device gets what it can finish by the same moment. Too slow → it waits for the next request.')
+        elif f < F1 + F2 + F3:                                            # 3 · run in parallel (real finish times)
+            g = (f - F1 - F2) / (F3 - 1); now = g * T_END; chip.set_text('3 · run in parallel'); clock.set_text(f'{now:4.2f} s')
+            for b, p_ in enumerate(cells):
+                w = owner[b]; a_, e_ = spans[w]; col = next(c['key'] for c in cards if c['w'] == w)
+                done = min(1.0, now / tl[w]); lit = (b + 0.5) * blk <= a_ + done * (e_ - a_)
+                p_.set_facecolor(t[col] if lit else _blend(t['empty'], t[col], 0.35))
+            for c in cards:
+                if c['w'] in tl:
+                    fr = min(1.0, now / tl[c['w']]); c['bar'].set_width(16 * fr)
+                    c['sub'].set_text(f'done at {tl[c["w"]]:.2f} s' if fr >= 1 else f'{tpw[c["w"]]:,} tokens')
+            footer.set_text('Both pieces run at the same time. The coordinator costs 0.1–0.3% of the time.')
+        else:                                                             # 4 · result
+            chip.set_text(''); clock.set_text(f'{T_END:4.2f} s')
+            footer.set_text(f'{row["tok_s"]:,.0f} tok/s   ·   GPU alone 19,413   ·   llama.cpp native 3,891')
+            footer.set_fontweight('bold'); footer.set_fontsize(13)
         return []
-    FuncAnimation(fig, frame, frames=P1 + P2 + P3 + HOLD_, interval=1000 / FPS_).save(OUT / f'scheduler-{mode}.gif', writer=PillowWriter(fps=FPS_))
+    FuncAnimation(fig, frame, frames=F1 + F2 + F3 + F4, interval=1000 / FPS_).save(OUT / f'scheduler-{mode}.gif', writer=PillowWriter(fps=FPS_))
     plt.close(fig)
 
 
