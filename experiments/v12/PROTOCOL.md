@@ -43,3 +43,10 @@ Resultado de qualidade já saiu (Q1 falhou; melhor variante sp S=512 H=256 sinks
   sozinha (somar dispositivos não pode piorar).
 - **llama.cpp:** além dos binários oficiais (CPU, SYCL, Vulkan b11140), os builds do próprio usuário para a B580
   (F:\S.Y.N.A.P.S.E\llama.cpp: SYCL icx F16, SYCL+oneDNN, Vulkan). O melhor deles é a referência de S1.
+
+## Adendo 2 (2026-09-23, antes de qualquer número de velocidade) — execução em fases
+A 1ª execução de velocidade morreu sem resultado: em `cpu4`, os 4 workers fp32 (~2,3 GB cada) + o processo
+coordenador (3,6 GB retidos dos modelos da fase "full") esgotaram os 16 GB do 5600X; os workers morreram por falta de
+memória e o coordenador ficou esperando. Nenhum número foi salvo nem visto. Mudança: as fases (full / seedplane /
+llama.cpp) rodam em processos separados e salvam após cada configuração; configurações sem RAM livre suficiente são
+registradas como `skipped` (não executadas), nunca como resultado. Critérios S1–S3 inalterados.

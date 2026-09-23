@@ -112,3 +112,34 @@ worker ports to the internet.
   short stories, +13% on Wikipedia text (V12). Larger halos cost less quality and more compute.
 - ❌ Not a drop-in for tasks that must connect information many shards apart (V7).
 - 🧪 Token-by-token generation after a sharded prefill is not implemented yet (prefill/scoring only).
+
+---
+
+## 6. Native backend: `seedplane-worker` on llama.cpp kernels (V13, experimental)
+
+The PyTorch workers above are the reference implementation. For speed, `native/seedplane-worker.cpp` serves the same
+windows through the llama.cpp C API, so the math runs on llama.cpp's optimized kernels (CPU, Vulkan, SYCL, CUDA, Metal)
+and the model is a GGUF file.
+
+```bash
+# build against a llama.cpp checkout (after building libllama there)
+c++ -std=c++17 -O3 native/seedplane-worker.cpp -I $LLAMA/include -I $LLAMA/ggml/include \
+    -L $LLAMA/build/bin -lllama -lggml -lggml-base -Wl,-rpath,$LLAMA/build/bin -o seedplane-worker
+export SEEDPLANE_AUTHKEY="a long random secret"
+./seedplane-worker -m qwen2.5-0.5b-instruct-fp16.gguf --port 54000 --ngl 99      # GPU
+./seedplane-worker -m qwen2.5-0.5b-instruct-fp16.gguf --port 54001 --ngl 0 -t 4  # 4 CPU threads
+```
+
+```python
+from seedplane import engine, llama_backend as lb
+workers = lb.connect(["gpu-box:54000", "gpu-box:54001", "mac.local:54000"])
+results, seconds, windows_per_worker = lb.run_windows(workers, ids, engine.ShardPlan(512, 256).windows(len(ids)), want="nll")
+```
+
+Binary protocol (little-endian, no pickle). Request: `u32 magic 'SPW1', u32 want (0 prefill, 1 nll, 2 close),
+u32 n_tok, u32 core_off, u32 score_from, i32 next_tok, i32 tokens[n], i32 positions[n]`. Response:
+`u32 magic, f64 nll_sum, u32 n_scored, i32 argmax_last, f32 compute_ms`. Every window starts from an empty KV cache
+and keeps its tokens' original positions.
+
+Measured correctness (V13 C1/C2, Mac CPU): matches the PyTorch engine within 0.6% (single window) and 0.7% (shards)
+NLL. That is the F16 vs fp32 difference. Speed results are pending.

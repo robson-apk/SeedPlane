@@ -1,0 +1,40 @@
+{
+ "L": 1024,
+ "plan": [
+  512,
+  256,
+  0
+ ],
+ "rows": [
+  {
+   "chunk": 0,
+   "n_scored": [
+    1023,
+    1023,
+    1023,
+    1023
+   ],
+   "native_full": 2.2435023556582325,
+   "torch_full": 2.2355513139204546,
+   "native_shard": 2.651910719018054,
+   "torch_shard": 2.6338612546202955
+  },
+  {
+   "chunk": 1,
+   "n_scored": [
+    1023,
+    1023,
+    1023,
+    1023
+   ],
+   "native_full": 2.9867210133822635,
+   "torch_full": 2.969452351768695,
+   "native_shard": 2.9822376916228097,
+   "torch_shard": 2.966199291300098
+  }
+ ],
+ "C1_native_vs_torch_max_rel": 0.005815436507436364,
+ "C2_native_vs_torch_shard_max_rel": 0.0068528531509001265,
+ "C1_pass_1pct": true,
+ "C2_pass_1pct": true
+}
