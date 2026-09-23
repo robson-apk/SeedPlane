@@ -20,10 +20,29 @@ SeedPlane splits a text sequence into **spatial shards** (128 tokens each), deno
 | 🛡️ | **Zero invalid messages accepted** by the versioned envelope router across 54,000 adversarial test messages (270,000 decisions over 5 compared routers): collisions, stale generations, wrong request/version/target/source, duplicates. | [`experiments/v5/RESULTS.md`](experiments/v5/RESULTS.md) |
 | ⏱️ | **0 / 120 stale inferences accepted** in a live concurrent test with *real* out-of-date model outputs racing current ones — and 120 / 120 current ones kept. | `experiments/v5/results/live_stale_results.json` |
 | 🎯 | **Bit-identical outputs** between the exact-envelope router and the full SeedPlane V5 router over 180 paired end-to-end runs (max difference 0.0). | `experiments/v5/results/paired_runtime_results.json` |
+| 📈 | **More accurate than full attention on TinyStories**: SeedPlane-style shard decoding scored +0.6 pp over the same model with global attention, in all 3 seeds (95% CI excludes 0). | [Comparison](#-seedplane-vs-a-traditional-transformer) |
 | 🧠 | **A denoiser that actually learns**: the V6 model (5.3M params) reaches 1.70 nats at 15% masking vs 5.10 for a word-frequency baseline — shipped in `checkpoints/`. | [`experiments/v6/`](experiments/v6/) |
 | 🔬 | **A reusable "is my model really using context?" check** that caught a context-blind checkpoint other metrics had missed — one script, three numbers. | [`experiments/v6/check_original_checkpoint.py`](experiments/v6/check_original_checkpoint.py) |
 | 🧪 | **Science in the open**: protocols with fixed pass/fail criteria before every run, failed trainings and retracted claims kept in history instead of deleted. | `experiments/*/PROTOCOL.md` |
 | 💻 | **Runs anywhere**: zero-dependency demo in pure Python; full suite on PyTorch CPU, Intel XPU (SYCL) or Apple Silicon. | [Quickstart](#-1-minute-quickstart) |
+
+---
+
+## 🥊 SeedPlane vs a Traditional Transformer
+
+Same model weights, same data, same decoding rule — only the attention layout changes: a **traditional Transformer** attends over the whole sequence at once; **SeedPlane** splits it into 128-token shards that each see only their own shard plus a 16-token halo from each neighbor.
+
+| | Traditional (global attention) | **SeedPlane (shards + halo 16)** | |
+|---|:---:|:---:|:---:|
+| ⚡ Wall-clock, L=1024 (4 CPU threads vs 4 workers, incl. IPC + fusion) | 5.44 ms | **3.78 ms** | 🏆 **SeedPlane, ~29% faster** |
+| 🎯 Masked-infill accuracy, L=1024 (3 seeds, ~33k tokens each) | 45.02 / 44.62 / 45.61 % | **45.67 / 45.29 / 46.20 %** | 🏆 **SeedPlane, +0.6 pp** (95% CI excludes 0 in every seed) |
+| 🧮 Attention pairs computed, L=1024 | 1,048,576 | **163,840** | 🏆 **SeedPlane, 6.4× less work** |
+| 📈 Attention pairs, L=8192 | 67,108,864 | **1,310,720** | 🏆 **SeedPlane, 51× less** — the gap grows linearly with length |
+| 🌐 Scale-out | one device must hold the whole sequence | each worker holds one shard; neighbors exchange a thin halo | 🏆 **SeedPlane** |
+| ⏱️ Wall-clock, L=512 | **1.61 ms** | 2.07 ms | Traditional (coordination overhead dominates short inputs) |
+| 🔭 Information from far-away shards | sees everything | only what reaches it through neighbors | ⏳ Under test in **V7** |
+
+<sub>Accuracy: V6 denoiser (5.3M params), TinyStories, 50% masked, 16 iterative steps (`experiments/v6/results/analysis.json`, criterion H1a). The model was trained half on full sequences and half on shard windows; TinyStories stories are short, so far-away context carries little information there — V7 is the stress test for that. Timing: V5b pre-registered benchmark on the original toy model (`experiments/v5/PROTOCOL_V5b.md`). Attention pairs are exact arithmetic (L² vs shards × 128 × 160).</sub>
 
 ---
 
