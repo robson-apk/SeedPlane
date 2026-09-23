@@ -31,6 +31,55 @@
 
 ---
 
+## New: real models, real kernels — Qwen2.5 on llama.cpp
+
+SeedPlane now runs **existing GGUF models, unchanged**, on top of llama.cpp's own kernels (`native/seedplane-worker.cpp`).
+No retraining. Same file, same GPU, same kernels — only the attention pattern and the scheduling change.
+
+<div align="center">
+
+| ⚡ **5.0× faster** at 16k tokens | 🎯 **same perplexity** (−0.2%) at **1.84×** | 🧠 **32× smaller KV cache** at 32k | 🧭 **48× faster** than llama.cpp's default split |
+|:---:|:---:|:---:|:---:|
+| 19,413 vs 3,891 tok/s on an Arc B580 | 16k tokens, halo 4,096, 3 fresh text chunks | 12 MiB vs 387 MiB | B580 + CPU: planner 10,822 vs default 224 tok/s |
+
+<sub>Qwen2.5-0.5B-Instruct F16 · Intel Arc B580 (Vulkan) · WikiText-2 · criteria committed before each run — <a href="experiments/v13/RESULTS.md">V13</a> · <a href="experiments/v13c/RESULTS.md">V13c/d</a> · <a href="experiments/v14/">V14</a></sub>
+
+</div>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/qwen_speed-dark.svg">
+    <img src="docs/img/qwen_speed-light.svg" alt="Prompt tokens per second vs prompt length: llama.cpp drops from 10,827 to 2,096 tok/s; SeedPlane stays at about 19,400" width="760">
+  </picture>
+</p>
+
+**Speed is not free — so we show the price.** Each point is one halo size. At 16k tokens, a 4,096-token halo matches the
+original model's perplexity at 1.84× the speed. At 32k the same halo costs +2.2% (3.2× faster), so a fixed halo does **not**
+keep quality as texts get longer. That one is logged as a falsified claim.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/qwen_frontier-dark.svg">
+    <img src="docs/img/qwen_frontier-light.svg" alt="Speed-up vs perplexity change for each halo size at 16k and 32k tokens" width="760">
+  </picture>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/img/qwen_kv_memory-dark.svg">
+    <img src="docs/img/qwen_kv_memory-light.svg" alt="KV cache: llama.cpp grows to 387 MiB at 32k tokens, SeedPlane stays at 12 MiB" width="760">
+  </picture>
+</p>
+
+```bash
+python -m seedplane.probe --model qwen.gguf --worker ./seedplane-worker          # which API/device layout is fastest here?
+./seedplane-worker -m qwen.gguf --dev Vulkan0 --port 54000                        # GPU worker (weights loaded once, kept warm)
+./seedplane-worker -m qwen.gguf --dev CPU --slots 3 -t 2 --port 54001             # 3 CPU slots sharing one copy of the weights
+```
+Full API: [docs/API.md](docs/API.md).
+
+---
+
 ## The blank page isn't a queue. It's a territory.
 
 Language models write the way we have since Gutenberg: one word, then the next, then the next. **SeedPlane borrows a trick from open-world game engines instead** — split the world into chunks and let every core render its own chunk at once.
@@ -145,6 +194,11 @@ No hidden footnotes: every experiment has its pass/fail criteria written *before
 
 | | Question | Verdict |
 |---|---|---|
+| **V14** | Exact pipeline (layers split over B580 + CPU + Mac via llama.cpp RPC), planner vs default split | ✅ planner 48× faster than llama.cpp's default split · results in progress |
+| **V13d** | Does the quality hold at 32k tokens? | ❌ no: +2.2% (3.2×) to +6.2% (4.9×) — fixed halo falsified for long texts |
+| **V13c** | Speed × quality frontier at 16k | ✅ ≤ 2% quality loss at 2.7× · same quality at 1.84× · ❌ ≤ 5% at ≥ 3× not reached |
+| **V13** | SeedPlane on llama.cpp kernels vs native llama.cpp (Qwen2.5-0.5B) | ✅ 5.0× at 16k, 9.3× at 32k · ✅ KV constant · ❌ +17–29% perplexity with small halo · ❌ CPU next to a 74× faster GPU contributes ~0 |
+| **V12** | Qwen2.5 (not trained for SeedPlane) in our PyTorch engine | ❌ 0.81× llama.cpp speed · ✅ windows faster than full attention in the same engine · ❌ +13% perplexity (WikiText, 4k) |
 | **V8** | Same model — faster *and* at least as good? | ✅ 2.0× faster · +0.4 to +1.4 pp · lower loss |
 | **V9** | Faster than the traditional Transformer on every core count, 1 → 6? | ✅ 1.6× to 2.0× faster, identical output to V8 · ❌ optimizations gained only 4–6% (10% needed) · ⚠️ uses 1.7–5.8× more RAM |
 | **V11** | GPU: vectorized kernels + long text | ✅ 1.8× faster GPU kernels · ✅ 11.8× faster than traditional at 8,192 tokens (timing) · ❌ still 1.15× slower at 1,024 · ❌ long-context model failed to train (quality pending) |

@@ -35,10 +35,10 @@ Qwen sem retreino. Em 4k (V12) o custo era +13%. Quanto mais longo o texto, mais
 | L | KV completo | KV SeedPlane | compute (ambos) | total completo | total SeedPlane | razão |
 |---|---|---|---|---|---|---|
 | 8.192 | 99 MiB | 12 MiB | 300 MiB (+12 / +5 host) | 411 | 317 | 0,77 |
-| 16.384 | 195 MiB* | 12 MiB | 300 MiB | 515 | 317 | 0,62 |
+| 16.384 | 195 MiB | 12 MiB | 300 MiB | 515 | 317 | 0,62 |
 | 32.768 | 387 MiB | 12 MiB | 300 MiB (+36 / +5 host) | 723 | 317 | 0,44 |
 
-\*16.384 deduzido do total (515 − 300 − host). O KV do SeedPlane é constante (**32× menor em 32k**), mas o buffer de
+O KV do SeedPlane é constante (**32× menor em 32k**), mas o buffer de
 compute (~300 MiB, dominado pelos logits de um micro-lote de 512 × 151.936 do vocabulário) é igual nos dois e domina
 o total. CPU, 8.192: 312 contra 399 MiB (0,78).
 

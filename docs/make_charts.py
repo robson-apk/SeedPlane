@@ -8,6 +8,7 @@ import numpy as np
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+import matplotlib.ticker
 
 REPO = Path(__file__).resolve().parents[1]; OUT = REPO / 'docs' / 'img'; OUT.mkdir(parents=True, exist_ok=True)
 EXP = REPO / 'experiments'
@@ -36,8 +37,9 @@ def base(t, title, subtitle, w=7.2, h=3.9):
     return fig, ax
 
 
-def lines(ax, t, xs, series, fmt, min_gap_px=38):
+def lines(ax, t, xs, series, fmt, min_gap_px=38, names=None):
     """Direct labels at the line ends, nudged apart so they never collide."""
+    names = names or NAMES
     for key, ys in series.items():
         ax.plot(xs, ys, color=t[key], linewidth=2, marker='o', markersize=6, markeredgecolor=t['surface'], markeredgewidth=1.5, zorder=3)
     ax.figure.canvas.draw()
@@ -46,7 +48,7 @@ def lines(ax, t, xs, series, fmt, min_gap_px=38):
     for y_px, key, v in ends:
         y_lab = y_px if not placed else min(y_px, placed[-1] - min_gap_px)
         placed.append(y_lab)
-        ax.annotate(f'{NAMES[key]}\n{fmt(v)}', (xs[-1], v), xytext=(10, y_lab - y_px), textcoords='offset pixels',
+        ax.annotate(f'{names[key]}\n{fmt(v)}', (xs[-1], v), xytext=(10, y_lab - y_px), textcoords='offset pixels',
                     va='center', fontsize=8.5, color=t['text'], annotation_clip=False)
 
 
@@ -140,6 +142,46 @@ def main():
             fig, ax = base(t, 'Longer text: the traditional Transformer hits the quadratic wall', 'One page on an Intel Arc B580 · milliseconds per page (lower is better) · timing only')
             lines(ax, t, list(range(len(Ls))), ser, lambda v: f'{v:,.0f} ms'); ax.set_xticks(range(len(Ls)), [f'{L:,}' for L in Ls])
             ax.set_xlabel('tokens per page', color=t['text2'], fontsize=9); ax.set_ylim(0, max(ser['trad']) * 1.12); save(fig, 'long_text_gpu', mode)
+    v13 = EXP / 'v13/results/speed_run2.json'
+    if v13.exists():
+        d = json.loads(v13.read_text()); Ls = [4096, 8192, 16384, 32768]; nm = {'trad': 'llama.cpp (native)', 'sp': 'SeedPlane on llama.cpp'}
+        ser = {'trad': [d['native'][f'gpu|{L}'] for L in Ls], 'sp': [d['sp'][f'gpu|span|{L}']['tok_s'] for L in Ls]}
+        for mode, t in THEMES.items():
+            fig, ax = base(t, 'Qwen2.5-0.5B on an Arc B580: prompt tokens per second',
+                           'same GGUF, same llama.cpp kernels (Vulkan) · SeedPlane = span mode, halo 256 · quality cost: see next chart')
+            lines(ax, t, list(range(len(Ls))), ser, lambda v: f'{v:,.0f} tok/s', names=nm); ax.set_xticks(range(len(Ls)), [f'{L:,}' for L in Ls])
+            ax.set_xlabel('prompt length (tokens)', color=t['text2'], fontsize=9); ax.set_ylim(0, max(ser['sp']) * 1.15)
+            ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f'{v:,.0f}')); save(fig, 'qwen_speed', mode)
+        kv_full = {8192: 99, 16384: 195, 32768: 387}; Lm = sorted(kv_full)
+        for mode, t in THEMES.items():
+            fig, ax = base(t, 'KV-cache memory: constant instead of growing',
+                           'Qwen2.5-0.5B, B580 · KV buffer reported by llama.cpp · both also hold a fixed ~300 MiB compute buffer')
+            lines(ax, t, list(range(len(Lm))), {'trad': [kv_full[L] for L in Lm], 'sp': [12] * len(Lm)}, lambda v: f'{v:,.0f} MiB', names=nm)
+            ax.set_xticks(range(len(Lm)), [f'{L:,}' for L in Lm]); ax.set_xlabel('prompt length (tokens)', color=t['text2'], fontsize=9)
+            ax.set_ylim(0, 440); save(fig, 'qwen_kv_memory', mode)
+    fr16, fr32 = EXP / 'v13c/results/frontier_1.json', EXP / 'v13c/results/frontier32k.json'
+    if fr16.exists() and fr32.exists():
+        native = {16384: 3891.0, 32768: 2096.0}
+        pts = []
+        for f, L, key in ((fr16, 16384, 'sp'), (fr32, 32768, 'v8')):
+            for r in json.loads(f.read_text())['configs']:
+                if r['mode'] == 'span': pts.append((L, key, r['H'], r['tok_s'] / native[L], 100 * (r['ppl_ratio_mean'] - 1)))
+        for mode, t in THEMES.items():
+            fig, ax = base(t, 'The trade-off, measured: speed vs quality',
+                           'Qwen2.5-0.5B, B580, WikiText · perplexity change vs full attention (lower is better) · point labels = halo size', h=4.3)
+            ax.axhline(0, color=t['ref'], linewidth=1.2, linestyle=(0, (4, 3))); ax.axvline(1, color=t['ref'], linewidth=1.2, linestyle=(0, (4, 3)))
+            ax.annotate('same quality as the original model', (0.99, 0), xycoords=('axes fraction', 'data'), xytext=(0, -4), textcoords='offset points',
+                        ha='right', va='top', fontsize=8, color=t['text2'])
+            ax.annotate('llama.cpp speed', (1, 1), xycoords=('data', 'axes fraction'), xytext=(4, -4), textcoords='offset points', va='top', fontsize=8, color=t['text2'])
+            for L, key in ((16384, 'sp'), (32768, 'v8')):
+                P = sorted([p for p in pts if p[0] == L], key=lambda p: p[3])
+                ax.plot([p[3] for p in P], [p[4] for p in P], color=t[key], linewidth=2, marker='o', markersize=7, markeredgecolor=t['surface'], markeredgewidth=1.5, zorder=3,
+                        label=f'{L:,} tokens')
+                for p in P: ax.annotate(f'{p[2]:,}', (p[3], p[4]), xytext=(6, 5), textcoords='offset points', fontsize=8, color=t['text'])
+            ax.set_xlabel('speed-up over llama.cpp native (×)', color=t['text2'], fontsize=9); ax.set_ylabel('perplexity change (%)', color=t['text2'], fontsize=9)
+            ax.set_xlim(0, 5.6); ax.grid(axis='x', color=t['grid'], linewidth=0.8)
+            ax.legend(frameon=False, fontsize=8.5, labelcolor=t['text'], loc='lower left', bbox_to_anchor=(0, 1.0), ncol=2)
+            fig.subplots_adjust(top=0.74, right=0.95, left=0.1); save(fig, 'qwen_frontier', mode)
     print('wrote', sorted(p.name for p in OUT.glob('*.svg')))
 
 
