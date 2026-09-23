@@ -45,3 +45,14 @@ CPU: o llama.cpp ainda manda trabalho para um dispositivo listado com 0 camadas.
 em `-dev` os dispositivos com > 0 camadas. Critérios inalterados. Números já vistos: pré-bench (B580 20.525, CPU via
 RPC 270, Mac via RPC 210 tok/s) e padrão B580+CPU (pp4096 221, pp16384 143, tg128 34 tok/s). Eles serão medidos de
 novo na execução 2, e só a execução 2 conta.
+
+## V14b: a ordem importa? (pré-registrado 2026-09-23, antes de medir; motivado pela V14: 23/1 = 222 tok/s ≈ padrão)
+Hipótese: o llama.cpp põe a cabeça de saída (896 × 151.936, a maior multiplicação do modelo) no dispositivo da ÚLTIMA
+camada. Com `-dev Vulkan0,RPC0 -ts 23/1`, a cabeça fica na CPU via RPC. Ao inverter a ordem (CPU primeiro), a cabeça
+fica na B580.
+Condições (`llama-bench -p 4096,16384 -n 128 -r 3`): `-dev RPC0,Vulkan0 -ts 1/23` e `-dev RPC1,RPC0,Vulkan0 -ts 1/1/22`.
+Também registrado: onde o llama.cpp aloca a camada de saída (log `load_tensors`).
+- **O1:** CPU primeiro com 1/23 ≥ 5 × a mesma divisão com a CPU por último (≥ 1.111 tok/s em pp4096).
+- **O2:** CPU primeiro com 1/23 ≥ 0,5 × B580 sozinha em pp4096 (≥ ~5.400 tok/s).
+- **O3:** a cabeça de saída está no último dispositivo da lista (verificado no log).
+Previsão: O1 e O3 passam; O2 é incerto (transferência de ativações por RPC a cada micro-lote).
