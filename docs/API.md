@@ -80,6 +80,11 @@ Reports perplexity with full attention vs. the shard plan, the ratio, and the ti
 Distribution helpers in `seedplane.cli`: `start_workers(spec, bundle)`, `distribute(...)` (static) and
 `distribute_dynamic(..., timeline=[])` (dynamic; optional per-window timeline for plotting).
 
+Native scheduling helpers in `seedplane.llama_backend`: `measure_rates(...)` calibrates workers concurrently using
+end-to-end time (including network and contention), while `plan_pieces(...)` assigns contiguous pieces. The planner
+defaults to the fastest worker alone unless the pool predicts at least a 4% improvement; this safety margin prevents
+short-prompt regressions caused by calibration noise and boundary/network overhead. See the measured V15 result.
+
 ```python
 from seedplane import engine
 model, tok = engine.load_model("Qwen/Qwen2.5-0.5B-Instruct")

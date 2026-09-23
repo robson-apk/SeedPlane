@@ -222,6 +222,7 @@ No hidden footnotes: every experiment has its pass/fail criteria written *before
 
 | | Question | Verdict |
 |---|---|---|
+| **V15** | Can network-aware scheduling remove the Mac regression on short prompts? | ✅ 4k: 0.999× B580 alone vs 0.928× former plan · ✅ 8k: 1.001× · ✅ Mac retained at 16k: 1.018× |
 | **V14** | Exact pipeline (layers split over B580 + CPU + Mac via llama.cpp RPC), planner vs default split | ✅ planner 48× faster than llama.cpp's default split · results in progress |
 | **V13d** | Does the quality hold at 32k tokens? | ❌ no: +2.2% (3.2×) to +6.2% (4.9×) — fixed halo falsified for long texts |
 | **V13c** | Speed × quality frontier at 16k | ✅ ≤ 2% quality loss at 2.7× · same quality at 1.84× · ❌ ≤ 5% at ≥ 3× not reached |

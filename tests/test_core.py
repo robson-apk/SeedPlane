@@ -1,8 +1,10 @@
 import unittest
 
 import numpy as np
+from unittest.mock import patch
 
 from seedplane.engine import ShardPlan
+from seedplane import llama_backend
 from seedplane.planner import Device, plan_pipeline
 
 
@@ -41,6 +43,40 @@ class PlannerTests(unittest.TestCase):
             plan_pipeline([], 12)
         with self.assertRaises(ValueError):
             plan_pipeline([Device('broken', 0)], 12)
+
+
+class PiecePlannerTests(unittest.TestCase):
+    def test_drops_marginal_remote_worker_on_short_span(self):
+        pieces, _ = llama_backend.plan_pieces(4096, {'gpu': 17788, 'mac': 1237}, span=True)
+        self.assertEqual(pieces['gpu'], [(0, 4096)])
+        self.assertEqual(pieces['mac'], [])
+
+    def test_keeps_remote_worker_when_gain_is_material(self):
+        pieces, _ = llama_backend.plan_pieces(16384, {'gpu': 17788, 'mac': 1237}, span=True)
+        self.assertTrue(pieces['mac'])
+
+    def test_drops_three_percent_predicted_gain_inside_safety_margin(self):
+        pieces, _ = llama_backend.plan_pieces(8192, {'gpu': 19606, 'mac': 1234}, span=True)
+        self.assertEqual(pieces['mac'], [])
+
+    def test_end_to_end_rate_uses_timeline_not_compute_ms(self):
+        workers = [type('W', (), {'name': 'gpu'})(), type('W', (), {'name': 'mac'})()]
+        win = (0, 100, np.arange(100))
+
+        def fake_run(_workers, _ids, _work, _want, timeline=None):
+            if timeline is not None:
+                timeline.extend([
+                    {'worker': 'gpu', 'start': 0.0, 'end': 0.01},
+                    {'worker': 'gpu', 'start': 0.01, 'end': 0.02},
+                    {'worker': 'mac', 'start': 0.0, 'end': 0.10},
+                    {'worker': 'mac', 'start': 0.10, 'end': 0.20},
+                ])
+            return {}, 0.2
+
+        with patch.object(llama_backend, 'run_pieces', side_effect=fake_run):
+            rates = llama_backend.measure_rates(workers, np.arange(100), win)
+        self.assertAlmostEqual(rates['gpu'], 10000)
+        self.assertAlmostEqual(rates['mac'], 1000)
 
 
 if __name__ == '__main__':

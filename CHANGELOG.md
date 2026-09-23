@@ -2,6 +2,13 @@
 
 All notable changes are documented here. SeedPlane is currently alpha research software.
 
+## 0.12.2 — 2026-09-23
+
+- Added concurrent end-to-end worker calibration including network and contention.
+- Added a configurable 4% scheduling safety margin to prevent short-prompt regressions.
+- Validated the new policy on Arc B580 + Mac M4: no regression at 4k/8k and +1.84% at 16k.
+- Added the pre-registered V15 protocol, raw timings and results.
+
 ## 0.12.1 — 2026-09-23
 
 - Changed Python and native workers to loopback-only defaults; external binds now require an explicit authentication key.

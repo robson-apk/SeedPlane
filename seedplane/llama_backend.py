@@ -79,6 +79,26 @@ def calibrate(workers, ids, win, want='prefill'):
     return {w.name: w.est for w in workers}
 
 
+def measure_rates(workers, ids, win, want='prefill', repeats=2):
+    """Measure concurrent end-to-end throughput for planning.
+
+    Unlike the worker-reported ``compute_ms``, this includes serialization,
+    network round trips and coordinator delay. All workers are exercised at
+    once so shared CPU/driver contention is represented as well.
+    """
+    if not workers: raise ValueError('at least one worker is required')
+    if repeats < 1: raise ValueError('repeats must be positive')
+    n_tokens = len(win[2])
+    if n_tokens < 1: raise ValueError('calibration window must contain tokens')
+    work = {w.name: [win] for w in workers}
+    run_pieces(workers, ids, work, want)  # warm kernels and caches
+    timeline = []
+    run_pieces(workers, ids, {w.name: [win] * repeats for w in workers}, want, timeline)
+    elapsed = {w.name: 0.0 for w in workers}
+    for row in timeline: elapsed[row['worker']] += row['end'] - row['start']
+    return {name: repeats * n_tokens / seconds for name, seconds in elapsed.items() if seconds > 0}
+
+
 def run_windows(workers, ids, wins, want='prefill', score_from=0, timeline=None):
     """Dynamic pull queue with a tail guard (same policy as seedplane.cli.distribute_dynamic).
     Uses w.est from calibrate() when present; only uncalibrated workers are probed here (and that probe is timed)."""
@@ -110,14 +130,19 @@ def run_windows(workers, ids, wins, want='prefill', score_from=0, timeline=None)
     return out, time.perf_counter() - t0, count
 
 
-def plan_pieces(L, rates, S=512, H=256, min_core=16, span=False):
+def plan_pieces(L, rates, S=512, H=256, min_core=16, span=False, min_gain=0.04):
     """Size each device's piece so that ALL devices finish together (no device is dropped by policy).
 
     rates: {worker_name: tok/s measured on ~S+H token windows}. Each window costs (core + halo) / rate; a device gets
     as many full S-core windows as fit in the common finish time T, plus one partial window if >= min_core tokens fit.
     Returns ({name: [(c0, c1), ...]}, T). A device whose smallest piece would still end after T gets nothing FOR THIS
-    prompt (it stays loaded and takes the next request) - reported, never hidden.
+    prompt. If the whole pool's predicted gain over the fastest worker is below ``min_gain`` (4% by default), the
+    fastest worker runs alone. The margin covers calibration/model error observed on short spans and avoids turning a
+    mathematically tiny gain into a real network regression. Set it explicitly when a different risk margin is known.
     """
+    if L < 0 or S <= 0 or H < 0 or min_core <= 0 or not 0 <= min_gain < 1:
+        raise ValueError('invalid length, shard, halo, minimum core, or gain threshold')
+    if not rates or any(r <= 0 for r in rates.values()): raise ValueError('worker rates must be positive')
     def capacity(r, T):
         if span:                                 # one contiguous span per device: the halo is paid once, not per window
             c = int(r * T - H); return c if c >= min_core else 0
@@ -128,6 +153,10 @@ def plan_pieces(L, rates, S=512, H=256, min_core=16, span=False):
         T = (lo + hi) / 2
         if sum(capacity(r, T) for r in rates.values()) >= L: hi = T
         else: lo = T
+    fastest = max(rates, key=rates.get)
+    solo_T = (L + H if span else L + H * max(0, (L + S - 1) // S - 1)) / rates[fastest] if L else 0.0
+    if solo_T and (solo_T - hi) / solo_T < min_gain:
+        return {n: ([(0, L)] if n == fastest and L else []) for n in rates}, solo_T
     caps = {n: capacity(r, hi) for n, r in rates.items()}; out = {n: [] for n in rates}; c0 = 0
     for n in sorted(rates, key=lambda n: rates[n]):  # slow devices take the first, small pieces; the fastest takes the rest
         left = min(caps[n], L - c0)
