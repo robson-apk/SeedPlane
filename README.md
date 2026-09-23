@@ -149,3 +149,11 @@ SeedPlane/
 ```
 
 **License:** MIT License. Free for academic, personal, and commercial research.
+
+---
+
+## ☕ Support
+
+If you find this research or code useful, you can support independent development here:
+
+[![Buy Me A Coffee](https://img.shields.io/badge/Buy_Me_A_Coffee-FFDD00?style=for-the-badge&logo=buy-me-a-coffee&logoColor=black)](https://buymeacoffee.com/robson.apk)
