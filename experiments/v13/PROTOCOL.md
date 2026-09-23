@@ -51,3 +51,27 @@ Critérios novos (fixados agora):
   reescrever o coordenador em C++ e medir de novo (V13b).
 - Os núcleos dos workers de CPU devem deixar pelo menos 1 núcleo livre para alimentar a GPU. Isso será registrado
   por condição.
+
+## Adendo 2 (2026-09-23, antes de qualquer número de velocidade da V13): nenhum dispositivo é descartado, pedaço do tamanho certo e memória
+Mudança de filosofia pedida pelo autor: nenhum dispositivo fica de fora por política. Cada um recebe um pedaço que
+consegue terminar junto com os outros, com os pesos carregados uma vez e mantidos quentes.
+- `plan_pieces`: a partir da vazão medida de cada dispositivo (`seedplane.probe`), calcula por bissecção um tempo
+  final T comum. Cada dispositivo recebe janelas inteiras (núcleo de 512) mais um pedaço parcial (núcleo ≥ 16) que
+  caiba em T. Se nem o menor pedaço couber em T, o dispositivo fica com 0 tokens NESTE prompt: registrado, nunca
+  escondido.
+- O worker nativo tem `--slots N`: N contextos sobre UMA cópia dos pesos (antes eram N processos, e foi isso que
+  estourou a RAM na V12).
+- Probe medido (antes deste adendo, só como calibração): B580 Vulkan 20.266 tok/s; CPU 5600X inteira 275 tok/s
+  (melhor layout: 3 slots × 2 threads); Mac 2 threads ~1.250–1.290 tok/s. Previsão do planejador (sem rede): ganho
+  de +2% (4k), +5% (16k), +7% (32k) sobre a B580 sozinha.
+- Resposta à pergunta "é VRAM?": com este modelo (1 GB) não é. Tudo cabe em todo lugar; o limite é a razão de
+  velocidade (74×). A VRAM passa a ser o limite quando o modelo não cabe na B580 (12 GB). Aí CPU e Mac viram
+  obrigatórios (pipeline, V14).
+
+Critérios novos (substituem a regra de "deixar de fora" do adendo 1; P4–P6 continuam valendo):
+- **P7 (todos contribuem):** em L ≥ 16.384, no conjunto B580 + CPU + Mac, todo dispositivo recebe > 0 tokens e a
+  vazão fica ≥ 1,00 × a B580 sozinha no mesmo motor (mediana de 3).
+- **P8 (previsão):** vazão medida ≥ 0,90 × a prevista pelo `plan_pieces` (o planejador sabe o que promete).
+- **M1 (memória):** memória de execução do llama.cpp além dos pesos (buffers de KV + compute, lidos do log do próprio
+  llama.cpp), por processo, SeedPlane (contexto de janela 1.024) vs atenção completa (contexto L). SeedPlane ≤ 0,5 ×
+  em L ≥ 8.192. Também reportado: pico de memória do processo na CPU (working set).

@@ -14,8 +14,8 @@ WANT = {'prefill': 0, 'nll': 1, 'close': 2}
 
 
 class Worker:
-    def __init__(self, host, port, key=None, timeout=600):
-        self.name = f'{host}:{port}'; key = (key or os.environ.get('SEEDPLANE_AUTHKEY', 'seedplane-local-default')).encode()
+    def __init__(self, host, port, key=None, timeout=600, slot=0):
+        self.name = f'{host}:{port}' + (f'#{slot}' if slot else ''); key = (key or os.environ.get('SEEDPLANE_AUTHKEY', 'seedplane-local-default')).encode()
         deadline = time.time() + timeout
         while True:
             try: self.s = socket.create_connection((host, port), timeout=timeout); break
@@ -49,13 +49,18 @@ class Worker:
 
 
 def connect(addrs, key=None):
-    return [Worker(a.rsplit(':', 1)[0], int(a.rsplit(':', 1)[1]), key) for a in addrs]
+    """addrs: ['host:port', 'host:port*4', ...]; '*N' opens N connections = N parallel slots of one worker process."""
+    out = []
+    for a in addrs:
+        a, n = (a.split('*') + ['1'])[:2]; host, port = a.rsplit(':', 1)
+        out += [Worker(host, int(port), key, slot=k) for k in range(int(n))]
+    return out
 
 
-def spawn(exe, gguf, port, ngl=0, threads=1, ctx=4096, extra_env=None):
-    """Start a local worker process (returns Popen); pair with connect([f'127.0.0.1:{port}'])."""
+def spawn(exe, gguf, port, dev='CPU', slots=1, threads=1, ctx=4096, extra_env=None):
+    """Start a local worker process (returns Popen); pair with connect([f'127.0.0.1:{port}*{slots}'])."""
     env = dict(os.environ, **(extra_env or {}))
-    return subprocess.Popen([exe, '-m', gguf, '--port', str(port), '--ngl', str(ngl), '-t', str(threads), '-c', str(ctx), '--host', '127.0.0.1'],
+    return subprocess.Popen([exe, '-m', gguf, '--port', str(port), '--dev', dev, '--slots', str(slots), '-t', str(threads), '-c', str(ctx), '--host', '127.0.0.1'],
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=env)
 
 
@@ -87,3 +92,56 @@ def run_windows(workers, ids, wins, want='prefill', score_from=0, timeline=None)
         for w in workers:
             if w.name not in busy and queue: feed(w)
     return out, time.perf_counter() - t0, count
+
+
+def plan_pieces(L, rates, S=512, H=256, min_core=16):
+    """Size each device's piece so that ALL devices finish together (no device is dropped by policy).
+
+    rates: {worker_name: tok/s measured on ~S+H token windows}. Each window costs (core + halo) / rate; a device gets
+    as many full S-core windows as fit in the common finish time T, plus one partial window if >= min_core tokens fit.
+    Returns ({name: [(c0, c1), ...]}, T). A device whose smallest piece would still end after T gets nothing FOR THIS
+    prompt (it stays loaded and takes the next request) - reported, never hidden.
+    """
+    def capacity(r, T):
+        budget = r * T; n = int(budget // (S + H)); rest = budget - n * (S + H) - H
+        return n * S + (int(rest) if rest >= min_core else 0)
+    lo, hi = 0.0, (L + H * (L // S + 1)) / max(rates.values())
+    for _ in range(60):                          # bisection on the common finish time T
+        T = (lo + hi) / 2
+        if sum(capacity(r, T) for r in rates.values()) >= L: hi = T
+        else: lo = T
+    caps = {n: capacity(r, hi) for n, r in rates.items()}; out = {n: [] for n in rates}; c0 = 0
+    for n in sorted(rates, key=lambda n: rates[n]):  # slow devices take the first, small pieces; the fastest takes the rest
+        left = min(caps[n], L - c0)
+        while left > 0 and c0 < L:
+            c1 = min(L, c0 + min(S, left)); out[n].append((c0, c1)); left -= c1 - c0; c0 = c1
+    return out, hi
+
+
+def windows_from_pieces(pieces, H=256, sinks=0):
+    """Turn core ranges into SeedPlane windows (sinks + halo + core, original positions)."""
+    res = {}
+    for n, spans in pieces.items():
+        res[n] = []
+        for c0, c1 in spans:
+            h0 = max(0, c0 - H); idx = np.arange(h0, c1)
+            if sinks and h0 > 0: idx = np.concatenate([np.arange(min(sinks, h0)), idx])
+            res[n].append((c0, c1, idx))
+    return res
+
+
+def run_pieces(workers, ids, wins_by_worker, want='prefill', timeline=None):
+    """Every worker streams its own window list; all run concurrently. Returns ({name: results}, seconds)."""
+    by = {w.name: w for w in workers}; todo = {n: list(ws) for n, ws in wins_by_worker.items() if ws}
+    out = {n: [] for n in todo}; sent = {}; t0 = time.perf_counter()
+    for n in todo: by[n].send_window(ids, todo[n][0], want); sent[n] = time.perf_counter()
+    active = {by[n].s: n for n in todo}
+    while active:
+        ready, _, _ = select.select(list(active), [], [])
+        for s in ready:
+            n = active[s]; out[n].append(by[n].recv())
+            if timeline is not None: timeline.append({'worker': n, 'start': sent[n] - t0, 'end': time.perf_counter() - t0})
+            todo[n].pop(0)
+            if todo[n]: by[n].send_window(ids, todo[n][0], want); sent[n] = time.perf_counter()
+            else: del active[s]
+    return out, time.perf_counter() - t0
