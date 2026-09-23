@@ -28,3 +28,19 @@ llama.cpp nativo em 16.384 = 3.891 tok/s (V13). Brutos: `results/frontier_1.json
   qualidade. Isto não foi investigado ainda.
 - Cobertura: um modelo (0,5B), um corpus (WikiText), um comprimento (16k), 3 trechos. Custo do span em 32k não
   medido aqui; será medido na V13d.
+
+## V13d: 32.768 tokens (trechos novos 3 e 4; nativo 2.096 tok/s). Brutos: `results/frontier32k.json`
+
+| modo | bloco | halo | trecho 3 | trecho 4 | **média** | tok/s | × nativo |
+|---|---|---|---|---|---|---|---|
+| janelas | 512 | 256 | 1,270 | 1,204 | 1,237 | 12.257 | 5,85 |
+| span | 512 | 2.048 | 1,053 | 1,071 | **1,062** | 10.255 | **4,89** |
+| span | 512 | 4.096 | 1,008 | 1,036 | **1,022** | 6.789 | **3,24** |
+
+- **G1 (span 512/2.048 com ≤ 1,02 E ≥ 4×): FALHOU na qualidade** (1,062). A velocidade passou (4,89×).
+- **G2 (span 512/4.096 com ≤ 1,005 E ≥ 3×): FALHOU na qualidade** (1,022). A velocidade passou (3,24×).
+- **Falsificação registrada:** "halo fixo mantém a qualidade" vale em 16k e NÃO vale em 32k. Com texto mais longo,
+  o modelo completo aproveita contexto ainda mais distante; o halo necessário cresce com L e o ganho de velocidade
+  diminui. Em 32k, o ponto com perda ≈ 2% é o span 4.096, com 3,2×; "mesma qualidade" (≤ 0,5%) não foi atingida
+  em nenhuma configuração medida.
+- Cobertura: 2 trechos só. O trecho 4 é sistematicamente pior que o 3.
