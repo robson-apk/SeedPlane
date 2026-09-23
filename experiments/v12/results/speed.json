@@ -1,0 +1,39 @@
+{
+ "L": 4096,
+ "plan": [
+  512,
+  256,
+  0
+ ],
+ "ours_full": {
+  "cpu1": 71.00629866434123,
+  "cpu2": 117.82257608560334,
+  "cpu4": 142.94761984594578,
+  "cpu6": 141.0475493361027,
+  "xpu": 5896.819762593604
+ },
+ "ours_seedplane": {
+  "cpu1|static": 92.33638900354636,
+  "cpu2|static": 159.17266525325826,
+  "cpu2|dynamic": 142.058685545921,
+  "cpu4|skipped": "RAM: 7156 MB free < 10400 MB needed + 1500 margin",
+  "cpu6|skipped": "RAM: 7157 MB free < 15600 MB needed + 1500 margin",
+  "gpu|static": 8763.484341256311,
+  "gpu+cpu4|skipped": "RAM: 10323 MB free < 11900 MB needed + 1500 margin",
+  "cpu4+mac2|skipped": "RAM: 10324 MB free < 10400 MB needed + 1500 margin",
+  "gpu+cpu4+mac2|skipped": "RAM: 10324 MB free < 11900 MB needed + 1500 margin"
+ },
+ "llama_cpp": {
+  "cpu1": 71.17883,
+  "cpu2": 137.885402,
+  "cpu4": 253.671291,
+  "cpu6": 318.312213,
+  "gpu_sycl_official": 10683.761044,
+  "gpu_vulkan_official": 10815.129464,
+  "gpu_synapse_build": 9058.149677,
+  "gpu_synapse_build_dnn": {
+   "error": "F:\\S.Y.N.A.P.S.E\\llama.cpp\\ggml\\src\\ggml-sycl\\ggml-sycl.cpp:1839: GGML_ASSERT(ptr == reinterpret_cast<void *>(pool_addr + pool_used)) failed\n"
+  },
+  "gpu_synapse_build_vk_submitstats": 10814.915427
+ }
+}
