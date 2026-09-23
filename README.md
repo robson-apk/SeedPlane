@@ -82,7 +82,7 @@ keep quality as texts get longer. That one is logged as a falsified claim.
 
 1. **Measure once, stay warm.** At startup every device processes one window and the round trip, network included, is
    timed (`calibrate()`). Weights are loaded once and never reloaded. Re-measuring inside each request cost us
-   40–60% of multi-slot throughput before we fixed it (V13 adendo 3).
+   33–47% of multi-slot CPU throughput before we fixed it (V13 adendo 3).
 2. **Cut to finish together.** `plan_pieces()` bisects on a common finish time *T* and gives each device exactly the tokens
    it can finish by *T*. Slow devices get small pieces. If a device cannot finish even its smallest piece in time, it gets
    0 tokens for that request, which is logged, and it stays warm for the next one. Measured runs landed at 0.97–1.21×
