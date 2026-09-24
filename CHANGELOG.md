@@ -2,6 +2,15 @@
 
 All notable changes are documented here. SeedPlane is currently alpha research software.
 
+## Unreleased
+
+- Added a SeedPlane-owned Qwen2/Qwen2.5 autoregressive graph loading safetensors directly, with persistent preallocated
+  KV cache, fused QKV and gate/up projections, sampling and streaming chat.
+- Added CPU and Arc B580 oracle validation: eight greedy tokens match Transformers; CPU FP32 maximum logit error is
+  2.29e-5 and B580 FP16 maximum error is 8.81e-2.
+- Raised the new B580 decoder from 1.40 to 17.57 output tok/s; this remains below the ~296 tok/s release target and is
+  explicitly recorded as an incomplete performance milestone.
+
 ## 0.12.3 — 2026-09-23
 
 - Added gain-aware request-level batching across heterogeneous workers.

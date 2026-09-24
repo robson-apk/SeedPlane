@@ -103,6 +103,20 @@ python -m seedplane.probe --model qwen.gguf --worker ./seedplane-worker         
 ```
 Full API: [docs/API.md](docs/API.md).
 
+### Experimental native SeedPlane decoder
+
+V17 introduces a SeedPlane-owned Qwen2 graph that loads safetensors directly, keeps a persistent KV cache and provides
+streaming chat without using the Transformers model runtime or llama.cpp model/runtime:
+
+```bash
+seedplane-chat qwen05.sp --device xpu
+```
+
+This path is correctness-complete but not performance-complete: it matches the eight-token greedy oracle sequence on
+CPU and Arc B580, and currently reaches 17.57 output tok/s after KV and projection optimizations. The release target is
+to beat the existing ~296 tok/s B580 reference. See [V17 results](experiments/v17/RESULTS.md); prefill figures are not
+counted as decode progress.
+
 ---
 
 ## From diffusion research to real-model prefill

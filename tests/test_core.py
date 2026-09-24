@@ -2,10 +2,12 @@ import unittest
 import socket
 
 import numpy as np
+import torch
 from unittest.mock import patch
 
 from seedplane.engine import ShardPlan
 from seedplane import llama_backend
+from seedplane.qwen_engine import Qwen2Engine, chat_prompt
 from seedplane.planner import Device, plan_pipeline
 
 
@@ -123,6 +125,15 @@ class PiecePlannerTests(unittest.TestCase):
             self.assertIsNotNone(out[0]); self.assertEqual(sum(counts.values()), 1)
         finally:
             for worker in workers: worker.close()
+
+
+class QwenEngineUtilityTests(unittest.TestCase):
+    def test_greedy_sampling(self):
+        self.assertEqual(Qwen2Engine.sample(torch.tensor([1.0, 3.0, 2.0])), 1)
+
+    def test_chatml_rendering(self):
+        text = chat_prompt([{'role': 'user', 'content': 'olá'}])
+        self.assertEqual(text, '<|im_start|>user\nolá<|im_end|>\n<|im_start|>assistant\n')
 
 
 if __name__ == '__main__':

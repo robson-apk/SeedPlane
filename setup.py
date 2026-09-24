@@ -12,8 +12,8 @@ setup(
     long_description_content_type='text/markdown',
     packages=['seedplane'],
     python_requires='>=3.9',
-    install_requires=['torch>=2.2', 'numpy', 'transformers>=4.45', 'safetensors'],
-    entry_points={'console_scripts': ['seedplane=seedplane.cli:main']},
+    install_requires=['torch>=2.2', 'numpy', 'transformers>=4.45', 'safetensors', 'tokenizers>=0.20'],
+    entry_points={'console_scripts': ['seedplane=seedplane.cli:main', 'seedplane-chat=seedplane.chat:main']},
     license='MIT',
     url='https://github.com/robson-apk/SeedPlane',
 )
