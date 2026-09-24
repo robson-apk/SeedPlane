@@ -14,3 +14,6 @@ protocol → worker CLI → pool → M4 → auto scheduler → ...). Wake-up eve
 - [x] V23 RX 570: 9/9 gates pass (tokens identical, NLL Δ 2.4e-7, 0 validation errors, 116.8 tok/s); no 30 ms spikes on RX 570
 - Mailbox with Codex: ~/.agent-mailbox/seedplane (README, CLAIMS, both outboxes, DECISIONS). Codex clone at
   ~/Downloads/LABORATORIO…/PREPARANDO PARA LANCAMENTO/SeedPlane (main, clean) — not touched.
+- [x] macOS build via MoltenVK; Apple M4 smoke 128/128 + 296/296 identical to oracles (experiments/portability)
+- [x] CI: native builds on Linux/macOS/Windows green (8178902); release.yml attaches zips on tags v*
+- [ ] V22b pre-registered (2-level GPU threshold + restricted Gumbel); implementing
