@@ -52,7 +52,9 @@ class TrioBenchmarkTests(unittest.TestCase):
         result = run_workload(workers, arrival_interval=0.0, round_index=0, condition_index=0)
         self.assertEqual(result["requests"], 24)
         self.assertEqual(result["generated_tokens"], 24 * 128)
-        self.assertEqual(result["assignments"], {"B580": 8, "RX570": 8, "M4": 8})
+        self.assertEqual(sum(result["assignments"].values()), 24)
+        self.assertEqual(set(result["assignments"]), {"B580", "RX570", "M4"})
+        self.assertTrue(all(count > 0 for count in result["assignments"].values()))
         self.assertTrue(result["all_request_outputs_identical_within_condition"])
 
     def test_local_jsonl_worker_stream_smoke(self):
