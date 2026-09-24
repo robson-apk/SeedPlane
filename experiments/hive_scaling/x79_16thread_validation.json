@@ -1,0 +1,31 @@
+{
+  "protocol": "seedplane-qwen2-reference-thread-scaling-v1",
+  "host": "robson-X79",
+  "platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.43",
+  "python": "3.14.4 (main, Aug 20 2026, 10:41:58) [GCC 15.2.0]",
+  "torch": "2.14.0+cpu",
+  "device": "cpu",
+  "model": "/home/robson/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775",
+  "model_config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+  "prompt": "Explain briefly how a computer memory cache improves performance.",
+  "prompt_tokens": 11,
+  "generated_tokens": 32,
+  "repetitions": 2,
+  "thread_order_seed": 20260924,
+  "thread_order": [
+    16
+  ],
+  "all_thread_counts_same_tokens": true,
+  "results": [
+    {
+      "threads": 16,
+      "seconds": [
+        15.639520743163303,
+        15.671257025096565
+      ],
+      "median_seconds": 15.655388884129934,
+      "median_tokens_per_second": 2.0440245998896143,
+      "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+    }
+  ]
+}

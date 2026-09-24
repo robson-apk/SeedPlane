@@ -27,6 +27,17 @@ and [raw per-request data](experiments/trio_v27/results_20260924_exploratory.jso
 can share a deterministic workload, but the speedup and latency goals remain unproven until the network and scheduler
 are improved.
 
+The newer HIVE pull-agent test compared all three GPUs, their pairs, and the
+full trio with **16 independent requests × 32 tokens** over three rounds.
+Outputs matched exactly. The trio reached **340 tok/s** through persistent
+HIVE agents versus **331 tok/s** through the existing direct worker path, but
+the B580 + RX 570 pair reached **363 tok/s**. So this is an encouraging result
+for the new transport at this workload size—not proof that adding the M4
+increases speed, nor that one answer is generated faster. See the
+[plain-language test results](experiments/hive_scaling/RESULTS.md),
+[HIVE design baseline](docs/HIVE_IMPLEMENTATION_BASELINE.md), and
+[raw measurements](experiments/hive_scaling/hive_fleet_matrix_v1_16x32_3rounds_20260924.json).
+
 Want to help test it? Start with the [native runtime guide](native/vulkan_decode/README.md). SeedPlane is alpha research software; below are the detailed results, trade-offs, and experiments that explain what is and is not proven.
 
 ---

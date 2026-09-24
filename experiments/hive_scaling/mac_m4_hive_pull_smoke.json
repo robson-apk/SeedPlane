@@ -1,0 +1,61 @@
+{
+  "runtime": "native/vulkan_decode/build_mac/qwen_vk",
+  "bundle": "/Users/robson/qwen05_v1.sp",
+  "workload": {
+    "independent_requests": 6,
+    "tokens_per_request": 16,
+    "prompt": "Explain briefly how a computer memory cache improves performance.",
+    "greedy": true
+  },
+  "direct": {
+    "elapsed_s": 1.510755875,
+    "generated_tokens": 96,
+    "tok_s": 63.54434994336858,
+    "text_sha256": [
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1"
+    ],
+    "runtime_decode_tok_s": [
+      79.032,
+      75.119,
+      75.373,
+      75.494,
+      73.939,
+      75.927
+    ],
+    "device": "Apple M4"
+  },
+  "pull_agent": {
+    "elapsed_s": 1.519131958,
+    "generated_tokens": 96,
+    "tok_s": 63.19398357361132,
+    "text_sha256": [
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1",
+      "451b87204c640e824b116855f12c385ce65b792396d9c66422136e7d10052ef1"
+    ],
+    "runtime_decode_tok_s": [
+      81.579,
+      80.353,
+      76.588,
+      73.785,
+      61.183,
+      78.692
+    ],
+    "device": "Apple M4",
+    "completed_jobs": 7,
+    "warmup_jobs": 1,
+    "timed_jobs": 6,
+    "persistent_agent_sessions_at_start": 1
+  },
+  "all_text_hashes_match": true,
+  "pull_vs_direct_tok_s_ratio": 0.9944862702967374,
+  "scope": "single M4 host; throughput-lane transport smoke; not a fleet scaling result"
+}

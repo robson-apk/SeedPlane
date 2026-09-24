@@ -12,11 +12,11 @@ import concurrent.futures
 import hashlib
 import json
 import math
-import os
 import platform
-import select
+import queue
 import shlex
 import subprocess
+import threading
 import time
 from collections import deque
 from datetime import datetime, timezone
@@ -65,7 +65,9 @@ class Worker:
             argv.extend([host if user else target, command])
         self.proc = subprocess.Popen(argv, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                      stderr=subprocess.DEVNULL, bufsize=0)
-        self.buffer = bytearray()
+        self._stdout_queue = queue.Queue()
+        self._stdout_reader = threading.Thread(target=self._read_stdout, daemon=True)
+        self._stdout_reader.start()
         self.bytes_sent = 0
         self.bytes_received = 0
         ready = self.read_json(timeout=240)
@@ -73,22 +75,22 @@ class Worker:
             raise RuntimeError(f"{name}: server did not report ready: {ready}")
         self.ready = ready
 
-    def read_json(self, timeout=180):
-        deadline = time.monotonic() + timeout
+    def _read_stdout(self):
         while True:
-            newline = self.buffer.find(b"\n")
-            if newline >= 0:
-                raw = bytes(self.buffer[:newline])
-                del self.buffer[:newline + 1]
-                self.bytes_received += newline + 1
-                return json.loads(raw.decode("utf-8"))
-            remaining = deadline - time.monotonic()
-            if remaining <= 0 or not select.select([self.proc.stdout], [], [], remaining)[0]:
-                raise TimeoutError(f"{self.name}: timed out waiting for JSON response")
-            chunk = os.read(self.proc.stdout.fileno(), 65536)
-            if not chunk:
-                raise RuntimeError(f"{self.name}: worker closed stdout (exit={self.proc.poll()})")
-            self.buffer.extend(chunk)
+            line = self.proc.stdout.readline()
+            self._stdout_queue.put(line if line else None)
+            if not line:
+                return
+
+    def read_json(self, timeout=180):
+        try:
+            raw = self._stdout_queue.get(timeout=timeout)
+        except queue.Empty:
+            raise TimeoutError(f"{self.name}: timed out waiting for JSON response")
+        if raw is None:
+            raise RuntimeError(f"{self.name}: worker closed stdout (exit={self.proc.poll()})")
+        self.bytes_received += len(raw)
+        return json.loads(raw.decode("utf-8"))
 
     def generate(self, request_id, arrival_rel_s, origin):
         request = {

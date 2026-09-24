@@ -5,8 +5,10 @@ __pycache__/
 
 # Caches and virtual environments
 .venv/
+.venv-hive/
 env/
 venv/
+*.egg-info/
 *.pt.cache
 tinystories_word1024_cache.pt
 

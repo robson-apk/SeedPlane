@@ -1,0 +1,116 @@
+{
+  "protocol": "seedplane-qwen2-reference-thread-scaling-v1",
+  "host": "DESKTOP-SIN9OH9",
+  "platform": "Windows-11-10.0.26200-SP0",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "torch": "2.14.0+cpu",
+  "device": "cpu",
+  "model": "C:\\Users\\Windows 11\\.cache\\huggingface\\hub\\models--Qwen--Qwen2.5-0.5B-Instruct\\snapshots\\7ae557604adf67be50417f59c2c2f167def9a775",
+  "model_config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+  "prompt": "Explain briefly how a computer memory cache improves performance.",
+  "prompt_tokens": 11,
+  "generated_tokens": 96,
+  "repetitions": 3,
+  "thread_order_seed": 20260924,
+  "thread_order": [
+    4,
+    12,
+    3,
+    2,
+    5,
+    6,
+    8,
+    1
+  ],
+  "all_thread_counts_same_tokens": true,
+  "results": [
+    {
+      "threads": 4,
+      "seconds": [
+        11.205973500036635,
+        11.140767699922435,
+        11.159952100017108
+      ],
+      "median_seconds": 11.159952100017108,
+      "median_tokens_per_second": 8.602187459196427,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 12,
+      "seconds": [
+        12.121085199993104,
+        12.111625599907711,
+        12.405339100048877
+      ],
+      "median_seconds": 12.121085199993104,
+      "median_tokens_per_second": 7.920082931192878,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 3,
+      "seconds": [
+        11.256696600001305,
+        11.179449199931696,
+        11.365890800021589
+      ],
+      "median_seconds": 11.256696600001305,
+      "median_tokens_per_second": 8.5282568600089,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 2,
+      "seconds": [
+        11.422825000016019,
+        11.47105960000772,
+        11.409446700010449
+      ],
+      "median_seconds": 11.422825000016019,
+      "median_tokens_per_second": 8.404225749748015,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 5,
+      "seconds": [
+        11.340689500095323,
+        11.209721899940632,
+        11.354758700006641
+      ],
+      "median_seconds": 11.340689500095323,
+      "median_tokens_per_second": 8.465093766934814,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 6,
+      "seconds": [
+        11.467930800048634,
+        11.69991820002906,
+        11.455592400045134
+      ],
+      "median_seconds": 11.467930800048634,
+      "median_tokens_per_second": 8.371170150380824,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 8,
+      "seconds": [
+        11.791466600028798,
+        11.64257730008103,
+        11.470241100061685
+      ],
+      "median_seconds": 11.64257730008103,
+      "median_tokens_per_second": 8.245596960677416,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 1,
+      "seconds": [
+        11.531821200042032,
+        11.352047999971546,
+        11.260548999998719
+      ],
+      "median_seconds": 11.352047999971546,
+      "median_tokens_per_second": 8.456623862076748,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    }
+  ]
+}

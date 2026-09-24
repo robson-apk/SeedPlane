@@ -1,0 +1,614 @@
+{
+  "protocol": "HIVE pull framed TCP v1 vs persistent JSON-lines control stream",
+  "recorded_at": 1790285297.989472,
+  "controller_platform": "macOS-27.0-arm64-arm-64bit",
+  "model_id": "qwen05-sp",
+  "workload": {
+    "prompt": "Explain in one concise paragraph how a computer memory cache improves performance.",
+    "requests": 6,
+    "tokens_per_request": 16,
+    "greedy": true,
+    "patterns": {
+      "burst": "all requests queued at start",
+      "steady_0.3s": "arrivals every 0.3 seconds"
+    }
+  },
+  "direct": {
+    "warmup_token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+    "matrix": {
+      "burst": {
+        "requests": 6,
+        "requested_tokens": 96,
+        "generated_tokens": 96,
+        "elapsed_from_first_arrival_s": 0.3060607079999986,
+        "aggregate_tokens_per_second": 313.6632618650298,
+        "completed_requests_per_second": 19.603953866564364,
+        "arrival_to_ttft_s": {
+          "p50": 0.04741958299999993,
+          "p95": 0.19727316599999867,
+          "p99": 0.19727316599999867
+        },
+        "arrival_to_completion_s": {
+          "p50": 0.1576221249999996,
+          "p95": 0.30591237499999835,
+          "p99": 0.30591237499999835
+        },
+        "queue_wait_s": {
+          "p50": 0.0012921659999989288,
+          "p95": 0.15780387499999904,
+          "p99": 0.15780387499999904
+        },
+        "worker_service_roundtrip_s": {
+          "p50": 0.09219800000000156,
+          "p95": 0.2613129169999997,
+          "p99": 0.2613129169999997
+        },
+        "worker_service_roundtrip_by_worker_s": {
+          "B580": {
+            "p50": 0.07560287499999951,
+            "p95": 0.09219800000000156,
+            "p99": 0.09219800000000156
+          },
+          "RX570": {
+            "p50": 0.1481084999999993,
+            "p95": 0.15654154200000114,
+            "p99": 0.15654154200000114
+          },
+          "M4": {
+            "p50": 0.2613129169999997,
+            "p95": 0.2613129169999997,
+            "p99": 0.2613129169999997
+          }
+        },
+        "assignments": {
+          "B580": 3,
+          "RX570": 2,
+          "M4": 1
+        },
+        "worker_runtime_decode_tok_s": {
+          "B580": {
+            "p50": 310.58,
+            "p95": 325.688,
+            "p99": 325.688
+          },
+          "RX570": {
+            "p50": 142.519,
+            "p95": 142.573,
+            "p99": 142.573
+          },
+          "M4": {
+            "p50": 74.208,
+            "p95": 74.208,
+            "p99": 74.208
+          }
+        },
+        "non_decode_remainder_s": {
+          "p50": 0.02408635751658139,
+          "p95": 0.04570274019965473,
+          "p99": 0.04570274019965473
+        },
+        "control_stream_bytes": {
+          "B580": {
+            "sent": 567,
+            "received": 1929
+          },
+          "RX570": {
+            "sent": 378,
+            "received": 1286
+          },
+          "M4": {
+            "sent": 189,
+            "received": 642
+          }
+        },
+        "all_request_outputs_identical_within_condition": true,
+        "per_request": [
+          {
+            "request_id": 0,
+            "worker": "B580",
+            "arrival_s": 0.0,
+            "dispatch_s": 0.0008299999999987762,
+            "first_token_s": 0.017154541000000023,
+            "completion_s": 0.07643287499999829,
+            "queue_wait_s": 0.0008299999999987762,
+            "ttft_from_arrival_s": 0.017154541000000023,
+            "completion_from_arrival_s": 0.07643287499999829,
+            "service_roundtrip_s": 0.07560287499999951,
+            "generated": 16,
+            "runtime_decode_tok_s": 310.58,
+            "non_decode_remainder_s": 0.02408635751658139,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 1,
+            "worker": "RX570",
+            "arrival_s": 0.0,
+            "dispatch_s": 0.0010805829999984695,
+            "first_token_s": 0.04741958299999993,
+            "completion_s": 0.1576221249999996,
+            "queue_wait_s": 0.0010805829999984695,
+            "ttft_from_arrival_s": 0.04741958299999993,
+            "completion_from_arrival_s": 0.1576221249999996,
+            "service_roundtrip_s": 0.15654154200000114,
+            "generated": 16,
+            "runtime_decode_tok_s": 142.573,
+            "non_decode_remainder_s": 0.0443183300313956,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 2,
+            "worker": "M4",
+            "arrival_s": 0.0,
+            "dispatch_s": 0.0012921659999989288,
+            "first_token_s": 0.046766332999998994,
+            "completion_s": 0.26260508299999863,
+            "queue_wait_s": 0.0012921659999989288,
+            "ttft_from_arrival_s": 0.046766332999998994,
+            "completion_from_arrival_s": 0.26260508299999863,
+            "service_roundtrip_s": 0.2613129169999997,
+            "generated": 16,
+            "runtime_decode_tok_s": 74.208,
+            "non_decode_remainder_s": 0.04570274019965473,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 3,
+            "worker": "B580",
+            "arrival_s": 0.0,
+            "dispatch_s": 0.07673304099999889,
+            "first_token_s": 0.09724412499999957,
+            "completion_s": 0.14848933299999878,
+            "queue_wait_s": 0.07673304099999889,
+            "ttft_from_arrival_s": 0.09724412499999957,
+            "completion_from_arrival_s": 0.14848933299999878,
+            "service_roundtrip_s": 0.07175629199999989,
+            "generated": 16,
+            "runtime_decode_tok_s": 325.688,
+            "non_decode_remainder_s": 0.02262952036579783,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 4,
+            "worker": "B580",
+            "arrival_s": 0.0,
+            "dispatch_s": 0.14881879099999828,
+            "first_token_s": 0.16575304099999855,
+            "completion_s": 0.24101679099999984,
+            "queue_wait_s": 0.14881879099999828,
+            "ttft_from_arrival_s": 0.16575304099999855,
+            "completion_from_arrival_s": 0.24101679099999984,
+            "service_roundtrip_s": 0.09219800000000156,
+            "generated": 16,
+            "runtime_decode_tok_s": 215.866,
+            "non_decode_remainder_s": 0.018077944039359306,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 5,
+            "worker": "RX570",
+            "arrival_s": 0.0,
+            "dispatch_s": 0.15780387499999904,
+            "first_token_s": 0.19727316599999867,
+            "completion_s": 0.30591237499999835,
+            "queue_wait_s": 0.15780387499999904,
+            "ttft_from_arrival_s": 0.19727316599999867,
+            "completion_from_arrival_s": 0.30591237499999835,
+            "service_roundtrip_s": 0.1481084999999993,
+            "generated": 16,
+            "runtime_decode_tok_s": 142.519,
+            "non_decode_remainder_s": 0.03584276701001202,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          }
+        ]
+      },
+      "steady_0.3s": {
+        "requests": 6,
+        "requested_tokens": 96,
+        "generated_tokens": 96,
+        "elapsed_from_first_arrival_s": 1.7754610419999999,
+        "aggregate_tokens_per_second": 54.070462673660856,
+        "completed_requests_per_second": 3.3794039171038035,
+        "arrival_to_ttft_s": {
+          "p50": 0.04948216700000008,
+          "p95": 0.054667624999998665,
+          "p99": 0.054667624999998665
+        },
+        "arrival_to_completion_s": {
+          "p50": 0.15985295799999905,
+          "p95": 0.2752610830000002,
+          "p99": 0.2752610830000002
+        },
+        "queue_wait_s": {
+          "p50": 0.00412399999999985,
+          "p95": 0.005332957999999666,
+          "p99": 0.005332957999999666
+        },
+        "worker_service_roundtrip_s": {
+          "p50": 0.1557289579999992,
+          "p95": 0.27337066599999993,
+          "p99": 0.27337066599999993
+        },
+        "worker_service_roundtrip_by_worker_s": {
+          "B580": {
+            "p50": 0.0706041250000009,
+            "p95": 0.09635629100000109,
+            "p99": 0.09635629100000109
+          },
+          "RX570": {
+            "p50": 0.1557289579999992,
+            "p95": 0.15580233400000054,
+            "p99": 0.15580233400000054
+          },
+          "M4": {
+            "p50": 0.2692549169999996,
+            "p95": 0.27337066599999993,
+            "p99": 0.27337066599999993
+          }
+        },
+        "assignments": {
+          "B580": 2,
+          "RX570": 2,
+          "M4": 2
+        },
+        "worker_runtime_decode_tok_s": {
+          "B580": {
+            "p50": 204.521,
+            "p95": 325.712,
+            "p99": 325.712
+          },
+          "RX570": {
+            "p50": 142.092,
+            "p95": 142.439,
+            "p99": 142.439
+          },
+          "M4": {
+            "p50": 72.645,
+            "p95": 72.657,
+            "p99": 72.657
+          }
+        },
+        "non_decode_remainder_s": {
+          "p50": 0.043125855784533165,
+          "p95": 0.05312150914130351,
+          "p99": 0.05312150914130351
+        },
+        "control_stream_bytes": {
+          "B580": {
+            "sent": 378,
+            "received": 1286
+          },
+          "RX570": {
+            "sent": 378,
+            "received": 1286
+          },
+          "M4": {
+            "sent": 378,
+            "received": 1284
+          }
+        },
+        "all_request_outputs_identical_within_condition": true,
+        "per_request": [
+          {
+            "request_id": 0,
+            "worker": "B580",
+            "arrival_s": 0.0,
+            "dispatch_s": 0.00022216699999866307,
+            "first_token_s": 0.019405374999999836,
+            "completion_s": 0.07082629199999957,
+            "queue_wait_s": 0.00022216699999866307,
+            "ttft_from_arrival_s": 0.019405374999999836,
+            "completion_from_arrival_s": 0.07082629199999957,
+            "service_roundtrip_s": 0.0706041250000009,
+            "generated": 16,
+            "runtime_decode_tok_s": 325.712,
+            "non_decode_remainder_s": 0.021480973258585175,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 1,
+            "worker": "RX570",
+            "arrival_s": 0.3,
+            "dispatch_s": 0.30412399999999984,
+            "first_token_s": 0.35033662499999885,
+            "completion_s": 0.45985295799999903,
+            "queue_wait_s": 0.00412399999999985,
+            "ttft_from_arrival_s": 0.05033662499999886,
+            "completion_from_arrival_s": 0.15985295799999905,
+            "service_roundtrip_s": 0.1557289579999992,
+            "generated": 16,
+            "runtime_decode_tok_s": 142.092,
+            "non_decode_remainder_s": 0.043125855784533165,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 2,
+            "worker": "M4",
+            "arrival_s": 0.6,
+            "dispatch_s": 0.6053060830000003,
+            "first_token_s": 0.6542114579999989,
+            "completion_s": 0.8745609999999999,
+            "queue_wait_s": 0.00530608300000035,
+            "ttft_from_arrival_s": 0.054211457999998935,
+            "completion_from_arrival_s": 0.27456099999999994,
+            "service_roundtrip_s": 0.2692549169999996,
+            "generated": 16,
+            "runtime_decode_tok_s": 72.657,
+            "non_decode_remainder_s": 0.04904213640074556,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 3,
+            "worker": "B580",
+            "arrival_s": 0.8999999999999999,
+            "dispatch_s": 0.9043332919999987,
+            "first_token_s": 0.9196765419999995,
+            "completion_s": 1.0006895829999998,
+            "queue_wait_s": 0.004333291999998767,
+            "ttft_from_arrival_s": 0.019676541999999575,
+            "completion_from_arrival_s": 0.10068958299999986,
+            "service_roundtrip_s": 0.09635629100000109,
+            "generated": 16,
+            "runtime_decode_tok_s": 204.521,
+            "non_decode_remainder_s": 0.018124715758338864,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 4,
+            "worker": "RX570",
+            "arrival_s": 1.2,
+            "dispatch_s": 1.2053329579999996,
+            "first_token_s": 1.249482167,
+            "completion_s": 1.3611352920000002,
+            "queue_wait_s": 0.005332957999999666,
+            "ttft_from_arrival_s": 0.04948216700000008,
+            "completion_from_arrival_s": 0.1611352920000002,
+            "service_roundtrip_s": 0.15580233400000054,
+            "generated": 16,
+            "runtime_decode_tok_s": 142.439,
+            "non_decode_remainder_s": 0.043473547642331634,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          },
+          {
+            "request_id": 5,
+            "worker": "M4",
+            "arrival_s": 1.5,
+            "dispatch_s": 1.5018904170000003,
+            "first_token_s": 1.5546676249999987,
+            "completion_s": 1.7752610830000002,
+            "queue_wait_s": 0.0018904170000002551,
+            "ttft_from_arrival_s": 0.054667624999998665,
+            "completion_from_arrival_s": 0.2752610830000002,
+            "service_roundtrip_s": 0.27337066599999993,
+            "generated": 16,
+            "runtime_decode_tok_s": 72.645,
+            "non_decode_remainder_s": 0.05312150914130351,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe"
+          }
+        ]
+      }
+    }
+  },
+  "pull": {
+    "warmup_token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+    "workers": {
+      "M4": {
+        "caps": [
+          "generate",
+          "island.m4",
+          "throughput.generate"
+        ],
+        "models": [
+          "qwen05-sp"
+        ],
+        "connected_at": 1790285291.443253
+      },
+      "B580": {
+        "caps": [
+          "generate",
+          "island.b580",
+          "throughput.generate"
+        ],
+        "models": [
+          "qwen05-sp"
+        ],
+        "connected_at": 1790285292.6036658
+      },
+      "RX570": {
+        "caps": [
+          "generate",
+          "island.rx570",
+          "throughput.generate"
+        ],
+        "models": [
+          "qwen05-sp"
+        ],
+        "connected_at": 1790285295.123942
+      }
+    },
+    "matrix": {
+      "burst": {
+        "requests": 6,
+        "requested_tokens": 96,
+        "generated_tokens": 96,
+        "elapsed_s": 0.3163465829999996,
+        "aggregate_tokens_per_second": 303.4646339138745,
+        "arrival_to_completion_s": {
+          "p50": 0.15932958299999989,
+          "p95": 0.3163465829999996,
+          "p99": 0.3163465829999996
+        },
+        "assignments": {
+          "B580": 3,
+          "M4": 1,
+          "RX570": 2
+        },
+        "all_request_outputs_identical": true,
+        "per_request": [
+          {
+            "request_id": 0,
+            "worker": "M4",
+            "arrival_s": 0.0,
+            "completion_s": 0.2843807080000005,
+            "completion_from_arrival_s": 0.2843807080000005,
+            "generated": 16,
+            "decode_tok_s": 69.376,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 1,
+            "worker": "RX570",
+            "arrival_s": 0.0,
+            "completion_s": 0.15932958299999989,
+            "completion_from_arrival_s": 0.15932958299999989,
+            "generated": 16,
+            "decode_tok_s": 142.261,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 2,
+            "worker": "B580",
+            "arrival_s": 0.0,
+            "completion_s": 0.07907579200000114,
+            "completion_from_arrival_s": 0.07907579200000114,
+            "generated": 16,
+            "decode_tok_s": 325.673,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 3,
+            "worker": "B580",
+            "arrival_s": 0.0,
+            "completion_s": 0.1592467080000013,
+            "completion_from_arrival_s": 0.1592467080000013,
+            "generated": 16,
+            "decode_tok_s": 325.769,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 4,
+            "worker": "B580",
+            "arrival_s": 0.0,
+            "completion_s": 0.23616858300000132,
+            "completion_from_arrival_s": 0.23616858300000132,
+            "generated": 16,
+            "decode_tok_s": 325.874,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 5,
+            "worker": "RX570",
+            "arrival_s": 0.0,
+            "completion_s": 0.3163465829999996,
+            "completion_from_arrival_s": 0.3163465829999996,
+            "generated": 16,
+            "decode_tok_s": 142.295,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          }
+        ]
+      },
+      "steady_0.3s": {
+        "requests": 6,
+        "requested_tokens": 96,
+        "generated_tokens": 96,
+        "elapsed_s": 1.792173708,
+        "aggregate_tokens_per_second": 53.56623611398276,
+        "arrival_to_completion_s": {
+          "p50": 0.2830712500000012,
+          "p95": 0.292173708,
+          "p99": 0.292173708
+        },
+        "assignments": {
+          "B580": 1,
+          "M4": 4,
+          "RX570": 1
+        },
+        "all_request_outputs_identical": true,
+        "per_request": [
+          {
+            "request_id": 0,
+            "worker": "B580",
+            "arrival_s": 0.0,
+            "completion_s": 0.07004037500000138,
+            "completion_from_arrival_s": 0.07004037500000138,
+            "generated": 16,
+            "decode_tok_s": 322.783,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 1,
+            "worker": "M4",
+            "arrival_s": 0.3,
+            "completion_s": 0.5895931250000004,
+            "completion_from_arrival_s": 0.2895931250000004,
+            "generated": 16,
+            "decode_tok_s": 68.306,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 2,
+            "worker": "RX570",
+            "arrival_s": 0.6,
+            "completion_s": 0.7620671250000015,
+            "completion_from_arrival_s": 0.16206712500000153,
+            "generated": 16,
+            "decode_tok_s": 142.206,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 3,
+            "worker": "M4",
+            "arrival_s": 0.8999999999999999,
+            "completion_s": 1.1830712500000011,
+            "completion_from_arrival_s": 0.2830712500000012,
+            "generated": 16,
+            "decode_tok_s": 69.697,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 4,
+            "worker": "M4",
+            "arrival_s": 1.2,
+            "completion_s": 1.4863892919999984,
+            "completion_from_arrival_s": 0.2863892919999984,
+            "generated": 16,
+            "decode_tok_s": 68.054,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          },
+          {
+            "request_id": 5,
+            "worker": "M4",
+            "arrival_s": 1.5,
+            "completion_s": 1.792173708,
+            "completion_from_arrival_s": 0.292173708,
+            "generated": 16,
+            "decode_tok_s": 67.171,
+            "token_sha256": "0fb1b5415cef9eed24beb0643fb9494344101e204c49504410e34be4d306bbbe",
+            "error": null
+          }
+        ]
+      }
+    }
+  },
+  "comparisons": {
+    "burst": {
+      "same_token_hashes_by_request": true,
+      "pull_vs_direct_throughput_ratio": 0.9674854240483419
+    },
+    "steady_0.3s": {
+      "same_token_hashes_by_request": true,
+      "pull_vs_direct_throughput_ratio": 0.9906746394473943
+    }
+  },
+  "qualification": "exploratory; short requests/sample count; no latency SLA gate"
+}

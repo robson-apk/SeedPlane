@@ -1,0 +1,338 @@
+{
+  "protocol": "Hive local-CPU-GPU-pool exploratory v1",
+  "source_commit": "working-tree snapshot (not a git checkout)",
+  "recorded_at_utc": "2026-09-24T20:32:47.274228+00:00",
+  "controller_platform": "Linux-7.0.0-31-generic-x86_64-with-glibc2.43",
+  "kind": "aggregate throughput over independent requests; not collaborative single-request decode",
+  "workload": {
+    "prompt": "Explain briefly how a computer memory cache improves performance.",
+    "requests": 3,
+    "tokens_per_request": 16,
+    "temperature": 0,
+    "top_k": 0,
+    "top_p": 1,
+    "steady_interarrival_s": 0.3,
+    "rounds": 1,
+    "percentile_method": "nearest rank"
+  },
+  "network_notes": [
+    "same-host workers; exploratory 16-token micro-burst"
+  ],
+  "warmups": {
+    "CPU_X79": {
+      "ready": {
+        "ready": true,
+        "device": "CPU reference",
+        "backend": "PyTorch",
+        "torch": "2.14.0+cpu",
+        "threads": 16,
+        "precision": "float32",
+        "model": "Qwen2"
+      },
+      "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+    },
+    "GPU_RX570": {
+      "ready": {
+        "ready": true,
+        "device": "AMD Radeon RX 570 Series (RADV POLARIS10)",
+        "mode": "shadow-batch",
+        "plan": {
+          "shard": 512,
+          "halo": 256,
+          "sinks": 4
+        },
+        "positions": 32768,
+        "window_slots": 772
+      },
+      "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+    }
+  },
+  "warmup_hashes_all_equal": true,
+  "workers": {
+    "CPU_X79": {
+      "mode": "local",
+      "target": "",
+      "launch_command": "/usr/bin/env PYTHONPATH=/tmp/seedplane-hive-src /tmp/seedplane-hive-venv/bin/python /tmp/seedplane-hive-src/experiments/hive_scaling/serve_qwen2_cpu.py --bundle /home/robson/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775 --threads 16",
+      "ready": {
+        "ready": true,
+        "device": "CPU reference",
+        "backend": "PyTorch",
+        "torch": "2.14.0+cpu",
+        "threads": 16,
+        "precision": "float32",
+        "model": "Qwen2"
+      }
+    },
+    "GPU_RX570": {
+      "mode": "local",
+      "target": "",
+      "launch_command": "/home/robson/sp_v23/build_gcc/qwen_vk /home/robson/sp_v23/qwen05.sp --serve --shaders /home/robson/sp_v23/build_gcc/shaders",
+      "ready": {
+        "ready": true,
+        "device": "AMD Radeon RX 570 Series (RADV POLARIS10)",
+        "mode": "shadow-batch",
+        "plan": {
+          "shard": 512,
+          "halo": 256,
+          "sinks": 4
+        },
+        "positions": 32768,
+        "window_slots": 772
+      }
+    }
+  },
+  "matrix": [
+    {
+      "requests": 3,
+      "requested_tokens": 48,
+      "generated_tokens": 48,
+      "elapsed_from_first_arrival_s": 8.273523691110313,
+      "aggregate_tokens_per_second": 5.801639276330925,
+      "completed_requests_per_second": 0.3626024547706828,
+      "arrival_to_ttft_s": {
+        "p50": 0.17729538213461637,
+        "p95": 1.0083488901145756,
+        "p99": 1.0083488901145756
+      },
+      "arrival_to_completion_s": {
+        "p50": 0.30208464805036783,
+        "p95": 8.273368583992124,
+        "p99": 8.273368583992124
+      },
+      "queue_wait_s": {
+        "p50": 0.000608137110248208,
+        "p95": 0.15202094498090446,
+        "p99": 0.15202094498090446
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 0.15110461902804673,
+        "p95": 8.273064306005836,
+        "p99": 8.273064306005836
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "CPU_X79": {
+          "p50": 8.273064306005836,
+          "p95": 8.273064306005836,
+          "p99": 8.273064306005836
+        },
+        "GPU_RX570": {
+          "p50": 0.15006370306946337,
+          "p95": 0.15110461902804673,
+          "p99": 0.15110461902804673
+        }
+      },
+      "assignments": {
+        "CPU_X79": 1,
+        "GPU_RX570": 2
+      },
+      "worker_runtime_decode_tok_s": {
+        "CPU_X79": {
+          "p50": 1.9341296438546467,
+          "p95": 1.9341296438546467,
+          "p99": 1.9341296438546467
+        },
+        "GPU_RX570": {
+          "p50": 128.28,
+          "p95": 131.222,
+          "p99": 131.222
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.025336543730517316,
+        "p95": 0.029173845224873485,
+        "p99": 0.029173845224873485
+      },
+      "control_stream_bytes": {
+        "CPU_X79": {
+          "sent": 172,
+          "received": 572
+        },
+        "GPU_RX570": {
+          "sent": 344,
+          "received": 1236
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "CPU_X79",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.0003042779862880707,
+          "first_token_s": 1.0083488901145756,
+          "completion_s": 8.273368583992124,
+          "queue_wait_s": 0.0003042779862880707,
+          "ttft_from_arrival_s": 1.0083488901145756,
+          "completion_from_arrival_s": 8.273368583992124,
+          "service_roundtrip_s": 8.273064306005836,
+          "generated": 16,
+          "runtime_decode_tok_s": 1.9341296438546467,
+          "non_decode_remainder_s": 0.0006095350254327059,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        },
+        {
+          "request_id": 1,
+          "worker": "GPU_RX570",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.000608137110248208,
+          "first_token_s": 0.03137382911518216,
+          "completion_s": 0.15171275613829494,
+          "queue_wait_s": 0.000608137110248208,
+          "ttft_from_arrival_s": 0.03137382911518216,
+          "completion_from_arrival_s": 0.15171275613829494,
+          "service_roundtrip_s": 0.15110461902804673,
+          "generated": 16,
+          "runtime_decode_tok_s": 131.222,
+          "non_decode_remainder_s": 0.029173845224873485,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        },
+        {
+          "request_id": 2,
+          "worker": "GPU_RX570",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.15202094498090446,
+          "first_token_s": 0.17729538213461637,
+          "completion_s": 0.30208464805036783,
+          "queue_wait_s": 0.15202094498090446,
+          "ttft_from_arrival_s": 0.17729538213461637,
+          "completion_from_arrival_s": 0.30208464805036783,
+          "service_roundtrip_s": 0.15006370306946337,
+          "generated": 16,
+          "runtime_decode_tok_s": 128.28,
+          "non_decode_remainder_s": 0.025336543730517316,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        }
+      ],
+      "condition": "CPU_X79+GPU_RX570",
+      "round": 1,
+      "arrival_pattern": "burst",
+      "outputs_match_within_pool": true
+    },
+    {
+      "requests": 3,
+      "requested_tokens": 48,
+      "generated_tokens": 48,
+      "elapsed_from_first_arrival_s": 8.098750110017136,
+      "aggregate_tokens_per_second": 5.9268404813021744,
+      "completed_requests_per_second": 0.3704275300813859,
+      "arrival_to_ttft_s": {
+        "p50": 1.507793523930013,
+        "p95": 1.6588333789724856,
+        "p99": 1.6588333789724856
+      },
+      "arrival_to_completion_s": {
+        "p50": 1.7809442710597068,
+        "p95": 8.098592069931328,
+        "p99": 8.098592069931328
+      },
+      "queue_wait_s": {
+        "p50": 0.00038545303978027023,
+        "p95": 1.4811877918895333,
+        "p99": 1.4811877918895333
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 1.7805588180199265,
+        "p95": 8.09838654100895,
+        "p99": 8.09838654100895
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "CPU_X79": {
+          "p50": 8.09838654100895,
+          "p95": 8.09838654100895,
+          "p99": 8.09838654100895
+        },
+        "GPU_RX570": {
+          "p50": 0.14656405011191964,
+          "p95": 1.7805588180199265,
+          "p99": 1.7805588180199265
+        }
+      },
+      "assignments": {
+        "CPU_X79": 1,
+        "GPU_RX570": 2
+      },
+      "worker_runtime_decode_tok_s": {
+        "CPU_X79": {
+          "p50": 1.9758388031911758,
+          "p95": 1.9758388031911758,
+          "p99": 1.9758388031911758
+        },
+        "GPU_RX570": {
+          "p50": 130.801,
+          "p95": 133.267,
+          "p99": 133.267
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.026504320396386158,
+        "p95": 1.6582355941913625,
+        "p99": 1.6582355941913625
+      },
+      "control_stream_bytes": {
+        "CPU_X79": {
+          "sent": 172,
+          "received": 572
+        },
+        "GPU_RX570": {
+          "sent": 344,
+          "received": 1236
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "CPU_X79",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.00020552892237901688,
+          "first_token_s": 1.1504009349737316,
+          "completion_s": 8.098592069931328,
+          "queue_wait_s": 0.00020552892237901688,
+          "ttft_from_arrival_s": 1.1504009349737316,
+          "completion_from_arrival_s": 8.098592069931328,
+          "service_roundtrip_s": 8.09838654100895,
+          "generated": 16,
+          "runtime_decode_tok_s": 1.9758388031911758,
+          "non_decode_remainder_s": 0.0005599500145763159,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        },
+        {
+          "request_id": 1,
+          "worker": "GPU_RX570",
+          "arrival_s": 0.3,
+          "dispatch_s": 0.30038545303978026,
+          "first_token_s": 1.9588333789724857,
+          "completion_s": 2.080944271059707,
+          "queue_wait_s": 0.00038545303978027023,
+          "ttft_from_arrival_s": 1.6588333789724856,
+          "completion_from_arrival_s": 1.7809442710597068,
+          "service_roundtrip_s": 1.7805588180199265,
+          "generated": 16,
+          "runtime_decode_tok_s": 130.801,
+          "non_decode_remainder_s": 1.6582355941913625,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        },
+        {
+          "request_id": 2,
+          "worker": "GPU_RX570",
+          "arrival_s": 0.6,
+          "dispatch_s": 2.0811877918895334,
+          "first_token_s": 2.107793523930013,
+          "completion_s": 2.227751842001453,
+          "queue_wait_s": 1.4811877918895333,
+          "ttft_from_arrival_s": 1.507793523930013,
+          "completion_from_arrival_s": 1.627751842001453,
+          "service_roundtrip_s": 0.14656405011191964,
+          "generated": 16,
+          "runtime_decode_tok_s": 133.267,
+          "non_decode_remainder_s": 0.026504320396386158,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        }
+      ],
+      "condition": "CPU_X79+GPU_RX570",
+      "round": 1,
+      "arrival_pattern": "steady",
+      "outputs_match_within_pool": true
+    }
+  ]
+}

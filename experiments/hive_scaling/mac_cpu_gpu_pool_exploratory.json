@@ -1,0 +1,1070 @@
+{
+  "protocol": "Hive local-CPU-GPU-pool exploratory v1",
+  "source_commit": "f2b11df09b35006de04bf51817f6e2568e9483c2",
+  "recorded_at_utc": "2026-09-24T20:22:57.646884+00:00",
+  "controller_platform": "macOS-27.0-arm64-arm-64bit",
+  "kind": "aggregate throughput over independent requests; not collaborative single-request decode",
+  "workload": {
+    "prompt": "Explain briefly how a computer memory cache improves performance.",
+    "requests": 6,
+    "tokens_per_request": 32,
+    "temperature": 0,
+    "top_k": 0,
+    "top_p": 1,
+    "steady_interarrival_s": 0.3,
+    "rounds": 1,
+    "percentile_method": "nearest rank"
+  },
+  "network_notes": [
+    "Mac worker on Wi-Fi; single-host local IPC, no network hop."
+  ],
+  "warmups": {
+    "CPU_M4": {
+      "ready": {
+        "ready": true,
+        "device": "CPU reference",
+        "backend": "PyTorch",
+        "torch": "2.14.0",
+        "threads": 10,
+        "precision": "float32",
+        "model": "Qwen2"
+      },
+      "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+    },
+    "GPU_M4": {
+      "ready": {
+        "ready": true,
+        "device": "Apple M4",
+        "mode": "shadow-batch",
+        "plan": {
+          "shard": 512,
+          "halo": 256,
+          "sinks": 4
+        },
+        "positions": 32768,
+        "window_slots": 772
+      },
+      "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+    }
+  },
+  "warmup_hashes_all_equal": true,
+  "workers": {
+    "CPU_M4": {
+      "mode": "local",
+      "target": "",
+      "launch_command": "/usr/bin/env PYTHONPATH=. .venv-hive/bin/python experiments/hive_scaling/serve_qwen2_cpu.py --bundle /Users/robson/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775 --threads 10",
+      "ready": {
+        "ready": true,
+        "device": "CPU reference",
+        "backend": "PyTorch",
+        "torch": "2.14.0",
+        "threads": 10,
+        "precision": "float32",
+        "model": "Qwen2"
+      }
+    },
+    "GPU_M4": {
+      "mode": "local",
+      "target": "",
+      "launch_command": "\"/Users/robson/Downloads/plano para o seedplane/artifacts/v22b-main-ci/seedplane-native-macOS-ARM64/qwen_vk\" /Users/robson/qwen05_v1.sp --serve --shaders \"/Users/robson/Downloads/plano para o seedplane/artifacts/v22b-main-ci/seedplane-native-macOS-ARM64/shaders\"",
+      "ready": {
+        "ready": true,
+        "device": "Apple M4",
+        "mode": "shadow-batch",
+        "plan": {
+          "shard": 512,
+          "halo": 256,
+          "sinks": 4
+        },
+        "positions": 32768,
+        "window_slots": 772
+      }
+    }
+  },
+  "matrix": [
+    {
+      "requests": 6,
+      "requested_tokens": 192,
+      "generated_tokens": 192,
+      "elapsed_from_first_arrival_s": 2.706682457937859,
+      "aggregate_tokens_per_second": 70.93554673800897,
+      "completed_requests_per_second": 2.21673583556278,
+      "arrival_to_ttft_s": {
+        "p50": 0.9565701669780537,
+        "p95": 2.2984291670145467,
+        "p99": 2.2984291670145467
+      },
+      "arrival_to_completion_s": {
+        "p50": 1.3729777919361368,
+        "p95": 2.706614541937597,
+        "p99": 2.706614541937597
+      },
+      "queue_wait_s": {
+        "p50": 0.9194777079392225,
+        "p95": 2.260913082980551,
+        "p99": 2.260913082980551
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 0.44715133402496576,
+        "p95": 0.46800920902751386,
+        "p99": 0.46800920902751386
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "GPU_M4": {
+          "p50": 0.44715133402496576,
+          "p95": 0.46800920902751386,
+          "p99": 0.46800920902751386
+        }
+      },
+      "assignments": {
+        "GPU_M4": 6
+      },
+      "worker_runtime_decode_tok_s": {
+        "GPU_M4": {
+          "p50": 77.147,
+          "p95": 79.127,
+          "p99": 79.127
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.0362152987872007,
+        "p95": 0.04285608747357916,
+        "p99": 0.04285608747357916
+      },
+      "control_stream_bytes": {
+        "GPU_M4": {
+          "sent": 1032,
+          "received": 6570
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.00013275002129375935,
+          "first_token_s": 0.03623791702557355,
+          "completion_s": 0.4510553749278188,
+          "queue_wait_s": 0.00013275002129375935,
+          "ttft_from_arrival_s": 0.03623791702557355,
+          "completion_from_arrival_s": 0.4510553749278188,
+          "service_roundtrip_s": 0.450922624906525,
+          "generated": 32,
+          "runtime_decode_tok_s": 77.147,
+          "non_decode_remainder_s": 0.03613008598731887,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 1,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.45131108292844146,
+          "first_token_s": 0.4942202080274001,
+          "completion_s": 0.9193202919559553,
+          "queue_wait_s": 0.45131108292844146,
+          "ttft_from_arrival_s": 0.4942202080274001,
+          "completion_from_arrival_s": 0.9193202919559553,
+          "service_roundtrip_s": 0.46800920902751386,
+          "generated": 32,
+          "runtime_decode_tok_s": 75.267,
+          "non_decode_remainder_s": 0.04285608747357916,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 2,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.9194777079392225,
+          "first_token_s": 0.9565701669780537,
+          "completion_s": 1.3729777919361368,
+          "queue_wait_s": 0.9194777079392225,
+          "ttft_from_arrival_s": 0.9565701669780537,
+          "completion_from_arrival_s": 1.3729777919361368,
+          "service_roundtrip_s": 0.4535000839969143,
+          "generated": 32,
+          "runtime_decode_tok_s": 76.837,
+          "non_decode_remainder_s": 0.03703405851439939,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 3,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 1.3730888749705628,
+          "first_token_s": 1.408967582974583,
+          "completion_s": 1.8134175830055028,
+          "queue_wait_s": 1.3730888749705628,
+          "ttft_from_arrival_s": 1.408967582974583,
+          "completion_from_arrival_s": 1.8134175830055028,
+          "service_roundtrip_s": 0.44032870803494006,
+          "generated": 32,
+          "runtime_decode_tok_s": 79.127,
+          "non_decode_remainder_s": 0.035915549441792316,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 4,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 1.813530582934618,
+          "first_token_s": 1.8497387079987675,
+          "completion_s": 2.2606819169595838,
+          "queue_wait_s": 1.813530582934618,
+          "ttft_from_arrival_s": 1.8497387079987675,
+          "completion_from_arrival_s": 2.2606819169595838,
+          "service_roundtrip_s": 0.44715133402496576,
+          "generated": 32,
+          "runtime_decode_tok_s": 77.871,
+          "non_decode_remainder_s": 0.0362152987872007,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 5,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 2.260913082980551,
+          "first_token_s": 2.2984291670145467,
+          "completion_s": 2.706614541937597,
+          "queue_wait_s": 2.260913082980551,
+          "ttft_from_arrival_s": 2.2984291670145467,
+          "completion_from_arrival_s": 2.706614541937597,
+          "service_roundtrip_s": 0.44570145895704627,
+          "generated": 32,
+          "runtime_decode_tok_s": 78.395,
+          "non_decode_remainder_s": 0.03751216117019762,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        }
+      ],
+      "condition": "GPU_M4",
+      "round": 1,
+      "arrival_pattern": "burst",
+      "outputs_match_within_pool": true
+    },
+    {
+      "requests": 6,
+      "requested_tokens": 192,
+      "generated_tokens": 192,
+      "elapsed_from_first_arrival_s": 2.6531535409158096,
+      "aggregate_tokens_per_second": 72.36671268324933,
+      "completed_requests_per_second": 2.2614597713515416,
+      "arrival_to_ttft_s": {
+        "p50": 0.3202449159929529,
+        "p95": 0.7455985000124201,
+        "p99": 0.7455985000124201
+      },
+      "arrival_to_completion_s": {
+        "p50": 0.7218864579685033,
+        "p95": 1.1530607499880716,
+        "p99": 1.1530607499880716
+      },
+      "queue_wait_s": {
+        "p50": 0.28358595792669805,
+        "p95": 0.7091527909506112,
+        "p99": 0.7091527909506112
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 0.44242595799732953,
+        "p95": 0.4445345839485526,
+        "p99": 0.4445345839485526
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "GPU_M4": {
+          "p50": 0.44242595799732953,
+          "p95": 0.4445345839485526,
+          "p99": 0.4445345839485526
+        }
+      },
+      "assignments": {
+        "GPU_M4": 6
+      },
+      "worker_runtime_decode_tok_s": {
+        "GPU_M4": {
+          "p50": 78.53,
+          "p95": 79.67,
+          "p99": 79.67
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.03642037467479642,
+        "p95": 0.036752748968040094,
+        "p99": 0.036752748968040094
+      },
+      "control_stream_bytes": {
+        "GPU_M4": {
+          "sent": 1032,
+          "received": 6570
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 6.683298852294683e-05,
+          "first_token_s": 0.036518040928058326,
+          "completion_s": 0.44399637496098876,
+          "queue_wait_s": 6.683298852294683e-05,
+          "ttft_from_arrival_s": 0.036518040928058326,
+          "completion_from_arrival_s": 0.44399637496098876,
+          "service_roundtrip_s": 0.4439295419724658,
+          "generated": 32,
+          "runtime_decode_tok_s": 78.527,
+          "non_decode_remainder_s": 0.03642639019027627,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 1,
+          "worker": "GPU_M4",
+          "arrival_s": 0.3,
+          "dispatch_s": 0.44415983301587403,
+          "first_token_s": 0.48094066593330353,
+          "completion_s": 0.8834637500112876,
+          "queue_wait_s": 0.14415983301587404,
+          "ttft_from_arrival_s": 0.18094066593330355,
+          "completion_from_arrival_s": 0.5834637500112876,
+          "service_roundtrip_s": 0.4393039169954136,
+          "generated": 32,
+          "runtime_decode_tok_s": 79.493,
+          "non_decode_remainder_s": 0.036752748968040094,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 2,
+          "worker": "GPU_M4",
+          "arrival_s": 0.6,
+          "dispatch_s": 0.883585957926698,
+          "first_token_s": 0.9202449159929529,
+          "completion_s": 1.3218864579685032,
+          "queue_wait_s": 0.28358595792669805,
+          "ttft_from_arrival_s": 0.3202449159929529,
+          "completion_from_arrival_s": 0.7218864579685033,
+          "service_roundtrip_s": 0.4383005000418052,
+          "generated": 32,
+          "runtime_decode_tok_s": 79.67,
+          "non_decode_remainder_s": 0.036643665599731645,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 3,
+          "worker": "GPU_M4",
+          "arrival_s": 0.8999999999999999,
+          "dispatch_s": 1.321978082996793,
+          "first_token_s": 1.3577747909585014,
+          "completion_s": 1.7644040409941226,
+          "queue_wait_s": 0.4219780829967932,
+          "ttft_from_arrival_s": 0.4577747909585015,
+          "completion_from_arrival_s": 0.8644040409941227,
+          "service_roundtrip_s": 0.44242595799732953,
+          "generated": 32,
+          "runtime_decode_tok_s": 78.694,
+          "non_decode_remainder_s": 0.03578758658400705,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 4,
+          "worker": "GPU_M4",
+          "arrival_s": 1.2,
+          "dispatch_s": 1.764506291016005,
+          "first_token_s": 1.8009154580067843,
+          "completion_s": 2.2090408749645576,
+          "queue_wait_s": 0.564506291016005,
+          "ttft_from_arrival_s": 0.6009154580067844,
+          "completion_from_arrival_s": 1.0090408749645576,
+          "service_roundtrip_s": 0.4445345839485526,
+          "generated": 32,
+          "runtime_decode_tok_s": 78.409,
+          "non_decode_remainder_s": 0.0364181687411147,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 5,
+          "worker": "GPU_M4",
+          "arrival_s": 1.5,
+          "dispatch_s": 2.2091527909506112,
+          "first_token_s": 2.24559850001242,
+          "completion_s": 2.6530607499880716,
+          "queue_wait_s": 0.7091527909506112,
+          "ttft_from_arrival_s": 0.7455985000124201,
+          "completion_from_arrival_s": 1.1530607499880716,
+          "service_roundtrip_s": 0.4439079590374604,
+          "generated": 32,
+          "runtime_decode_tok_s": 78.53,
+          "non_decode_remainder_s": 0.03642037467479642,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        }
+      ],
+      "condition": "GPU_M4",
+      "round": 1,
+      "arrival_pattern": "steady",
+      "outputs_match_within_pool": true
+    },
+    {
+      "requests": 6,
+      "requested_tokens": 192,
+      "generated_tokens": 192,
+      "elapsed_from_first_arrival_s": 3.4619386249687523,
+      "aggregate_tokens_per_second": 55.46025530759749,
+      "completed_requests_per_second": 1.7331329783624216,
+      "arrival_to_ttft_s": {
+        "p50": 0.6563876660075039,
+        "p95": 2.2255979579640552,
+        "p99": 2.2255979579640552
+      },
+      "arrival_to_completion_s": {
+        "p50": 1.8768159999744967,
+        "p95": 3.4618673749500886,
+        "p99": 3.4618673749500886
+      },
+      "queue_wait_s": {
+        "p50": 0.6064694579690695,
+        "p95": 2.1308499579317868,
+        "p99": 2.1308499579317868
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 0.6182208330137655,
+        "p95": 2.130618083057925,
+        "p99": 2.130618083057925
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "CPU_M4": {
+          "p50": 1.3310174170183018,
+          "p95": 2.130618083057925,
+          "p99": 2.130618083057925
+        },
+        "GPU_M4": {
+          "p50": 0.6060497079743072,
+          "p95": 0.6519980420125648,
+          "p99": 0.6519980420125648
+        }
+      },
+      "assignments": {
+        "CPU_M4": 2,
+        "GPU_M4": 4
+      },
+      "worker_runtime_decode_tok_s": {
+        "CPU_M4": {
+          "p50": 15.02151009893816,
+          "p95": 24.04498140889472,
+          "p99": 24.04498140889472
+        },
+        "GPU_M4": {
+          "p50": 56.305,
+          "p95": 57.925,
+          "p99": 57.925
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.04367931677540382,
+        "p95": 0.051273417934771026,
+        "p99": 0.051273417934771026
+      },
+      "control_stream_bytes": {
+        "CPU_M4": {
+          "sent": 344,
+          "received": 2098
+        },
+        "GPU_M4": {
+          "sent": 688,
+          "received": 4380
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.00011508294846862555,
+          "first_token_s": 0.10936224996112287,
+          "completion_s": 2.1307331660063937,
+          "queue_wait_s": 0.00011508294846862555,
+          "ttft_from_arrival_s": 0.10936224996112287,
+          "completion_from_arrival_s": 2.1307331660063937,
+          "service_roundtrip_s": 2.130618083057925,
+          "generated": 32,
+          "runtime_decode_tok_s": 15.02151009893816,
+          "non_decode_remainder_s": 0.0003395831445232034,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 1,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.00024337496142834425,
+          "first_token_s": 0.04390154092106968,
+          "completion_s": 0.6062930829357356,
+          "queue_wait_s": 0.00024337496142834425,
+          "ttft_from_arrival_s": 0.04390154092106968,
+          "completion_from_arrival_s": 0.6062930829357356,
+          "service_roundtrip_s": 0.6060497079743072,
+          "generated": 32,
+          "runtime_decode_tok_s": 56.902,
+          "non_decode_remainder_s": 0.04367931677540382,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 2,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.6064694579690695,
+          "first_token_s": 0.6563876660075039,
+          "completion_s": 1.224690290982835,
+          "queue_wait_s": 0.6064694579690695,
+          "ttft_from_arrival_s": 0.6563876660075039,
+          "completion_from_arrival_s": 1.224690290982835,
+          "service_roundtrip_s": 0.6182208330137655,
+          "generated": 32,
+          "runtime_decode_tok_s": 56.305,
+          "non_decode_remainder_s": 0.04988764768386589,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 3,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 1.2248179579619318,
+          "first_token_s": 1.2760467909974977,
+          "completion_s": 1.8768159999744967,
+          "queue_wait_s": 1.2248179579619318,
+          "ttft_from_arrival_s": 1.2760467909974977,
+          "completion_from_arrival_s": 1.8768159999744967,
+          "service_roundtrip_s": 0.6519980420125648,
+          "generated": 32,
+          "runtime_decode_tok_s": 53.269,
+          "non_decode_remainder_s": 0.051273417934771026,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 4,
+          "worker": "GPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 1.877038582926616,
+          "first_token_s": 1.925685124937445,
+          "completion_s": 2.4780772499507293,
+          "queue_wait_s": 1.877038582926616,
+          "ttft_from_arrival_s": 1.925685124937445,
+          "completion_from_arrival_s": 2.4780772499507293,
+          "service_roundtrip_s": 0.6010386670241132,
+          "generated": 32,
+          "runtime_decode_tok_s": 57.925,
+          "non_decode_remainder_s": 0.04860016896627983,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 5,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 2.1308499579317868,
+          "first_token_s": 2.2255979579640552,
+          "completion_s": 3.4618673749500886,
+          "queue_wait_s": 2.1308499579317868,
+          "ttft_from_arrival_s": 2.2255979579640552,
+          "completion_from_arrival_s": 3.4618673749500886,
+          "service_roundtrip_s": 1.3310174170183018,
+          "generated": 32,
+          "runtime_decode_tok_s": 24.04498140889472,
+          "non_decode_remainder_s": 0.00017837597988545895,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        }
+      ],
+      "condition": "CPU_M4+GPU_M4",
+      "round": 1,
+      "arrival_pattern": "burst",
+      "outputs_match_within_pool": true
+    },
+    {
+      "requests": 6,
+      "requested_tokens": 192,
+      "generated_tokens": 192,
+      "elapsed_from_first_arrival_s": 3.3638254581019282,
+      "aggregate_tokens_per_second": 57.0778723187195,
+      "completed_requests_per_second": 1.7836835099599844,
+      "arrival_to_ttft_s": {
+        "p50": 0.3739219580078498,
+        "p95": 0.7263848331058398,
+        "p99": 0.7263848331058398
+      },
+      "arrival_to_completion_s": {
+        "p50": 1.2773008750751615,
+        "p95": 2.1637261250987647,
+        "p99": 2.1637261250987647
+      },
+      "queue_wait_s": {
+        "p50": 0.3230390830198303,
+        "p95": 0.6775227920152247,
+        "p99": 0.6775227920152247
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 0.6191228750394657,
+        "p95": 1.7467574171023443,
+        "p99": 1.7467574171023443
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "CPU_M4": {
+          "p50": 1.6167359170503914,
+          "p95": 1.7467574171023443,
+          "p99": 1.7467574171023443
+        },
+        "GPU_M4": {
+          "p50": 0.6177064580842853,
+          "p95": 0.634983625030145,
+          "p99": 0.634983625030145
+        }
+      },
+      "assignments": {
+        "CPU_M4": 2,
+        "GPU_M4": 4
+      },
+      "worker_runtime_decode_tok_s": {
+        "CPU_M4": {
+          "p50": 18.322450369665333,
+          "p95": 19.795808805625082,
+          "p99": 19.795808805625082
+        },
+        "GPU_M4": {
+          "p50": 56.315,
+          "p95": 56.65,
+          "p99": 56.65
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.048505608792035027,
+        "p95": 0.0528344369015844,
+        "p99": 0.0528344369015844
+      },
+      "control_stream_bytes": {
+        "CPU_M4": {
+          "sent": 344,
+          "received": 2100
+        },
+        "GPU_M4": {
+          "sent": 688,
+          "received": 4380
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 6.108300294727087e-05,
+          "first_token_s": 0.05376137502025813,
+          "completion_s": 1.6167970000533387,
+          "queue_wait_s": 6.108300294727087e-05,
+          "ttft_from_arrival_s": 0.05376137502025813,
+          "completion_from_arrival_s": 1.6167970000533387,
+          "service_roundtrip_s": 1.6167359170503914,
+          "generated": 32,
+          "runtime_decode_tok_s": 19.795808805625082,
+          "non_decode_remainder_s": 0.00023212505038827658,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 1,
+          "worker": "GPU_M4",
+          "arrival_s": 0.3,
+          "dispatch_s": 0.3051852500066161,
+          "first_token_s": 0.3580213750246912,
+          "completion_s": 0.9228917080909014,
+          "queue_wait_s": 0.005185250006616127,
+          "ttft_from_arrival_s": 0.058021375024691235,
+          "completion_from_arrival_s": 0.6228917080909013,
+          "service_roundtrip_s": 0.6177064580842853,
+          "generated": 32,
+          "runtime_decode_tok_s": 56.65,
+          "non_decode_remainder_s": 0.0528344369015844,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 2,
+          "worker": "GPU_M4",
+          "arrival_s": 0.6,
+          "dispatch_s": 0.9230390830198303,
+          "first_token_s": 0.9739219580078498,
+          "completion_s": 1.542161958059296,
+          "queue_wait_s": 0.3230390830198303,
+          "ttft_from_arrival_s": 0.3739219580078498,
+          "completion_from_arrival_s": 0.942161958059296,
+          "service_roundtrip_s": 0.6191228750394657,
+          "generated": 32,
+          "runtime_decode_tok_s": 56.315,
+          "non_decode_remainder_s": 0.05089061010117213,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 3,
+          "worker": "GPU_M4",
+          "arrival_s": 0.8999999999999999,
+          "dispatch_s": 1.5423172500450164,
+          "first_token_s": 1.5907923330087215,
+          "completion_s": 2.1773008750751615,
+          "queue_wait_s": 0.6423172500450165,
+          "ttft_from_arrival_s": 0.6907923330087216,
+          "completion_from_arrival_s": 1.2773008750751615,
+          "service_roundtrip_s": 0.634983625030145,
+          "generated": 32,
+          "runtime_decode_tok_s": 54.563,
+          "non_decode_remainder_s": 0.048505608792035027,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 4,
+          "worker": "CPU_M4",
+          "arrival_s": 1.2,
+          "dispatch_s": 1.6169687079964206,
+          "first_token_s": 1.7297385000856593,
+          "completion_s": 3.363726125098765,
+          "queue_wait_s": 0.4169687079964206,
+          "ttft_from_arrival_s": 0.5297385000856594,
+          "completion_from_arrival_s": 2.1637261250987647,
+          "service_roundtrip_s": 1.7467574171023443,
+          "generated": 32,
+          "runtime_decode_tok_s": 18.322450369665333,
+          "non_decode_remainder_s": 0.00026612612418830395,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 5,
+          "worker": "GPU_M4",
+          "arrival_s": 1.5,
+          "dispatch_s": 2.1775227920152247,
+          "first_token_s": 2.22638483310584,
+          "completion_s": 2.792166708037257,
+          "queue_wait_s": 0.6775227920152247,
+          "ttft_from_arrival_s": 0.7263848331058398,
+          "completion_from_arrival_s": 1.2921667080372572,
+          "service_roundtrip_s": 0.6146439160220325,
+          "generated": 32,
+          "runtime_decode_tok_s": 56.56,
+          "non_decode_remainder_s": 0.048873053221466733,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        }
+      ],
+      "condition": "CPU_M4+GPU_M4",
+      "round": 1,
+      "arrival_pattern": "steady",
+      "outputs_match_within_pool": true
+    },
+    {
+      "requests": 6,
+      "requested_tokens": 192,
+      "generated_tokens": 192,
+      "elapsed_from_first_arrival_s": 7.681656417087652,
+      "aggregate_tokens_per_second": 24.994609179981133,
+      "completed_requests_per_second": 0.7810815368744104,
+      "arrival_to_ttft_s": {
+        "p50": 2.559449917054735,
+        "p95": 6.381877167033963,
+        "p99": 6.381877167033963
+      },
+      "arrival_to_completion_s": {
+        "p50": 3.7261603750521317,
+        "p95": 7.681597959017381,
+        "p99": 7.681597959017381
+      },
+      "queue_wait_s": {
+        "p50": 2.505479083978571,
+        "p95": 6.324932167073712,
+        "p99": 6.324932167073712
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 1.2590084170224145,
+        "p95": 1.3566657919436693,
+        "p99": 1.3566657919436693
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "CPU_M4": {
+          "p50": 1.2590084170224145,
+          "p95": 1.3566657919436693,
+          "p99": 1.3566657919436693
+        }
+      },
+      "assignments": {
+        "CPU_M4": 6
+      },
+      "worker_runtime_decode_tok_s": {
+        "CPU_M4": {
+          "p50": 24.862270132572313,
+          "p95": 26.21796174136681,
+          "p99": 26.21796174136681
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.000156833091750741,
+        "p95": 0.00016483396757394075,
+        "p99": 0.00016483396757394075
+      },
+      "control_stream_bytes": {
+        "CPU_M4": {
+          "sent": 1032,
+          "received": 6296
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 6.16670586168766e-05,
+          "first_token_s": 0.0648215840337798,
+          "completion_s": 1.2462534590158612,
+          "queue_wait_s": 6.16670586168766e-05,
+          "ttft_from_arrival_s": 0.0648215840337798,
+          "completion_from_arrival_s": 1.2462534590158612,
+          "service_roundtrip_s": 1.2461917919572443,
+          "generated": 32,
+          "runtime_decode_tok_s": 25.681627347476123,
+          "non_decode_remainder_s": 0.00016483396757394075,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 1,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 1.2463386669987813,
+          "first_token_s": 1.310848250053823,
+          "completion_s": 2.5053470840211958,
+          "queue_wait_s": 1.2463386669987813,
+          "ttft_from_arrival_s": 1.310848250053823,
+          "completion_from_arrival_s": 2.5053470840211958,
+          "service_roundtrip_s": 1.2590084170224145,
+          "generated": 32,
+          "runtime_decode_tok_s": 25.420046407953212,
+          "non_decode_remainder_s": 0.00015941704623401165,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 2,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 2.505479083978571,
+          "first_token_s": 2.559449917054735,
+          "completion_s": 3.7261603750521317,
+          "queue_wait_s": 2.505479083978571,
+          "ttft_from_arrival_s": 2.559449917054735,
+          "completion_from_arrival_s": 3.7261603750521317,
+          "service_roundtrip_s": 1.2206812910735607,
+          "generated": 32,
+          "runtime_decode_tok_s": 26.21796174136681,
+          "non_decode_remainder_s": 0.00014400004874914885,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 3,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 3.726250124978833,
+          "first_token_s": 3.783359916997142,
+          "completion_s": 5.013495792052709,
+          "queue_wait_s": 3.726250124978833,
+          "ttft_from_arrival_s": 3.783359916997142,
+          "completion_from_arrival_s": 5.013495792052709,
+          "service_roundtrip_s": 1.2872456670738757,
+          "generated": 32,
+          "runtime_decode_tok_s": 24.862270132572313,
+          "non_decode_remainder_s": 0.00015483307652175426,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 4,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 5.013583834050223,
+          "first_token_s": 5.0762520839925855,
+          "completion_s": 6.324835375067778,
+          "queue_wait_s": 5.013583834050223,
+          "ttft_from_arrival_s": 5.0762520839925855,
+          "completion_from_arrival_s": 6.324835375067778,
+          "service_roundtrip_s": 1.3112515410175547,
+          "generated": 32,
+          "runtime_decode_tok_s": 24.40708501571567,
+          "non_decode_remainder_s": 0.000156833091750741,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 5,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 6.324932167073712,
+          "first_token_s": 6.381877167033963,
+          "completion_s": 7.681597959017381,
+          "queue_wait_s": 6.324932167073712,
+          "ttft_from_arrival_s": 6.381877167033963,
+          "completion_from_arrival_s": 7.681597959017381,
+          "service_roundtrip_s": 1.3566657919436693,
+          "generated": 32,
+          "runtime_decode_tok_s": 23.5900433793795,
+          "non_decode_remainder_s": 0.00016129191499203444,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        }
+      ],
+      "condition": "CPU_M4",
+      "round": 1,
+      "arrival_pattern": "burst",
+      "outputs_match_within_pool": true
+    },
+    {
+      "requests": 6,
+      "requested_tokens": 192,
+      "generated_tokens": 192,
+      "elapsed_from_first_arrival_s": 7.241261666058563,
+      "aggregate_tokens_per_second": 26.51471647543792,
+      "completed_requests_per_second": 0.828584889857435,
+      "arrival_to_ttft_s": {
+        "p50": 1.8908487080829217,
+        "p95": 4.58722437499091,
+        "p99": 4.58722437499091
+      },
+      "arrival_to_completion_s": {
+        "p50": 3.0250031660310923,
+        "p95": 5.741199625073932,
+        "p99": 5.741199625073932
+      },
+      "queue_wait_s": {
+        "p50": 1.833745332993567,
+        "p95": 4.5289716250263155,
+        "p99": 4.5289716250263155
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 1.205655875033699,
+        "p95": 1.2256374589633197,
+        "p99": 1.2256374589633197
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "CPU_M4": {
+          "p50": 1.205655875033699,
+          "p95": 1.2256374589633197,
+          "p99": 1.2256374589633197
+        }
+      },
+      "assignments": {
+        "CPU_M4": 6
+      },
+      "worker_runtime_decode_tok_s": {
+        "CPU_M4": {
+          "p50": 26.496099856892577,
+          "p95": 26.86573240799569,
+          "p99": 26.86573240799569
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.00014516606461256742,
+        "p95": 0.00015779200475662947,
+        "p99": 0.00015779200475662947
+      },
+      "control_stream_bytes": {
+        "CPU_M4": {
+          "sent": 1032,
+          "received": 6299
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "CPU_M4",
+          "arrival_s": 0.0,
+          "dispatch_s": 5.8916048146784306e-05,
+          "first_token_s": 0.05646624998189509,
+          "completion_s": 1.2256963750114664,
+          "queue_wait_s": 5.8916048146784306e-05,
+          "ttft_from_arrival_s": 0.05646624998189509,
+          "completion_from_arrival_s": 1.2256963750114664,
+          "service_roundtrip_s": 1.2256374589633197,
+          "generated": 32,
+          "runtime_decode_tok_s": 26.112049457558847,
+          "non_decode_remainder_s": 0.0001495840260758996,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 1,
+          "worker": "CPU_M4",
+          "arrival_s": 0.3,
+          "dispatch_s": 1.225780125008896,
+          "first_token_s": 1.2848023329861462,
+          "completion_s": 2.4336502080550417,
+          "queue_wait_s": 0.925780125008896,
+          "ttft_from_arrival_s": 0.9848023329861462,
+          "completion_from_arrival_s": 2.133650208055042,
+          "service_roundtrip_s": 1.2078700830461457,
+          "generated": 32,
+          "runtime_decode_tok_s": 26.496099856892577,
+          "non_decode_remainder_s": 0.00014516606461256742,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 2,
+          "worker": "CPU_M4",
+          "arrival_s": 0.6,
+          "dispatch_s": 2.433745332993567,
+          "first_token_s": 2.490848708082922,
+          "completion_s": 3.6250031660310924,
+          "queue_wait_s": 1.833745332993567,
+          "ttft_from_arrival_s": 1.8908487080829217,
+          "completion_from_arrival_s": 3.0250031660310923,
+          "service_roundtrip_s": 1.1912578330375254,
+          "generated": 32,
+          "runtime_decode_tok_s": 26.86573240799569,
+          "non_decode_remainder_s": 0.00014941603876650333,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 3,
+          "worker": "CPU_M4",
+          "arrival_s": 0.8999999999999999,
+          "dispatch_s": 3.6251140830572695,
+          "first_token_s": 3.680746915983036,
+          "completion_s": 4.823109458084218,
+          "queue_wait_s": 2.7251140830572695,
+          "ttft_from_arrival_s": 2.7807469159830362,
+          "completion_from_arrival_s": 3.9231094580842183,
+          "service_roundtrip_s": 1.1979953750269488,
+          "generated": 32,
+          "runtime_decode_tok_s": 26.714807127075375,
+          "non_decode_remainder_s": 0.00015779200475662947,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 4,
+          "worker": "CPU_M4",
+          "arrival_s": 1.2,
+          "dispatch_s": 4.823213416035287,
+          "first_token_s": 4.8812446660595015,
+          "completion_s": 6.028869291068986,
+          "queue_wait_s": 3.623213416035287,
+          "ttft_from_arrival_s": 3.6812446660595013,
+          "completion_from_arrival_s": 4.828869291068986,
+          "service_roundtrip_s": 1.205655875033699,
+          "generated": 32,
+          "runtime_decode_tok_s": 26.544718568109168,
+          "non_decode_remainder_s": 0.00014299992471933365,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        },
+        {
+          "request_id": 5,
+          "worker": "CPU_M4",
+          "arrival_s": 1.5,
+          "dispatch_s": 6.0289716250263155,
+          "first_token_s": 6.08722437499091,
+          "completion_s": 7.241199625073932,
+          "queue_wait_s": 4.5289716250263155,
+          "ttft_from_arrival_s": 4.58722437499091,
+          "completion_from_arrival_s": 5.741199625073932,
+          "service_roundtrip_s": 1.2122280000476167,
+          "generated": 32,
+          "runtime_decode_tok_s": 26.400550939897187,
+          "non_decode_remainder_s": 0.00013208307791501284,
+          "token_sha256": "306a24284cb51ef2585e0ce8843fb8fa01e783bd70aa96a088755f807e67111d"
+        }
+      ],
+      "condition": "CPU_M4",
+      "round": 1,
+      "arrival_pattern": "steady",
+      "outputs_match_within_pool": true
+    }
+  ]
+}

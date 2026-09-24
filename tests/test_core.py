@@ -227,6 +227,7 @@ class NativeFrontEndTests(unittest.TestCase):
             with native.NativeEngine(d, engine=exe) as eng:
                 self.assertEqual(eng.info['plan']['shard'], 8)
                 self.assertEqual(''.join(eng.chat('oi', reset=True)), 'Olá!')
+                self.assertEqual(eng.last_tokens, [1, 2, 3])
                 self.assertEqual((eng.last['reason'], eng.last['position']), ('stop', 3))
                 self.assertEqual(''.join(eng.chat('de novo')), 'Olá!'); self.assertEqual(eng.last['position'], 6)
                 self.assertEqual(eng.tokenize('ab'), [97, 98])

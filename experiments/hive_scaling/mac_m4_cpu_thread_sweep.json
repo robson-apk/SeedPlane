@@ -1,0 +1,92 @@
+{
+  "protocol": "seedplane-qwen2-reference-thread-scaling-v1",
+  "host": "Mac-mini-de-Robson.local",
+  "platform": "macOS-27.0-arm64-arm-64bit",
+  "python": "3.12.14 (main, Aug 12 2026, 13:57:54) [Clang 21.0.0 (clang-2100.3.34.2)]",
+  "torch": "2.14.0",
+  "device": "cpu",
+  "model": "/Users/robson/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775",
+  "model_config_sha256": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+  "prompt": "Explain briefly how a computer memory cache improves performance.",
+  "prompt_tokens": 11,
+  "generated_tokens": 96,
+  "repetitions": 3,
+  "thread_order_seed": 20260924,
+  "thread_order": [
+    6,
+    10,
+    4,
+    2,
+    8,
+    1
+  ],
+  "all_thread_counts_same_tokens": true,
+  "results": [
+    {
+      "threads": 6,
+      "seconds": [
+        3.4531186670064926,
+        3.3825581249548122,
+        3.4137010419508442
+      ],
+      "median_seconds": 3.4137010419508442,
+      "median_tokens_per_second": 28.1219705007145,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 10,
+      "seconds": [
+        3.5046202919911593,
+        3.693580458057113,
+        3.423490750021301
+      ],
+      "median_seconds": 3.5046202919911593,
+      "median_tokens_per_second": 27.392411160598897,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 4,
+      "seconds": [
+        3.5837638749508187,
+        3.3258477080380544,
+        3.32702641596552
+      ],
+      "median_seconds": 3.32702641596552,
+      "median_tokens_per_second": 28.85459506402516,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 2,
+      "seconds": [
+        3.4284991660388187,
+        3.351359083899297,
+        3.494157125009224
+      ],
+      "median_seconds": 3.4284991660388187,
+      "median_tokens_per_second": 28.000590156454788,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 8,
+      "seconds": [
+        3.6421198749449104,
+        3.43894458306022,
+        3.4271732079796493
+      ],
+      "median_seconds": 3.43894458306022,
+      "median_tokens_per_second": 27.915541434684098,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    },
+    {
+      "threads": 1,
+      "seconds": [
+        3.2002863748930395,
+        3.2778670000843704,
+        3.333001208025962
+      ],
+      "median_seconds": 3.2778670000843704,
+      "median_tokens_per_second": 29.287338381187833,
+      "token_sha256": "2a10f232db832741ec50280ce6e7171f3c9ad3e4cd0e2dd23d847a8154580fe1"
+    }
+  ]
+}

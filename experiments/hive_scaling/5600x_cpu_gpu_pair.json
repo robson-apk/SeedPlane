@@ -1,0 +1,338 @@
+{
+  "protocol": "Hive local-CPU-GPU-pool exploratory v1",
+  "source_commit": "working-tree snapshot (not a git checkout)",
+  "recorded_at_utc": "2026-09-24T20:32:15.841352+00:00",
+  "controller_platform": "Windows-11-10.0.26200-SP0",
+  "kind": "aggregate throughput over independent requests; not collaborative single-request decode",
+  "workload": {
+    "prompt": "Explain briefly how a computer memory cache improves performance.",
+    "requests": 3,
+    "tokens_per_request": 16,
+    "temperature": 0,
+    "top_k": 0,
+    "top_p": 1,
+    "steady_interarrival_s": 0.3,
+    "rounds": 1,
+    "percentile_method": "nearest rank"
+  },
+  "network_notes": [
+    "same-host workers; exploratory 16-token micro-burst"
+  ],
+  "warmups": {
+    "CPU_5600X": {
+      "ready": {
+        "ready": true,
+        "device": "CPU reference",
+        "backend": "PyTorch",
+        "torch": "2.14.0+cpu",
+        "threads": 12,
+        "precision": "float32",
+        "model": "Qwen2"
+      },
+      "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+    },
+    "GPU_B580": {
+      "ready": {
+        "ready": true,
+        "device": "Intel(R) Arc(TM) B580 Graphics",
+        "mode": "shadow-batch",
+        "plan": {
+          "shard": 512,
+          "halo": 256,
+          "sinks": 4
+        },
+        "positions": 32768,
+        "window_slots": 772
+      },
+      "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+    }
+  },
+  "warmup_hashes_all_equal": true,
+  "workers": {
+    "CPU_5600X": {
+      "mode": "local",
+      "target": "",
+      "launch_command": "E:/tools/seedplane-hive-venv/Scripts/python.exe E:/tools/seedplane-hive-src/experiments/hive_scaling/serve_qwen2_cpu.py --bundle C:/Users/WINDOW~1/.cache/huggingface/hub/models--Qwen--Qwen2.5-0.5B-Instruct/snapshots/7ae557604adf67be50417f59c2c2f167def9a775 --threads 12",
+      "ready": {
+        "ready": true,
+        "device": "CPU reference",
+        "backend": "PyTorch",
+        "torch": "2.14.0+cpu",
+        "threads": 12,
+        "precision": "float32",
+        "model": "Qwen2"
+      }
+    },
+    "GPU_B580": {
+      "mode": "local",
+      "target": "",
+      "launch_command": "E:/tools/seedplane-hive-gpu/qwen_vk.exe E:/tools/seedplane-hive-gpu/qwen05.sp --serve --shaders E:/tools/seedplane-hive-gpu/shaders",
+      "ready": {
+        "ready": true,
+        "device": "Intel(R) Arc(TM) B580 Graphics",
+        "mode": "shadow-batch",
+        "plan": {
+          "shard": 512,
+          "halo": 256,
+          "sinks": 4
+        },
+        "positions": 32768,
+        "window_slots": 772
+      }
+    }
+  },
+  "matrix": [
+    {
+      "requests": 3,
+      "requested_tokens": 48,
+      "generated_tokens": 48,
+      "elapsed_from_first_arrival_s": 2.254745400045067,
+      "aggregate_tokens_per_second": 21.28843460509581,
+      "completed_requests_per_second": 1.330527162818488,
+      "arrival_to_ttft_s": {
+        "p50": 0.0799500000430271,
+        "p95": 0.3321903001051396,
+        "p99": 0.3321903001051396
+      },
+      "arrival_to_completion_s": {
+        "p50": 0.1342909000813961,
+        "p95": 2.2546073000412434,
+        "p99": 2.2546073000412434
+      },
+      "queue_wait_s": {
+        "p50": 0.0005183001048862934,
+        "p95": 0.0689298000652343,
+        "p99": 0.0689298000652343
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 0.06818309996742755,
+        "p95": 2.2543612000299618,
+        "p99": 2.2543612000299618
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "CPU_5600X": {
+          "p50": 2.2543612000299618,
+          "p95": 2.2543612000299618,
+          "p99": 2.2543612000299618
+        },
+        "GPU_B580": {
+          "p50": 0.0653611000161618,
+          "p95": 0.06818309996742755,
+          "p99": 0.06818309996742755
+        }
+      },
+      "assignments": {
+        "CPU_5600X": 1,
+        "GPU_B580": 2
+      },
+      "worker_runtime_decode_tok_s": {
+        "CPU_5600X": {
+          "p50": 7.098878008797918,
+          "p95": 7.098878008797918,
+          "p99": 7.098878008797918
+        },
+        "GPU_B580": {
+          "p50": 284.108,
+          "p95": 295.58,
+          "p99": 295.58
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.011230238658830445,
+        "p95": 0.01186648797480503,
+        "p99": 0.01186648797480503
+      },
+      "control_stream_bytes": {
+        "CPU_5600X": {
+          "sent": 172,
+          "received": 588
+        },
+        "GPU_B580": {
+          "sent": 344,
+          "received": 1236
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "CPU_5600X",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.00024610001128166914,
+          "first_token_s": 0.3321903001051396,
+          "completion_s": 2.2546073000412434,
+          "queue_wait_s": 0.00024610001128166914,
+          "ttft_from_arrival_s": 0.3321903001051396,
+          "completion_from_arrival_s": 2.2546073000412434,
+          "service_roundtrip_s": 2.2543612000299618,
+          "generated": 16,
+          "runtime_decode_tok_s": 7.098878008797918,
+          "non_decode_remainder_s": 0.0004838999593630433,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        },
+        {
+          "request_id": 1,
+          "worker": "GPU_B580",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.0005183001048862934,
+          "first_token_s": 0.012205100036226213,
+          "completion_s": 0.06870140007231385,
+          "queue_wait_s": 0.0005183001048862934,
+          "ttft_from_arrival_s": 0.012205100036226213,
+          "completion_from_arrival_s": 0.06870140007231385,
+          "service_roundtrip_s": 0.06818309996742755,
+          "generated": 16,
+          "runtime_decode_tok_s": 284.108,
+          "non_decode_remainder_s": 0.01186648797480503,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        },
+        {
+          "request_id": 2,
+          "worker": "GPU_B580",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.0689298000652343,
+          "first_token_s": 0.0799500000430271,
+          "completion_s": 0.1342909000813961,
+          "queue_wait_s": 0.0689298000652343,
+          "ttft_from_arrival_s": 0.0799500000430271,
+          "completion_from_arrival_s": 0.1342909000813961,
+          "service_roundtrip_s": 0.0653611000161618,
+          "generated": 16,
+          "runtime_decode_tok_s": 295.58,
+          "non_decode_remainder_s": 0.011230238658830445,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        }
+      ],
+      "condition": "CPU_5600X+GPU_B580",
+      "round": 1,
+      "arrival_pattern": "burst",
+      "outputs_match_within_pool": true
+    },
+    {
+      "requests": 3,
+      "requested_tokens": 48,
+      "generated_tokens": 48,
+      "elapsed_from_first_arrival_s": 2.091348999994807,
+      "aggregate_tokens_per_second": 22.951692902580675,
+      "completed_requests_per_second": 1.4344808064112922,
+      "arrival_to_ttft_s": {
+        "p50": 0.022528700041584693,
+        "p95": 0.2972456000279635,
+        "p99": 0.2972456000279635
+      },
+      "arrival_to_completion_s": {
+        "p50": 0.07270009999629112,
+        "p95": 2.091237899963744,
+        "p99": 2.091237899963744
+      },
+      "queue_wait_s": {
+        "p50": 0.010390099999494862,
+        "p95": 0.012014299957081698,
+        "p99": 0.012014299957081698
+      },
+      "worker_service_roundtrip_s": {
+        "p50": 0.062102099996991456,
+        "p95": 2.0910011999076232,
+        "p99": 2.0910011999076232
+      },
+      "worker_service_roundtrip_by_worker_s": {
+        "CPU_5600X": {
+          "p50": 2.0910011999076232,
+          "p95": 2.0910011999076232,
+          "p99": 2.0910011999076232
+        },
+        "GPU_B580": {
+          "p50": 0.060685800039209425,
+          "p95": 0.062102099996991456,
+          "p99": 0.062102099996991456
+        }
+      },
+      "assignments": {
+        "CPU_5600X": 1,
+        "GPU_B580": 2
+      },
+      "worker_runtime_decode_tok_s": {
+        "CPU_5600X": {
+          "p50": 7.653538838593434,
+          "p95": 7.653538838593434,
+          "p99": 7.653538838593434
+        },
+        "GPU_B580": {
+          "p50": 314.448,
+          "p95": 319.991,
+          "p99": 319.991
+        }
+      },
+      "non_decode_remainder_s": {
+        "p50": 0.01068439374965753,
+        "p95": 0.011219283124249378,
+        "p99": 0.011219283124249378
+      },
+      "control_stream_bytes": {
+        "CPU_5600X": {
+          "sent": 172,
+          "received": 588
+        },
+        "GPU_B580": {
+          "sent": 344,
+          "received": 1236
+        }
+      },
+      "all_request_outputs_identical_within_condition": true,
+      "per_request": [
+        {
+          "request_id": 0,
+          "worker": "CPU_5600X",
+          "arrival_s": 0.0,
+          "dispatch_s": 0.0002367000561207533,
+          "first_token_s": 0.2972456000279635,
+          "completion_s": 2.091237899963744,
+          "queue_wait_s": 0.0002367000561207533,
+          "ttft_from_arrival_s": 0.2972456000279635,
+          "completion_from_arrival_s": 2.091237899963744,
+          "service_roundtrip_s": 2.0910011999076232,
+          "generated": 16,
+          "runtime_decode_tok_s": 7.653538838593434,
+          "non_decode_remainder_s": 0.00046499993186444044,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        },
+        {
+          "request_id": 1,
+          "worker": "GPU_B580",
+          "arrival_s": 0.3,
+          "dispatch_s": 0.31039009999949485,
+          "first_token_s": 0.321450800052844,
+          "completion_s": 0.3724921999964863,
+          "queue_wait_s": 0.010390099999494862,
+          "ttft_from_arrival_s": 0.021450800052844,
+          "completion_from_arrival_s": 0.07249219999648632,
+          "service_roundtrip_s": 0.062102099996991456,
+          "generated": 16,
+          "runtime_decode_tok_s": 314.448,
+          "non_decode_remainder_s": 0.011219283124249378,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        },
+        {
+          "request_id": 2,
+          "worker": "GPU_B580",
+          "arrival_s": 0.6,
+          "dispatch_s": 0.6120142999570817,
+          "first_token_s": 0.6225287000415847,
+          "completion_s": 0.6727000999962911,
+          "queue_wait_s": 0.012014299957081698,
+          "ttft_from_arrival_s": 0.022528700041584693,
+          "completion_from_arrival_s": 0.07270009999629112,
+          "service_roundtrip_s": 0.060685800039209425,
+          "generated": 16,
+          "runtime_decode_tok_s": 319.991,
+          "non_decode_remainder_s": 0.01068439374965753,
+          "token_sha256": "125e86862f41552af4585c86ece0876e6d2aca08c3d3b9675f1499c376bc58eb"
+        }
+      ],
+      "condition": "CPU_5600X+GPU_B580",
+      "round": 1,
+      "arrival_pattern": "steady",
+      "outputs_match_within_pool": true
+    }
+  ]
+}

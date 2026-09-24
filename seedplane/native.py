@@ -32,7 +32,7 @@ class NativeEngine:
         if full: args.append('--full')
         args += list(extra_args)
         self.proc = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        self.info = self._read(); self.last = None
+        self.info = self._read(); self.last = None; self.last_tokens = []
         if 'ready' not in self.info: raise RuntimeError(f'engine failed to start: {self.info}')
 
     def _read(self):
@@ -50,11 +50,14 @@ class NativeEngine:
         return r
 
     def _stream(self, req):
+        self.last_tokens = []
+        self.last = None
         self._send(req)
         while True:
             r = self._read()
             if 'error' in r: raise RuntimeError(r['error'])
             if r.get('done'): self.last = r; return
+            if 'token' in r: self.last_tokens.append(int(r['token']))
             if r['text']: yield r['text']
 
     def chat(self, content, system=None, reset=False, **sampling):
