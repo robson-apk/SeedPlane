@@ -1,9 +1,8 @@
 name: Release
 
-# Builds the native runtime for Windows, Linux and macOS and attaches the archives to the GitHub release of a tag.
+# Manual only: builds the native runtime for Windows, Linux and macOS and attaches archives to a GitHub release.
 on:
-  push:
-    tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
