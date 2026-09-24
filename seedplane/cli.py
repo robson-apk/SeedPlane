@@ -13,10 +13,10 @@ A worker is one process on one device (a CPU core, a GPU, or another computer ov
 finishes, and a tail guard keeps slow workers from holding the last windows. Windows are independent, so workers never wait
 for each other.
 
-SECURITY: workers talk over Python's multiprocessing.connection (pickle). Only run them on a trusted LAN and set the same
-secret on every machine: export SEEDPLANE_AUTHKEY=<long random string>. Never expose a worker port to the internet.
+SECURITY: ``worker`` uses the bounded authenticated protocol v1 (JSON + HMAC). ``serve`` is the legacy research worker
+and still uses Python pickle: keep it on loopback/trusted LAN only. Never expose either worker directly to the internet.
 """
-import argparse, json, os, subprocess, sys, time
+import argparse, json, os, platform, shutil, socket, subprocess, sys, time, uuid
 from multiprocessing.connection import Listener, Client
 from pathlib import Path
 import numpy as np
@@ -46,6 +46,104 @@ def is_loopback(host):
 
 def plan_of(bundle):
     cfg = json.loads((Path(bundle) / 'seedplane.json').read_text())['plan']; return engine.ShardPlan(**cfg)
+
+
+def _config_dir():
+    return Path(os.environ.get('SEEDPLANE_CONFIG_DIR', Path.home() / '.config' / 'seedplane'))
+
+
+def _identity(name):
+    try: from .cluster import stable_id
+    except ImportError: from cluster import stable_id
+    env = os.environ.get(f'SEEDPLANE_{name.upper()}_ID')
+    return str(uuid.UUID(env)) if env else stable_id(_config_dir() / f'{name}_id', name)
+
+
+def _endpoint(value):
+    host, sep, port = value.rpartition(':')
+    if not sep or not host:
+        raise argparse.ArgumentTypeError('address must be HOST:PORT')
+    try: port = int(port)
+    except ValueError as exc: raise argparse.ArgumentTypeError('port must be an integer') from exc
+    if not 1 <= port <= 65535: raise argparse.ArgumentTypeError('port must be between 1 and 65535')
+    return host, port
+
+
+# ------------------------------------------------------------------ safe protocol-v1 worker / devices / doctor
+def cmd_worker(a):
+    try: from .cluster import WorkerServer, cluster_key
+    except ImportError: from cluster import WorkerServer, cluster_key
+    if not is_loopback(a.host) and 'SEEDPLANE_CLUSTER_KEY' not in os.environ:
+        raise SystemExit('refusing non-loopback worker without SEEDPLANE_CLUSTER_KEY (minimum 16 characters)')
+    server = WorkerServer(a.host, a.port, cluster_key(), worker_id=_identity('worker'), cluster_id=_identity('cluster'))
+    try: server.serve_forever()
+    except KeyboardInterrupt: pass
+
+
+def cmd_devices(a):
+    try: from .cluster import cluster_key, probe
+    except ImportError: from cluster import cluster_key, probe
+    key, cluster_id, coordinator_id = cluster_key(), _identity('cluster'), _identity('coordinator')
+    addresses = a.address or [('127.0.0.1', 52100)]
+    rows = []
+    for host, port in addresses:
+        t0 = time.perf_counter()
+        try:
+            info = probe(host, port, key, cluster_id, coordinator_id, timeout=a.timeout)
+            cap = info['capabilities']
+            rows.append({'address': f'{host}:{port}', 'status': 'ready', 'latency_ms': round((time.perf_counter() - t0) * 1000, 2),
+                         'system': cap.get('system', '?'), 'machine': cap.get('machine', '?'),
+                         'backends': cap.get('backends', []), 'hostname': cap.get('hostname', '?')})
+        except Exception as exc:
+            rows.append({'address': f'{host}:{port}', 'status': 'error', 'error': str(exc)[:200]})
+    if a.json:
+        print(json.dumps({'protocol': 1, 'devices': rows}, indent=2)); return
+    print(f"{'ADDRESS':<24} {'STATUS':<8} {'HOST':<18} {'SYSTEM/ARCH':<22} BACKENDS")
+    for row in rows:
+        detail = row.get('error', ','.join(row.get('backends', [])))
+        print(f"{row['address']:<24} {row['status']:<8} {row.get('hostname', '-'):<18} "
+              f"{(row.get('system', '-') + '/' + row.get('machine', '-')):<22} {detail}")
+    if a.action == 'test' and any(row['status'] != 'ready' for row in rows):
+        raise SystemExit(1)
+
+
+def _doctor_checks():
+    checks = []
+    def add(name, status, detail, fix=''):
+        checks.append({'name': name, 'status': status, 'detail': detail, 'fix': fix})
+    add('platform', 'ok', f'{platform.system()} {platform.release()} {platform.machine()}')
+    add('python', 'ok' if sys.version_info >= (3, 9) else 'error', platform.python_version(), 'Install Python 3.9 or newer.')
+    usage = shutil.disk_usage(Path.home())
+    free_gib = usage.free / 2**30
+    add('disk', 'ok' if free_gib >= 10 else 'warn', f'{free_gib:.1f} GiB free', 'Free at least 10 GiB for models and builds.')
+    key = os.environ.get('SEEDPLANE_CLUSTER_KEY', '')
+    add('cluster-key', 'ok' if len(key) >= 16 else 'warn', 'configured' if key else 'not configured',
+        'Set SEEDPLANE_CLUSTER_KEY to at least 16 random characters before LAN use.')
+    try:
+        import torch
+        backends = ['cpu']
+        if getattr(torch.backends, 'mps', None) and torch.backends.mps.is_available(): backends.append('mps')
+        if torch.cuda.is_available(): backends.append('cuda')
+        if hasattr(torch, 'xpu') and torch.xpu.is_available(): backends.append('xpu')
+        add('torch', 'ok', f'{torch.__version__}; backends={",".join(backends)}')
+    except Exception as exc:
+        add('torch', 'error', f'{type(exc).__name__}: {exc}', 'Install SeedPlane with its declared dependencies.')
+    vulkaninfo, glslc = shutil.which('vulkaninfo'), shutil.which('glslc')
+    add('vulkan-tools', 'ok' if vulkaninfo and glslc else 'warn', f'vulkaninfo={vulkaninfo or "missing"}; glslc={glslc or "missing"}',
+        'Install a Vulkan SDK only when using/building the native Vulkan runtime.')
+    add('legacy-serve', 'warn', 'uses multiprocessing.connection/pickle', 'Prefer `seedplane worker`; keep `serve` on a trusted LAN only.')
+    return checks
+
+
+def cmd_doctor(a):
+    checks = _doctor_checks()
+    if a.json:
+        print(json.dumps({'checks': checks}, indent=2)); return
+    for check in checks:
+        icon = {'ok': 'OK', 'warn': 'WARN', 'error': 'ERROR'}[check['status']]
+        print(f"[{icon:5}] {check['name']}: {check['detail']}")
+        if check['fix'] and check['status'] != 'ok': print(f"        → {check['fix']}")
+    if any(c['status'] == 'error' for c in checks): raise SystemExit(1)
 
 
 # ------------------------------------------------------------------ convert
@@ -245,6 +343,13 @@ def main():
     c.add_argument('--native', action='store_true', help='write a seedplane-bundle/2 for the native engine (source: HF dir, v1 bundle or hub id)')
     s = sub.add_parser('serve', help='run a worker on this device'); s.add_argument('--bundle', required=True); s.add_argument('--device', default='cpu')
     s.add_argument('--port', type=int, default=52000); s.add_argument('--host', default='127.0.0.1'); s.add_argument('--threads', type=int, default=1)
+    w = sub.add_parser('worker', help='run a safe protocol-v1 control-plane worker')
+    w.add_argument('--host', default='127.0.0.1'); w.add_argument('--port', type=int, default=52100)
+    d = sub.add_parser('devices', help='list or test protocol-v1 workers')
+    d.add_argument('action', nargs='?', choices=['list', 'test'], default='list')
+    d.add_argument('--address', action='append', type=_endpoint, metavar='HOST:PORT')
+    d.add_argument('--timeout', type=float, default=5.0); d.add_argument('--json', action='store_true')
+    doc = sub.add_parser('doctor', help='check this machine and give actionable fixes'); doc.add_argument('--json', action='store_true')
     r = sub.add_parser('run', help='process a long prompt across workers'); r.add_argument('--bundle', required=True); r.add_argument('--prompt-file', required=True)
     r.add_argument('--workers', default='local:cpu:4'); r.add_argument('--scheduler', choices=['dynamic', 'static'], default='dynamic'); r.add_argument('--max-tokens', type=int, default=8192)
     b = sub.add_parser('bench', help='quality + speed vs the original full attention'); b.add_argument('--bundle', required=True); b.add_argument('--text-file', required=True)
@@ -260,7 +365,8 @@ def main():
         if name == 'chat': n.add_argument('--system', default='You are a helpful assistant.')
         else: n.add_argument('--prompt', default=''); n.add_argument('--prompt-file')
     a = ap.parse_args()
-    {'convert': cmd_convert, 'serve': cmd_serve, 'run': cmd_run, 'bench': cmd_bench, 'chat': cmd_chat, 'generate': cmd_generate}[a.cmd](a)
+    {'convert': cmd_convert, 'serve': cmd_serve, 'worker': cmd_worker, 'devices': cmd_devices, 'doctor': cmd_doctor,
+     'run': cmd_run, 'bench': cmd_bench, 'chat': cmd_chat, 'generate': cmd_generate}[a.cmd](a)
 
 
 if __name__ == '__main__':
