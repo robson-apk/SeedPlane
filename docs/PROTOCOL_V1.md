@@ -82,11 +82,21 @@ cache policy and failure tests are complete. The worker never accepts a shell co
 
 The replay cache is bounded. Prompts are not logged by the protocol implementation.
 
+## Binary data-plane frame
+
+The codec is implemented and tested, but execution handlers are not enabled yet. Its fixed header carries protocol/type/
+flags, declared payload length, generation, deadline, four UUIDs, model and plan hashes, SHA-256 payload checksum and an
+HMAC-SHA256 over header plus payload. The default hard ceiling is 64 MiB and callers may select a lower per-operation
+limit. The declared length is checked before reading or allocating the payload.
+
+Defined payload types are tokens, positions, activations, logits, top-k, scoring results, stream fragments and telemetry.
+The codec treats payloads as opaque bytes; dtype/shape schemas will be versioned per operation rather than inferred.
+
 ## What remains for V25
 
 - one-time pairing code and mutual TLS/Noise identities;
 - persistent device registry and revocation (`devices forget`);
-- binary data-plane header and checksums;
+- versioned dtype/shape schemas and backend execution handlers for the binary data plane;
 - cache transfer/load with size and disk quotas;
 - cancellation connected to actual backend jobs;
 - heartbeat leases, reconnect and fault injection;

@@ -11,8 +11,9 @@ from unittest.mock import patch
 
 from seedplane import cli
 from seedplane.cluster import WorkerServer, probe
-from seedplane.protocol import (HEADER, MAGIC, MAX_CONTROL_BYTES, ProtocolError, ReplayGuard,
-                                decode_payload, encode_message, new_message, recv_message, require_context)
+from seedplane.protocol import (DATA_HEADER, HEADER, MAGIC, MAX_CONTROL_BYTES, DataFrame, ProtocolError, ReplayGuard,
+                                decode_payload, encode_data_frame, encode_message, new_message, recv_data_frame,
+                                recv_message, require_context)
 
 
 KEY = b"test-key-at-least-sixteen-bytes"
@@ -75,6 +76,35 @@ class ReplayGuardTests(unittest.TestCase):
                             session_id=session_id, generation=1)
         with self.assertRaisesRegex(ProtocolError, "stale"):
             guard.accept(stale)
+
+
+class DataFrameTests(unittest.TestCase):
+    def frame(self, payload=b"\x01\x02\x03"):
+        return DataFrame("tokens", 0, C, W, str(uuid.uuid4()), str(uuid.uuid4()), 3,
+                         int(time.time() * 1000) + 10_000, "a" * 64, "b" * 64, payload)
+
+    def test_binary_round_trip(self):
+        frame = self.frame(bytes(range(255)))
+        self.assertEqual(recv_data_frame(io.BytesIO(encode_data_frame(frame, KEY)), KEY), frame)
+
+    def test_payload_tamper_and_wrong_key_rejected(self):
+        encoded = bytearray(encode_data_frame(self.frame(), KEY)); encoded[-1] ^= 1
+        with self.assertRaisesRegex(ProtocolError, "checksum"):
+            recv_data_frame(io.BytesIO(encoded), KEY)
+        with self.assertRaisesRegex(ProtocolError, "authentication"):
+            recv_data_frame(io.BytesIO(encode_data_frame(self.frame(), KEY)), b"other-key-long-enough")
+
+    def test_declared_oversize_rejected_before_body(self):
+        raw = bytearray(encode_data_frame(self.frame(b""), KEY)[:DATA_HEADER.size])
+        values = list(DATA_HEADER.unpack(raw)); values[4] = 1000
+        raw = DATA_HEADER.pack(*values)
+        with self.assertRaisesRegex(ProtocolError, "exceeds"):
+            recv_data_frame(io.BytesIO(raw), KEY, max_bytes=10)
+
+    def test_expired_frame_rejected(self):
+        frame = self.frame(); frame = DataFrame(**{**frame.__dict__, "deadline_ms": 1})
+        with self.assertRaisesRegex(ProtocolError, "expired"):
+            recv_data_frame(io.BytesIO(encode_data_frame(frame, KEY)), KEY, now_ms=2)
 
 
 class WorkerTests(unittest.TestCase):

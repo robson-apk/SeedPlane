@@ -25,12 +25,19 @@ MAGIC = b"SPV1"
 VERSION = 1
 HEADER = struct.Struct("!4sI")
 MAX_CONTROL_BYTES = 1 << 20  # 1 MiB, checked before allocation
+MAX_DATA_BYTES = 64 << 20     # 64 MiB; callers may impose a smaller operation limit
 MAX_CLOCK_SKEW_MS = 5 * 60 * 1000
 HASH_HEX_LEN = 64
 MESSAGE_TYPES = frozenset({
     "hello", "capabilities", "health", "heartbeat", "model_status",
     "load", "unload", "benchmark", "cancel", "error", "ok",
 })
+DATA_TYPES = {"tokens": 1, "positions": 2, "activations": 3, "logits": 4,
+              "top_k": 5, "score": 6, "stream": 7, "telemetry": 8}
+DATA_TYPE_NAMES = {value: key for key, value in DATA_TYPES.items()}
+# magic/version/type/flags/payload bytes/generation/deadline, four UUIDs,
+# two SHA-256 context hashes, payload checksum and HMAC.
+DATA_HEADER = struct.Struct("!4sBBHQQQ16s16s16s16s32s32s32s32s")
 REQUIRED = frozenset({
     "version", "type", "message_id", "cluster_id", "worker_id",
     "request_id", "session_id", "generation", "deadline_ms", "payload",
@@ -39,6 +46,21 @@ REQUIRED = frozenset({
 
 class ProtocolError(ValueError):
     """Peer sent an invalid or unauthenticated protocol message."""
+
+
+@dataclass(frozen=True)
+class DataFrame:
+    data_type: str
+    flags: int
+    cluster_id: str
+    worker_id: str
+    request_id: str
+    session_id: str
+    generation: int
+    deadline_ms: int
+    model_hash: str
+    plan_hash: str
+    payload: bytes
 
 
 def _canonical(value: Mapping[str, Any]) -> bytes:
@@ -205,6 +227,69 @@ def require_context(message: Mapping[str, Any], *, model_hash: str, plan_hash: s
         raise ProtocolError("model hash mismatch")
     if message.get("plan_hash", "") != expected_plan:
         raise ProtocolError("plan hash mismatch")
+
+
+def _uuid_bytes(value: str, field: str) -> bytes:
+    return uuid.UUID(_uuid(value, field)).bytes
+
+
+def _hash_bytes(value: str, field: str) -> bytes:
+    checked = _hash(value, field)
+    if not checked:
+        raise ProtocolError(f"{field} is required for data frames")
+    return bytes.fromhex(checked)
+
+
+def encode_data_frame(frame: DataFrame, key: bytes, *, max_bytes: int = MAX_DATA_BYTES) -> bytes:
+    """Encode an authenticated binary data-plane frame."""
+    if frame.data_type not in DATA_TYPES:
+        raise ProtocolError(f"unsupported data type {frame.data_type!r}")
+    if not isinstance(frame.payload, bytes):
+        raise ProtocolError("data payload must be bytes")
+    if len(frame.payload) > min(max_bytes, MAX_DATA_BYTES):
+        raise ProtocolError("data payload exceeds limit")
+    if not 0 <= frame.flags <= 0xffff:
+        raise ProtocolError("data flags out of range")
+    if frame.generation < 0 or frame.deadline_ms < 0:
+        raise ProtocolError("generation and deadline must be non-negative")
+    if len(key) < 16:
+        raise ProtocolError("authentication key must contain at least 16 bytes")
+    checksum = hashlib.sha256(frame.payload).digest()
+    base = DATA_HEADER.pack(
+        MAGIC, VERSION, DATA_TYPES[frame.data_type], frame.flags, len(frame.payload), frame.generation,
+        frame.deadline_ms, _uuid_bytes(frame.cluster_id, "cluster_id"), _uuid_bytes(frame.worker_id, "worker_id"),
+        _uuid_bytes(frame.request_id, "request_id"), _uuid_bytes(frame.session_id, "session_id"),
+        _hash_bytes(frame.model_hash, "model_hash"), _hash_bytes(frame.plan_hash, "plan_hash"), checksum, b"\0" * 32,
+    )
+    mac = hmac.new(key, base[:-32] + frame.payload, hashlib.sha256).digest()
+    header = base[:-32] + mac
+    return header + frame.payload
+
+
+def recv_data_frame(stream: BinaryIO | socket.socket, key: bytes, *, now_ms: int | None = None,
+                    max_bytes: int = MAX_DATA_BYTES) -> DataFrame:
+    """Read a data frame, rejecting declared size before allocating its payload."""
+    raw = recv_exact(stream, DATA_HEADER.size)
+    (magic, version, kind, flags, size, generation, deadline, cluster, worker, request, session,
+     model_hash, plan_hash, checksum, mac) = DATA_HEADER.unpack(raw)
+    if magic != MAGIC or version != VERSION:
+        raise ProtocolError("invalid data frame magic or version")
+    if kind not in DATA_TYPE_NAMES:
+        raise ProtocolError("unknown data frame type")
+    if size > min(max_bytes, MAX_DATA_BYTES):
+        raise ProtocolError("declared data payload exceeds limit")
+    now = int(time.time() * 1000) if now_ms is None else now_ms
+    if deadline < now:
+        raise ProtocolError("data frame deadline expired")
+    payload = recv_exact(stream, size)
+    if not hmac.compare_digest(hashlib.sha256(payload).digest(), checksum):
+        raise ProtocolError("data payload checksum mismatch")
+    expected = hmac.new(key, raw[:-32] + payload, hashlib.sha256).digest()
+    if not hmac.compare_digest(expected, mac):
+        raise ProtocolError("data frame authentication failed")
+    return DataFrame(DATA_TYPE_NAMES[kind], flags, str(uuid.UUID(bytes=cluster)), str(uuid.UUID(bytes=worker)),
+                     str(uuid.UUID(bytes=request)), str(uuid.UUID(bytes=session)), generation, deadline,
+                     model_hash.hex(), plan_hash.hex(), payload)
 
 
 @dataclass
