@@ -21,6 +21,7 @@ import time
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
+from seedplane.hive.scheduler import plan_homogeneous_batch
 
 
 PROMPT = "Explain in one concise paragraph how a computer memory cache improves performance."
@@ -170,13 +171,28 @@ def parse_identity(value):
                                "tokenizer_sha256", "plan_sha256"), fields[1:]))
 
 
-def run_workload(workers, arrival_interval, round_index, condition_index):
+def run_workload(workers, arrival_interval, round_index, condition_index,
+                 worker_service_ms=None):
     count = COUNT
     arrivals = [i * arrival_interval for i in range(count)]
     worker_names = [w.name for w in workers]
     rotation = (round_index + condition_index) % len(workers)
     rotated = workers[rotation:] + workers[:rotation]
     available = deque(rotated)
+    planned_remaining = None
+    if worker_service_ms:
+        service = {worker.name: float(worker_service_ms[worker.name]) for worker in workers}
+        if arrival_interval > 0 and min(service.values()) <= arrival_interval * 1000.0:
+            fastest = min(service, key=lambda name: (service[name], name))
+            planned_remaining = {name: (count if name == fastest else 0) for name in service}
+            planned_assignments = dict(planned_remaining)
+        else:
+            plan = plan_homogeneous_batch(count, service)
+            planned_remaining = dict(plan.assignments)
+            planned_assignments = dict(plan.assignments)
+    else:
+        service = None
+        planned_assignments = None
     pending = deque()
     next_arrival = 0
     results = []
@@ -191,8 +207,17 @@ def run_workload(workers, arrival_interval, round_index, condition_index):
                 pending.append(next_arrival)
                 next_arrival += 1
             while pending and available:
+                if planned_remaining is None:
+                    worker = available.popleft()
+                else:
+                    ready = [candidate for candidate in available
+                             if planned_remaining[candidate.name] > 0]
+                    if not ready:
+                        break
+                    worker = min(ready, key=lambda candidate: (service[candidate.name], candidate.name))
+                    available.remove(worker)
+                    planned_remaining[worker.name] -= 1
                 request_id = pending.popleft()
-                worker = available.popleft()
                 fut = executor.submit(worker.generate, request_id, arrivals[request_id], origin)
                 futures[fut] = worker
             if futures:
@@ -230,6 +255,9 @@ def run_workload(workers, arrival_interval, round_index, condition_index):
             for name in worker_names if any(row["worker"] == name for row in results)
         },
         "assignments": {name: sum(row["worker"] == name for row in results) for name in worker_names},
+        "planned_assignments": planned_assignments,
+        "worker_service_profile_ms": service,
+        "dispatch_policy": "measured-min-makespan" if service else "legacy-completion-order",
         "worker_runtime_decode_tok_s": {
             name: summarize([row["runtime_decode_tok_s"] for row in results if row["worker"] == name])
             for name in worker_names if any(row["worker"] == name for row in results)

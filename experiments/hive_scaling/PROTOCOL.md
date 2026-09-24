@@ -51,3 +51,17 @@ quality. Record accepted draft tokens per target pass, tokens/s, TTFT,
 inter-token p50/p95, network bytes/RTT, peak memory and energy. Reject any
 configuration that changes the target's greedy output or worsens latency at the
 single-request workload. Preserve baseline fallback.
+
+## Independent-request admission regression gate
+
+For a pool comparison, warm every worker three times on the exact task, then
+use median end-to-end service duration (dispatch through result receipt) as the
+initial cost profile. Submit a homogeneous burst atomically to the measured
+minimum-predicted-makespan planner; the direct control and HIVE pull path must
+use the same profile-aware policy. Also run paced arrivals: if the fastest
+worker can complete before the next arrival, the planner should not queue work
+on slower devices merely to keep them busy. Preserve per-worker planned and
+actual assignment counts, completion p50/p95, total throughput, and exact token
+hashes. Compare at least three rotated rounds and retain raw JSON. This is a
+conditional scheduling guard, not a promise against OS, thermal, or network
+variance, and it says nothing by itself about single-response latency.

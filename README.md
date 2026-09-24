@@ -46,29 +46,31 @@ The picture shows **separate requests being served by separate workers**—not p
 
 ## The latest real-hardware test
 
-Three GPUs, all three two-device pairs, and the full trio were tested with the same model, prompt, and greedy output. Each condition ran three rounds of **16 requests × 32 tokens**. Every output matched.
+The B580+RX570 pair and full trio were retested with the same model, prompt, and greedy output after adding measured-cost scheduling. Each ran three rounds of **16 requests × 32 tokens**. Every output matched.
 
-<p align="center"><img src="docs/brand/results.svg" alt="Three-round median burst throughput: the B580 and RX 570 pair reached 362.7 tokens per second direct or 339.0 with HIVE pull; the full trio reached 330.6 direct or 340.1 with HIVE pull" width="900"></p>
+<p align="center"><img src="docs/brand/results.svg" alt="Three-round median burst throughput with measured-cost scheduling: the B580 and RX 570 pair reached 351.6 tokens per second direct or 339.1 with HIVE pull; the full trio reached 396.6 direct or 371.1 with HIVE pull" width="900"></p>
 
 | Pool | Direct worker stream | HIVE pull agents |
 |---|---:|---:|
-| B580 + RX 570 | **362.7 tok/s** | 339.0 tok/s |
-| B580 + RX 570 + M4 | 330.6 tok/s | **340.1 tok/s** |
+| B580 + RX 570 | 351.6 tok/s | 339.1 tok/s |
+| B580 + RX 570 + M4 | **396.6 tok/s** | **371.1 tok/s** |
 
-The trio's HIVE path was about **1.05×** its direct path in this experiment. But the direct two-GPU pair was still faster than the three-GPU pool. That is the honest result: persistent coordination looks promising, while **the M4 did not raise the measured throughput ceiling in this run**. Three rounds are an early signal, not a final performance claim.
+The M4 improved burst throughput over the pair by **14% on the direct path** and **9% with HIVE pull**. The fix was not a faster GPU kernel: the old queue handed too many requests to the slowest worker, making its tail the batch's finish time. The scheduler now measures end-to-end service time and plans a batch for minimum predicted makespan. It assigned **10 requests to B580, 4 to RX 570, and 2 to M4** in every trio burst round. With requests arriving every 0.3 seconds, B580 handled the work alone because the other devices would not shorten completion. Three rounds remain an early signal, and prediction cannot remove hardware noise.
+
+The measured comparison is aggregate throughput for independent requests—not the time to produce one answer. The single-generation speculative verifier is still future work.
 
 These numbers measure **aggregate throughput for independent requests**, not the time to generate one answer. The full results include individual devices, all pairings, per-request timings, assignments, and limitations:
-[benchmark results](experiments/hive_scaling/RESULTS.md) · [raw measurements](experiments/hive_scaling/hive_fleet_matrix_v1_16x32_3rounds_20260924.json) · [HIVE implementation plan](docs/HIVE_IMPLEMENTATION_BASELINE.md).
+[benchmark results](experiments/hive_scaling/RESULTS.md) · [raw measurements](experiments/hive_scaling/hive_no_regression_test_v2_16x32_3rounds_20260924.json) · [HIVE implementation plan](docs/HIVE_IMPLEMENTATION_BASELINE.md).
 
 ## What is not built yet
 
-- No measured-cost scheduler that learns which device should receive each request.
+- The first profile-aware scheduler is implemented for independent request batches; it is not yet a learned or fully queue-aware scheduler.
 - No genuine batched inference API for the native runtime.
 - No multi-drafter speculative runtime or batched/tree verifier across devices.
 - No shared VRAM, global KV cache, or layer-by-layer tensor sharding over the home network.
 - No automatic secure pairing or one-command setup for a mixed-device cluster.
 
-The next work is to use measured service times to improve assignment and lease sizes, then test real batching. Only after that does it make sense to claim a fleet-wide speedup. The longer-term latency experiment is speculative decoding: use other devices to draft candidates, then verify useful candidates in fewer target-model passes.
+Next: make the scheduler account for asynchronous arrivals and queue state, then test genuine runtime batching. The longer-term latency experiment is speculative decoding: use other devices to draft candidates, then verify useful candidates in fewer target-model passes.
 
 ## Try it
 

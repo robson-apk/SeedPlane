@@ -6,6 +6,7 @@ import unittest
 from seedplane.hive import HiveAgent, HiveBroker
 from seedplane.hive.protocol import Frame, Message, recv_frame, send_frame
 from seedplane.hive.cost import MeasuredCostModel
+from seedplane.hive.scheduler import plan_homogeneous_batch
 
 
 class HiveFrameTests(unittest.TestCase):
@@ -105,6 +106,44 @@ class HiveCostModelTests(unittest.TestCase):
             throughput_tokens_s=100, fixed_overhead_ms=20, max_fixed_fraction=0.2), 8)
         self.assertEqual(MeasuredCostModel.choose_lease_tokens(
             throughput_tokens_s=100, fixed_overhead_ms=0, min_tokens=4), 4)
+
+    def test_adding_a_slow_worker_never_worsens_optimal_predicted_makespan(self):
+        pair = plan_homogeneous_batch(16, {"B580": 120, "RX570": 270})
+        trio = plan_homogeneous_batch(16, {"B580": 120, "RX570": 270, "M4": 500})
+        short = plan_homogeneous_batch(4, {"B580": 10, "RX570": 20, "M4": 200})
+        self.assertLessEqual(trio.predicted_makespan_ms, pair.predicted_makespan_ms)
+        self.assertEqual(trio.assignments, {"B580": 10, "RX570": 4, "M4": 2})
+        self.assertEqual(short.assignments["M4"], 0)
+
+
+class HiveAdmissionTests(unittest.TestCase):
+    def test_batch_reserves_work_by_measured_service_cost(self):
+        with HiveBroker(pull_poll_s=0.02) as broker:
+            agents = [HiveAgent(*broker.address, name, caps=("generate",), models=("qwen",),
+                               execute=lambda payload: payload)
+                      for name in ("B580", "RX570", "M4")]
+            threads = [threading.Thread(target=agent.run, daemon=True) for agent in agents]
+            for thread in threads:
+                thread.start()
+            deadline = time.monotonic() + 2
+            while len(broker.workers()) != 3 and time.monotonic() < deadline:
+                time.sleep(0.01)
+            for name, duration in (("B580", 10), ("RX570", 20), ("M4", 200)):
+                for _ in range(3):
+                    broker.cost_model.observe(kind="decode", model="qwen", worker=name,
+                                              token_budget=4, duration_ms=duration)
+            futures = broker.submit_batch([{"n": n} for n in range(4)], model="qwen",
+                                          required_caps=("generate",), kind="decode", token_budget=4)
+            planned = {name: sum(future.planned_worker_id == name for future in futures)
+                       for name in ("B580", "RX570", "M4")}
+            self.assertEqual(planned, {"B580": 3, "RX570": 1, "M4": 0})
+            self.assertEqual([future.result(timeout=2) for future in futures],
+                             [{"n": n} for n in range(4)])
+            for agent in agents:
+                agent.stop()
+            for thread in threads:
+                thread.join(timeout=2)
+                self.assertFalse(thread.is_alive())
 
 
 if __name__ == "__main__":

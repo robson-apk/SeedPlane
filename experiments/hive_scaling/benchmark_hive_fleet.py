@@ -71,14 +71,7 @@ def pull_workload(broker, count, tokens, interval):
     origin = time.perf_counter()
     rows = [None] * count
     futures = []
-    for request_id in range(count):
-        arrival = request_id * interval
-        while time.perf_counter() - origin < arrival:
-            time.sleep(min(0.005, arrival - (time.perf_counter() - origin)))
-        future = broker.submit(pull_request(tokens), model=MODEL_ID,
-                               required_caps=("throughput.generate",),
-                               kind="throughput.generate", token_budget=tokens,
-                               movable=True, stealable=True)
+    def attach(request_id, arrival, future):
         futures.append(future)
 
         def completed(done, rid=request_id, arrival_s=arrival, ticket=future):
@@ -96,6 +89,24 @@ def pull_workload(broker, count, tokens, interval):
                              "error": f"{type(exc).__name__}: {exc}"}
 
         future.add_done_callback(completed)
+
+    if interval == 0:
+        batch = broker.submit_batch(
+            [pull_request(tokens) for _ in range(count)], model=MODEL_ID,
+            required_caps=("throughput.generate",), kind="throughput.generate",
+            token_budget=tokens, timeout=300, require_profiles=True)
+        for request_id, future in enumerate(batch):
+            attach(request_id, 0.0, future)
+    else:
+        for request_id in range(count):
+            arrival = request_id * interval
+            while time.perf_counter() - origin < arrival:
+                time.sleep(min(0.005, arrival - (time.perf_counter() - origin)))
+            future = broker.submit(pull_request(tokens), model=MODEL_ID,
+                                   required_caps=("throughput.generate",),
+                                   kind="throughput.generate", token_budget=tokens,
+                                   movable=True, stealable=True)
+            attach(request_id, arrival, future)
     for future in futures:
         future.result(timeout=600)
     elapsed = max(row["completion_s"] for row in rows)
@@ -109,6 +120,9 @@ def pull_workload(broker, count, tokens, interval):
             "arrival_to_completion_s": {f"p{int(p * 100)}": percentile(p) for p in (.50, .95, .99)},
             "assignments": {name: sum(row["worker"] == name for row in rows)
                             for name in sorted({row["worker"] for row in rows})},
+            "planned_assignments": {name: sum(future.planned_worker_id == name for future in futures)
+                                    for name in sorted({future.planned_worker_id for future in futures
+                                                        if future.planned_worker_id})},
             "all_request_outputs_identical": len({row["token_sha256"] for row in rows}) == 1,
             "per_request": rows}
 
@@ -132,14 +146,19 @@ def run_direct(specs, count, tokens):
     try:
         for name, mode, target, command in specs:
             workers[name] = direct.Worker(name, mode, target, command)
-        warmups = {name: worker.generate(-1, 0.0, time.perf_counter())
+        warmups = {name: [worker.generate(-1, 0.0, time.perf_counter()) for _ in range(3)]
                    for name, worker in workers.items()}
-        if len({x["token_sha256"] for x in warmups.values()}) != 1:
+        if len({row["token_sha256"] for samples in warmups.values() for row in samples}) != 1:
             raise RuntimeError("direct path warm-up token hashes differ")
+        profiles = {name: statistics.median(row["service_roundtrip_s"] * 1000.0
+                                            for row in samples)
+                    for name, samples in warmups.items()}
         matrix = {}
         for pattern, interval in (("burst", 0.0), ("steady_0.3s", 0.3)):
-            matrix[pattern] = direct.run_workload(list(workers.values()), interval, 0, 0)
-        return {"warmup_token_sha256": next(iter(warmups.values()))["token_sha256"],
+            matrix[pattern] = direct.run_workload(list(workers.values()), interval, 0, 0,
+                                                  worker_service_ms=profiles)
+        return {"warmup_token_sha256": warmups[sorted(warmups)[0]][0]["token_sha256"],
+                "calibrated_service_p50_ms": profiles,
                 "matrix": matrix}
     finally:
         for worker in workers.values():
@@ -157,17 +176,26 @@ def run_pull(agent_specs, args, repo_root):
         workers = wait_for_workers(broker, sorted(processes), processes)
         warmups = {}
         for name in sorted(processes):
-            result = broker.submit(pull_request(tokens=args.tokens), model=MODEL_ID,
-                                   required_caps=("generate", f"island.{name.lower()}"),
-                                   kind="throughput.warmup", token_budget=args.tokens,
-                                   timeout=300).result(timeout=300)
-            warmups[name] = result["token_sha256"]
-        if len(set(warmups.values())) != 1:
+            samples = []
+            for _ in range(3):
+                result = broker.submit(pull_request(tokens=args.tokens), model=MODEL_ID,
+                                       required_caps=("generate", f"island.{name.lower()}"),
+                                       kind="throughput.generate", token_budget=args.tokens,
+                                       timeout=300).result(timeout=300)
+                samples.append(result["token_sha256"])
+            warmups[name] = samples
+        if len({digest for hashes in warmups.values() for digest in hashes}) != 1:
             raise RuntimeError(f"pull agent warm-up token hashes differ: {warmups}")
+        profiles = {
+            name: broker.cost_model.estimate(kind="throughput.generate", model=MODEL_ID,
+                                             worker=name, token_budget=args.tokens).p50_ms
+            for name in sorted(processes)
+        }
         matrix = {}
         for pattern, interval in (("burst", 0.0), ("steady_0.3s", 0.3)):
             matrix[pattern] = pull_workload(broker, args.requests, args.tokens, interval)
-        return {"warmup_token_sha256": next(iter(warmups.values())),
+        return {"warmup_token_sha256": warmups[sorted(warmups)[0]][0],
+                "calibrated_service_p50_ms": profiles,
                 "workers": workers, "matrix": matrix}
     finally:
         broker.close()
@@ -193,6 +221,8 @@ def main():
     parser.add_argument("--tokens", type=int, default=16)
     parser.add_argument("--rounds", type=int, default=1,
                         help="paired rounds; path order alternates to reduce thermal/order bias")
+    parser.add_argument("--condition", action="append",
+                        help="optional pool to test, e.g. B580+RX570; repeat to select multiple pools")
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     if args.requests < 1 or args.tokens < 1 or args.rounds < 1:
@@ -206,7 +236,14 @@ def main():
         parser.error(f"output exists; choose a new path: {args.output}")
     repo_root = Path(__file__).resolve().parents[2]
     round_results = []
-    conditions = direct.CONDITIONS
+    if args.condition:
+        available = {"+".join(condition): condition for condition in direct.CONDITIONS}
+        unknown = sorted(set(args.condition) - set(available))
+        if unknown:
+            parser.error(f"unknown --condition values: {unknown}")
+        conditions = [available[key] for key in args.condition]
+    else:
+        conditions = direct.CONDITIONS
     for round_index in range(args.rounds):
         shift = round_index % len(conditions)
         ordered_conditions = conditions[shift:] + conditions[:shift]
@@ -261,21 +298,31 @@ def main():
                                                      for row in paired),
             }
     for pattern in ("burst", "steady_0.3s"):
-        for lane in ("direct", "pull"):
-            ratios = []
+        if all(name in condition_keys for name in ("B580", "RX570", "M4", "B580+RX570+M4")):
+            for lane in ("direct", "pull"):
+                ratios = []
+                for row in round_results:
+                    trio_rate = row["conditions"]["B580+RX570+M4"][lane]["matrix"][pattern]["aggregate_tokens_per_second"]
+                    isolated = sum(row["conditions"][name][lane]["matrix"][pattern]["aggregate_tokens_per_second"]
+                                   for name in ("B580", "RX570", "M4"))
+                    ratios.append(trio_rate / isolated)
+                summary["B580+RX570+M4"][pattern][f"fleet_efficiency_{lane}_median"] = statistics.median(ratios)
+        if all(name in condition_keys for name in ("B580+RX570", "B580+RX570+M4")):
+            for lane in ("direct", "pull"):
+                ratios = []
+                for row in round_results:
+                    trio = row["conditions"]["B580+RX570+M4"][lane]["matrix"][pattern]["aggregate_tokens_per_second"]
+                    pair = row["conditions"]["B580+RX570"][lane]["matrix"][pattern]["aggregate_tokens_per_second"]
+                    ratios.append(trio / pair)
+                summary["B580+RX570+M4"][pattern][f"trio_vs_pair_{lane}_median"] = statistics.median(ratios)
+        if all(name in condition_keys for name in ("B580", "RX570", "M4", "B580+RX570+M4")):
+            common_denominator_ratios = []
             for row in round_results:
-                trio_rate = row["conditions"]["B580+RX570+M4"][lane]["matrix"][pattern]["aggregate_tokens_per_second"]
-                isolated = sum(row["conditions"][name][lane]["matrix"][pattern]["aggregate_tokens_per_second"]
-                               for name in ("B580", "RX570", "M4"))
-                ratios.append(trio_rate / isolated)
-            summary["B580+RX570+M4"][pattern][f"fleet_efficiency_{lane}_median"] = statistics.median(ratios)
-        common_denominator_ratios = []
-        for row in round_results:
-            trio_pull = row["conditions"]["B580+RX570+M4"]["pull"]["matrix"][pattern]["aggregate_tokens_per_second"]
-            direct_isolated = sum(row["conditions"][name]["direct"]["matrix"][pattern]["aggregate_tokens_per_second"]
-                                  for name in ("B580", "RX570", "M4"))
-            common_denominator_ratios.append(trio_pull / direct_isolated)
-        summary["B580+RX570+M4"][pattern]["fleet_efficiency_pull_vs_direct_isolated_median"] = statistics.median(common_denominator_ratios)
+                trio_pull = row["conditions"]["B580+RX570+M4"]["pull"]["matrix"][pattern]["aggregate_tokens_per_second"]
+                direct_isolated = sum(row["conditions"][name]["direct"]["matrix"][pattern]["aggregate_tokens_per_second"]
+                                      for name in ("B580", "RX570", "M4"))
+                common_denominator_ratios.append(trio_pull / direct_isolated)
+            summary["B580+RX570+M4"][pattern]["fleet_efficiency_pull_vs_direct_isolated_median"] = statistics.median(common_denominator_ratios)
     result = {"protocol": "HIVE pull framed TCP v1 vs persistent JSON-lines control stream",
               "recorded_at": time.time(), "controller_platform": platform.platform(),
               "model_id": MODEL_ID, "workload": {"prompt": PROMPT, "requests": args.requests,

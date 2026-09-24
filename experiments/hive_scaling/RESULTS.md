@@ -182,7 +182,7 @@ The complete per-request timings, assignments, environment, and round order
 are in [hive_fleet_matrix_v1_3rounds_20260924.json](hive_fleet_matrix_v1_3rounds_20260924.json).
 The earlier single-round run below is retained as historical context.
 
-## Expanded fleet matrix: 16 requests × 32 tokens (3 rounds)
+## Expanded fleet matrix: 16 requests × 32 tokens (3 rounds, pre-fix)
 
 To reduce the small-queue limitation, the seven-pool matrix was repeated with
 16 requests × 32 tokens, still three rotated rounds and both arrival patterns.
@@ -219,6 +219,48 @@ can pay off for the combined pool once work is larger, but the per-round
 variation and unchanged assignment pattern mean this is not proof of
 cost-aware scheduling or M4-derived speedup. Raw data:
 [hive_fleet_matrix_v1_16x32_3rounds_20260924.json](hive_fleet_matrix_v1_16x32_3rounds_20260924.json).
+
+## M4 admission / no-regression fix (3 rounds)
+
+The pre-fix run above exposed the failure mode: the direct completion-order
+queue gave the trio 9/4/3 requests (B580/RX570/M4), although per-request service
+times were about 0.12/0.27/0.52 seconds. The third M4 request extended the
+batch tail, so adding a worker could make the measured batch finish later.
+This was a scheduling policy problem, not evidence that M4 inference itself
+was slower than its isolated measurements.
+
+The direct benchmark and HIVE batch admission now share a measured-cost
+minimum-predicted-makespan planner. It uses three warmed end-to-end service
+samples per worker, including dispatch/transport/result overhead, then assigns
+whole independent requests proportionally to predicted service time. A worker
+receives no work when it cannot improve predicted makespan. For paced arrivals,
+the scheduler keeps work on the fastest profiled worker when it can finish
+before the next arrival. This planner applies to homogeneous independent
+request batches; it is not yet a general asynchronous queue optimizer.
+
+The controlled rerun used the same native model/runtime, prompt, greedy output,
+16 requests × 32 tokens, three rounds, both direct and persistent HIVE-pull
+paths, and exact output-hash checks:
+
+| Pool | Direct burst | HIVE pull burst | Trio vs pair, direct / pull |
+|---|---:|---:|---:|
+| B580 + RX 570 | 351.6 tok/s | 339.1 tok/s | baseline |
+| B580 + RX 570 + M4 | **396.6 tok/s** | **371.1 tok/s** | **+14.1% / +9.2%** |
+
+Each burst round planned and executed 10/4/2 tasks on B580/RX570/M4. Median
+completion p95 changed from 1.456 to 1.291 s direct and 1.510 to 1.380 s with
+pull. In the 0.3-second-arrival lane the scheduler assigned all 16 tasks to the
+B580; trio throughput was effectively tied with the pair (110.59 vs 110.61
+tok/s direct, 110.10 vs 110.33 pull), rather than burdening the batch with
+slower workers. All output hashes matched.
+
+This is a three-round early result, not a universal wall-clock guarantee:
+service estimates and the optimal plan are conditional on the measured workload,
+while OS/network/thermal noise remains. The safety property is at the planner
+level—adding a worker cannot increase its predicted optimal makespan because
+it can always be assigned zero work. Raw per-request data, profiles,
+assignments, and summaries:
+[hive_no_regression_test_v2_16x32_3rounds_20260924.json](hive_no_regression_test_v2_16x32_3rounds_20260924.json).
 
 The broker also now receives agent-measured service duration and records
 bounded samples by task/model/worker/size/batch/load. Three samples are

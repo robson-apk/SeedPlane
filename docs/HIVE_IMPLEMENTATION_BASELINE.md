@@ -131,8 +131,10 @@ burst work, motivating measured cost estimates, adaptive lease sizes, and
 microbatching before performance claims. Raw evidence:
 [`hive_fleet_matrix_v1_3rounds_20260924.json`](../experiments/hive_scaling/hive_fleet_matrix_v1_3rounds_20260924.json).
 
-A larger follow-up used 16 requests × 32 tokens in three rounds across the
-same seven pools. Hashes again matched. Median burst direct/pull tok/s were:
+A larger pre-fix follow-up used 16 requests × 32 tokens in three rounds across
+the same seven pools. Hashes again matched. Its completion-order scheduler
+over-allocated work to the M4 tail; the later controlled admission test below
+supersedes its trio-vs-pair conclusion. Median burst direct/pull tok/s were:
 B580 247.4/230.8; RX570 118.5/109.3; M4 66.1/65.1; B580+RX570 362.7/339.0;
 B580+M4 261.3/248.4; RX570+M4 168.0/168.9; trio 330.6/340.1. Trio pull was
 1.049× direct with p95 1.549/1.505 s, and each trio round assigned 9/4/3
@@ -151,13 +153,16 @@ adaptive scheduling. Three rounds remain exploratory. See
 1. Persistent agents, framed protocol, pull queues; run the same fleet workload
    with no SSH in request transport and reconcile isolated/pool measurements.
 2. Measured cost model, adaptive leases, compatible work stealing, and
-   microbatching; establish break-even thresholds. **In progress:** HIVE agents
-   now report measured service duration, and the broker keeps bounded timing
-   samples keyed by task/model/worker/size/batch/load. It exposes p50/p95 only
-   after three samples and has a lease-sizing helper to amortize measured fixed
-   overhead. This is groundwork only: estimates do not yet drive assignment,
-   splitting, or retries; samples are in-memory; native Qwen generation tasks
-   remain indivisible; and no true batched-inference API exists yet.
+   microbatching; establish break-even thresholds. **In progress:** the broker
+   now uses three warmed end-to-end service samples (including lease overhead)
+   to plan homogeneous independent-request batches for minimum predicted
+   makespan. The direct control uses the same planner. A 16×32, three-round
+   retest assigned 10/4/2 requests to B580/RX570/M4 and measured trio gains
+   over the pair of 14.1% direct / 9.2% HIVE pull; with 0.3 s arrivals, it sent
+   all work to B580. The prediction allows a slow worker to receive zero work,
+   so adding a worker cannot worsen *predicted* makespan; actual wall time still
+   varies. Estimates remain in-memory; asynchronous queue-aware replanning,
+   splitting/retries, heterogeneous tiles, and true runtime batching remain.
 3. Separate throughput and latency benchmark suites and report their metrics
    independently.
 4. Real speculative runtime: concrete drafters, candidate trie, batched/tree

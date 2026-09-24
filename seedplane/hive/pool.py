@@ -12,6 +12,7 @@ from typing import Callable, Optional
 
 from .protocol import Frame, Message, json_payload, parse_json, recv_frame, send_frame
 from .cost import MeasuredCostModel
+from .scheduler import plan_homogeneous_batch
 
 
 class WorkFuture:
@@ -23,6 +24,10 @@ class WorkFuture:
     @property
     def worker_id(self):
         return self._work.worker
+
+    @property
+    def planned_worker_id(self):
+        return self._work.preferred_worker
 
     def result(self, timeout=None):
         return self._future.result(timeout)
@@ -43,6 +48,8 @@ class _Work:
     sequence: int
     lease: int = 0
     worker: Optional[str] = None
+    preferred_worker: Optional[str] = None
+    started_at: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -150,10 +157,75 @@ class HiveBroker:
             request_id = self._next_request
             self._next_request += 1
             item = _Work(request_id, tile, time.monotonic() + timeout, Future(), request_id)
+            item.preferred_worker = self._fastest_profiled_worker(tile)
             self._queue.append(item)
             self._queue.sort(key=lambda x: (-x.tile.priority, x.sequence))
             self._changed.notify_all()
             return WorkFuture(request_id, item.future, item)
+
+    def submit_batch(self, payloads, *, model, required_caps=("generate",), priority=0,
+                     timeout=300, kind="throughput.generate", token_budget=0,
+                     predicted_cost=None, require_profiles=True):
+        """Atomically plan a batch of interchangeable, independent work tiles.
+
+        With measured profiles, assigns only as much work to each worker as
+        minimizes predicted batch makespan; a slower worker may receive zero.
+        Requiring profiles is the safe path when comparing heterogeneous
+        hardware. The broker does not split a generation request.
+        """
+        payloads = list(payloads)
+        if not payloads:
+            return []
+        if timeout <= 0 or any(not isinstance(payload, dict) for payload in payloads):
+            raise ValueError("batch needs object payloads and a positive timeout")
+        tiles = [WorkTile(kind=kind, model=model, payload=dict(payload),
+                          required_caps=frozenset(required_caps), token_budget=token_budget,
+                          predicted_cost=dict(predicted_cost or {}), deadline_s=timeout,
+                          priority=priority) for payload in payloads]
+        with self._changed:
+            if self._stopping or self._listener is None:
+                raise RuntimeError("broker is not running")
+            eligible = {name: info for name, info in self._workers.items()
+                        if model in info["models"] and tiles[0].required_caps.issubset(info["caps"])}
+            profiles = {}
+            for name in eligible:
+                estimate = self.cost_model.estimate(kind=kind, model=model, worker=name,
+                                                    token_budget=token_budget)
+                if estimate is not None:
+                    profiles[name] = estimate.p50_ms
+            if require_profiles and (not eligible or len(profiles) != len(eligible)):
+                missing = sorted(set(eligible) - set(profiles))
+                raise RuntimeError(f"cannot plan safe HIVE batch; missing measured profiles: {missing}")
+            plan = plan_homogeneous_batch(len(tiles), profiles) if profiles else None
+            assignment_order = []
+            if plan:
+                for name in sorted(plan.assignments, key=lambda key: (profiles[key], key)):
+                    assignment_order.extend([name] * plan.assignments[name])
+            futures = []
+            for index, tile in enumerate(tiles):
+                request_id = self._next_request
+                self._next_request += 1
+                item = _Work(request_id, tile, time.monotonic() + timeout,
+                             Future(), request_id)
+                if plan:
+                    item.preferred_worker = assignment_order[index]
+                self._queue.append(item)
+                futures.append(WorkFuture(request_id, item.future, item))
+            self._queue.sort(key=lambda item: (-item.tile.priority, item.sequence))
+            self._changed.notify_all()
+            return futures
+
+    def _fastest_profiled_worker(self, tile):
+        eligible = {name for name, info in self._workers.items()
+                    if tile.model in info["models"] and tile.required_caps.issubset(info["caps"])}
+        if not eligible:
+            return None
+        estimates = {name: self.cost_model.estimate(kind=tile.kind, model=tile.model,
+                                                    worker=name, token_budget=tile.token_budget)
+                     for name in eligible}
+        if any(estimate is None for estimate in estimates.values()):
+            return None
+        return min(eligible, key=lambda name: (estimates[name].p50_ms, name))
 
     def workers(self):
         with self._lock:
@@ -201,12 +273,14 @@ class HiveBroker:
                 self._queue = kept
                 caps, models = worker["caps"], worker["models"]
                 eligible = next((i for i, item in enumerate(self._queue)
-                                 if item.tile.required_caps.issubset(caps) and item.tile.model in models), None)
+                                 if item.tile.required_caps.issubset(caps) and item.tile.model in models
+                                 and item.preferred_worker in (None, worker["id"])), None)
                 if eligible is not None:
                     item = self._queue.pop(eligible)
                     item.lease = self._next_sequence
                     self._next_sequence += 1
                     item.worker = worker["id"]
+                    item.started_at = time.monotonic()
                     return item
                 self._changed.wait(min(self.pull_poll_s, max(0.0, poll_deadline - time.monotonic())))
             return None
@@ -269,15 +343,18 @@ class HiveBroker:
                     if not active.future.done():
                         active.future.set_exception(TimeoutError(f"HIVE work {active.request_id} lease expired"))
                 elif data.get("ok"):
-                    metrics = data.get("metrics", {})
-                    duration_ms = metrics.get("duration_ms")
-                    if duration_ms is not None:
+                    if active.started_at is not None:
+                        # Use end-to-end lease time for assignment: it includes
+                        # serialization, transport RTT, execution, and result
+                        # return, unlike the agent's compute-only timer.
+                        duration_ms = (time.monotonic() - active.started_at) * 1000.0
+                        agent_metrics = data.get("metrics", {})
                         self.cost_model.observe(
                             kind=active.tile.kind, model=active.tile.model,
                             worker=worker_id, token_budget=active.tile.token_budget,
                             duration_ms=duration_ms,
-                            batch_size=int(metrics.get("batch_size", 1)),
-                            load=float(metrics.get("load", 0.0)))
+                            batch_size=int(agent_metrics.get("batch_size", 1)),
+                            load=float(agent_metrics.get("load", 0.0)))
                     if not active.future.done():
                         active.future.set_result(data.get("result"))
                 elif not active.future.done():
