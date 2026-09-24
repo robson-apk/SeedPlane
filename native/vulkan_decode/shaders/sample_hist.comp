@@ -1,0 +1,19 @@
+#version 450
+// top-k / top-p sampling, pass 2 of 3: histogram (1,024 bins) of the logits within 30 T of the max; bin 0 is just below M.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_;
+    uint btok[8]; uint bpos[8]; uint bslot[8]; uint smode; float stemp; uint sseed; uint sctr; uint sampled; uint stopk; float stopp; };
+layout(std430, binding = 1) readonly buffer L { float logits[]; };
+layout(std430, binding = 2) readonly buffer Part { vec2 part[]; };
+layout(std430, binding = 3) buffer Hs { uint hist[]; };
+layout(push_constant) uniform P { uint n; uint nparts; } p;
+#include "sample_common.glsl"
+void main() {
+    if (smode != 2u) return;
+    uint t = gl_LocalInvocationID.x; float M = reduce_partials(t, p.nparts).x * stemp;
+    float span = 30.0 * stemp, scale = 1024.0 / span; uint stride = gl_NumWorkGroups.x * 256u;
+    for (uint i = gl_WorkGroupID.x * 256u + t; i < p.n; i += stride) {
+        float d = M - logits[i];
+        if (d <= span) atomicAdd(hist[min(1023u, uint(d * scale))], 1u);
+    }
+}

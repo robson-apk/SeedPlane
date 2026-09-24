@@ -16,9 +16,12 @@
 //   qwen_vk <bundle.sp> --score-file f.i32 [--nll-out f.f32]                                    teacher-forced NLL
 //   qwen_vk <bundle.sp> --tokenize-file in.txt out.i32 | --nfc-file in.txt out.txt | --detok-file in.i32 out.txt
 //   qwen_vk --sample-test logits.f32 T top_k top_p draws seed out.u32                           sampler self-test
+//   qwen_vk <bundle.sp> --sample-test-gpu logits.f32 T top_k top_p draws seed out.u32        GPU-assisted sampler self-test
 // options: [--mode shadow-batch|shadow|rebuild-batch|rebuild|reuse] [--attn split|old] [--shard S --halo H --sinks K |
 //          --full] [--ctx N] [--dump-at p1,p2 --dump-dir d] [--spin] [--shaders dir]
 // sampling: [--temperature T] [--top-k K] [--top-p P] [--seed S] [-n max_new_tokens]
+//           sampling runs on the GPU (Gumbel-max / candidate kernels); --host-sampling uses the V21 CPU path.
+//           analysis: [--copy-logits] (pay the logits copy in greedy mode)
 #include <vulkan/vulkan.h>
 #include "json.hpp"
 #include "sampler.hpp"
@@ -31,6 +34,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
+#include <functional>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -221,8 +225,26 @@ enum class Mode { Rebuild, RebuildBatch, Shadow, ShadowBatch, Reuse };
 constexpr uint32_t BATCH = 8;   // columns of a K/V-only batch submission
 struct Item { uint32_t tok, pos, slot; };
 
+// Records dispatches into one command buffer, with a compute->compute barrier between consecutive dispatches.
+struct Rec {
+    Ctx &c; const Buf &dummy; VkCommandBuffer cb; int n = 0;
+    void operator()(VkPipeline p, std::initializer_list<const Buf *> bufs, Push pc, uint32_t groups) {
+        if (n) {
+            VkMemoryBarrier mb{VK_STRUCTURE_TYPE_MEMORY_BARRIER}; mb.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+            mb.dstAccessMask = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+            vkCmdPipelineBarrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 0, 1, &mb, 0, nullptr, 0, nullptr);
+        }
+        VkDescriptorSet s = c.set(bufs, dummy);
+        vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, p);
+        vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, c.pl, 0, 1, &s, 0, nullptr);
+        vkCmdPushConstants(cb, c.pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(Push), &pc);
+        vkCmdDispatch(cb, groups, 1, 1); ++n;
+    }
+};
+
 struct Options {
     fs::path shaders; Mode mode = Mode::ShadowBatch; bool full = false, old_attn = false, spin = false, scoring = false, copy_logits = false;
+    bool gpu_sampling = false;   // V22: Gumbel-max / top-256 candidate kernels in every step submission
     long shard = -1, halo = -1, sinks = -1; uint32_t positions = 0;   // positions: RoPE table size and full-attention window
 };
 
@@ -232,6 +254,10 @@ struct Engine {
     bool two_caches = false;
     std::vector<Layer> layers;
     Buf dummy, state, embed, head, final_norm, rope_b, x, qkv, att, act, part, logits, logits_host, nll, nll_host, xb, xn, qkvb, attb, actb, partb;
+    static constexpr uint32_t CAND_CAP = 4096, CAND_WORDS = 4 + 2 * CAND_CAP, STAT_WG = 64;
+    Buf cand, spart, shist;   // cand lives in host-visible memory: kernels write it, the host reads it                           // GPU-assisted sampling: candidates (header + values + ids), partials
+    VkPipeline p_stats = VK_NULL_HANDLE, p_hist = VK_NULL_HANDLE, p_collect = VK_NULL_HANDLE, p_gumbel = VK_NULL_HANDLE;
+    uint32_t sampling_counter = 0; int fallbacks = 0;
     VkCommandBuffer step[2][2]{}, batch_cb[2]{};
     int dispatches_single = 0, batch_submits = 0; double load_s = 0;
     volatile uint32_t *st = nullptr;
@@ -296,6 +322,7 @@ struct Engine {
         nll = c.buffer((VkDeviceSize)std::max(P, 1u) * 4, false); nll_host = c.buffer((VkDeviceSize)std::max(P, 1u) * 4, true, true);
         xb = c.buffer(BATCH * H * 4, false); xn = c.buffer(BATCH * H * 4, false); qkvb = c.buffer(BATCH * QN * 4, false);
         attb = c.buffer(BATCH * H * 4, false); actb = c.buffer(BATCH * I * 4, false); partb = c.buffer((VkDeviceSize)BATCH * NH * nchunk * 66 * 4, false);
+        cand = c.buffer(CAND_WORDS * 4, true, true); spart = c.buffer(STAT_WG * 8, false); shist = c.buffer(1024 * 4, false);
         load_s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_load).count();
         record_all();
     }
@@ -312,6 +339,8 @@ struct Engine {
                    p_part = pipe("attn_part.spv"), p_comb = pipe("attn_combine.spv"), p_argmax = pipe("argmax.spv"), p_nll = pipe("nll.spv"),
                    p_embed_b = pipe("embed_b.spv"), p_norm_b = pipe("rmsnorm_b.spv"), p_gemm_b = pipe("gemm_b.spv"),
                    p_swiglu_b = pipe("swiglu_b.spv"), p_rope_b = pipe("rope_b.spv"), p_part_b = pipe("attn_part_b.spv");
+        if (o.gpu_sampling) { p_stats = pipe("sample_stats.spv"); p_hist = pipe("sample_hist.spv"); p_collect = pipe("sample_collect.spv");
+                              p_gumbel = pipe("sample_gumbel.spv"); }
         VkCommandBufferAllocateInfo cai{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO}; cai.commandPool = c.pool; cai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; cai.commandBufferCount = 1;
         VkCommandBufferBeginInfo cbi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         const VkPipelineStageFlags CS = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, TR = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -319,24 +348,17 @@ struct Engine {
         const uint32_t rows_per_wg = std::max(1u, 128u / std::max(1u, c.subgroup));
         auto gemv_groups = [&](uint32_t N) { return std::min((N + rows_per_wg - 1) / rows_per_wg, 4096u); };
         enum { BIAS = 1, RES = 2, NORM = 4 };
-        struct Rec {
-            Engine &e; VkCommandBuffer cb; int n = 0;
-            void operator()(VkPipeline p, std::initializer_list<const Buf *> bufs, Push pc, uint32_t groups) {
-                if (n) mem_barrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                                   VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
-                VkDescriptorSet s = e.c.set(bufs, e.dummy);
-                vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, p);
-                vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, e.c.pl, 0, 1, &s, 0, nullptr);
-                vkCmdPushConstants(cb, e.c.pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(Push), &pc);
-                vkCmdDispatch(cb, groups, 1, 1); ++n;
-            }
+        record_candidates = [this](Rec &d) {             // members only: also used after record_all()
+            d(p_stats, {&state, &logits, &spart, &shist, &cand}, {{V}}, STAT_WG);
+            d(p_hist, {&state, &logits, &spart, &shist}, {{V, STAT_WG}}, STAT_WG);
+            d(p_collect, {&state, &logits, &spart, &shist, &cand}, {{V, STAT_WG}}, STAT_WG);
         };
         // One-token graph for `ncols` batch columns; column 0 uses cache[cur], column 1 (shadow window) cache[1 - cur].
         auto record = [&](uint32_t ncols, int cur) {
             VkPipeline p_gemv = p_gemv_n[ncols - 1], p_swiglu = p_swiglu_n[ncols - 1];
             VkCommandBuffer cb; VK(vkAllocateCommandBuffers(c.dev, &cai, &cb)); VK(vkBeginCommandBuffer(cb, &cbi));
             mem_barrier(cb, CS | TR, SW | VK_ACCESS_TRANSFER_WRITE_BIT, CS, SRW);   // order after earlier submissions / copies
-            Rec d{*this, cb};
+            Rec d{c, dummy, cb};
             d(p_embed, {&state, &embed, &x}, {{H, ncols}}, (H / 2 + 255) / 256);
             for (uint32_t l = 0; l < L; ++l) {
                 Layer &ly = layers[l]; KV &a = ly.cache[cur], &b = ly.cache[1 - cur];
@@ -354,6 +376,10 @@ struct Engine {
             d(p_gemv_n[0], {nullptr, &x, &head, nullptr, &logits, &final_norm}, {{V, H, NORM, F(eps), 1}}, gemv_groups(V));
             d(p_argmax, {&state, &logits}, {{V}}, 1);
             if (o.scoring) d(p_nll, {&state, &logits, &nll}, {{V}}, 1);
+            if (o.gpu_sampling) {                                 // both kernels exit at once unless state.smode selects them
+                record_candidates(d);
+                d(p_gumbel, {&state, &logits, &dummy}, {{V, 0}}, 1);   // the final compute->host barrier covers cand
+            }
             if (o.copy_logits) {                                  // logits to host memory for sampling, same submission
                 mem_barrier(cb, CS, SW, TR, VK_ACCESS_TRANSFER_READ_BIT);
                 VkBufferCopy r{0, 0, (VkDeviceSize)V * 4}; vkCmdCopyBuffer(cb, logits.b, logits_host.b, 1, &r);
@@ -369,7 +395,7 @@ struct Engine {
         auto record_batch = [&](int cur) {
             VkCommandBuffer cb; VK(vkAllocateCommandBuffers(c.dev, &cai, &cb)); VK(vkBeginCommandBuffer(cb, &cbi));
             mem_barrier(cb, CS | TR, SW | VK_ACCESS_TRANSFER_WRITE_BIT, CS, SRW);
-            Rec d{*this, cb};
+            Rec d{c, dummy, cb};
             d(p_embed_b, {&state, &embed, &xb}, {{H}}, (H / 2 + 255) / 256);
             for (uint32_t l = 0; l < L; ++l) {
                 Layer &ly = layers[l]; KV &a = ly.cache[cur];
@@ -404,6 +430,12 @@ struct Engine {
                     VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT);
         c.end_submit_free(cb);
     }
+    void write_buffer(const Buf &dst, const void *data, size_t bytes) {
+        memcpy(c.staging.map, data, bytes);
+        VkCommandBuffer cb = c.begin_once(); VkBufferCopy r{0, 0, bytes}; vkCmdCopyBuffer(cb, c.staging.b, dst.b, 1, &r);
+        mem_barrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
+        c.end_submit_free(cb);
+    }
     void grab(const Buf &src, const Buf &dst, VkDeviceSize bytes) {
         VkCommandBuffer cb = c.begin_once(); VkBufferCopy r{0, 0, bytes}; vkCmdCopyBuffer(cb, src.b, dst.b, 1, &r);
         mem_barrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, VK_ACCESS_HOST_READ_BIT);
@@ -416,6 +448,29 @@ struct Engine {
         }
         items.clear();
     }
+    // Sampling parameters for the next steps (state.smode: 0 greedy, 1 Gumbel-max on the GPU, 2 top-256 candidates).
+    void set_sampling(const SamplerParams &sp) {
+        st[32] = sp.temperature <= 0.0f ? 0u : (sp.top_k == 0 && sp.top_p >= 1.0f) ? 1u : 2u;
+        float T = sp.temperature > 0.0f ? sp.temperature : 1.0f; memcpy((void *)&st[33], &T, 4);
+        st[34] = (uint32_t)(sp.seed ^ (sp.seed >> 32)); st[37] = (uint32_t)std::max(sp.top_k, 0);
+        float P = sp.top_p; memcpy((void *)&st[38], &P, 4); if (!o.gpu_sampling) st[32] = 0;
+    }
+    // Next token after a full step: GPU draw, candidate draw on the host, or (fallback / no GPU sampling) full logits.
+    int next_token(Sampler &sm, uint32_t greedy_token) {
+        if (sm.greedy()) return (int)greedy_token;
+        const SamplerParams &sp = sm.params();
+        if (o.gpu_sampling) {
+            if (sp.top_k == 0 && sp.top_p >= 1.0f) return (int)st[36];
+            c.invalidate(cand); const uint32_t *cd = (const uint32_t *)cand.map; float M, Z; memcpy(&M, cd, 4); memcpy(&Z, cd + 1, 4);
+            if (cd[2] <= CAND_CAP &&
+                sm.distribution_from_candidates((const float *)(cd + 4), cd + 4 + CAND_CAP, cd[2], M, Z, cand_ids_, cand_probs_))
+                return sm.draw(cand_ids_, cand_probs_);
+            ++fallbacks; grab(logits, logits_host, (VkDeviceSize)V * 4);
+        }
+        return sm.sample(host_logits(), V);
+    }
+    std::vector<int> cand_ids_; std::vector<double> cand_probs_;
+    std::function<void(Rec &)> record_candidates;
     // Logits of the last full step (host-cached mapping, so the sampler can read it directly).
     const float *host_logits() { c.invalidate(logits_host); return (const float *)logits_host.map; }
 };
@@ -477,7 +532,7 @@ struct Session {
         } else {
             e.kv_batch(cur, pend_cur);
             const bool use_dual = active && e.o.mode == Mode::Shadow;
-            st[0] = seq[i]; st[1] = i; st[2] = slot; st[3] = slot2; st[4] = target; st[5] = i;
+            st[0] = seq[i]; st[1] = i; st[2] = slot; st[3] = slot2; st[4] = target; st[5] = i; st[35] = e.sampling_counter++;
             e.c.submit_wait(e.step[use_dual ? 1 : 0][cur]);
             ++slot; if (use_dual) { ++slot2; ++dual; }
             next = st[0];
@@ -515,12 +570,12 @@ static GenResult generate(Engine &e, Session &s, const Tokenizer &tok, const std
                           int max_new, const std::vector<int> &stop, CB on_token) {
     using clk = std::chrono::steady_clock; GenResult g; g.prompt_tokens = (int)ids.size();
     for (int id : ids) s.seq.push_back((uint32_t)id);
-    auto t0 = clk::now(); Sampler sm(sp); StreamDecoder dec(tok, true);
+    auto t0 = clk::now(); Sampler sm(sp); StreamDecoder dec(tok, true); e.set_sampling(sp);
     try {
         uint32_t greedy = s.catch_up();
         g.prefill_s = std::chrono::duration<double>(clk::now() - t0).count(); t0 = clk::now();
         for (;;) {
-            int t = sm.greedy() ? (int)greedy : sm.sample(e.host_logits(), e.V);
+            int t = e.next_token(sm, greedy);
             s.seq.push_back((uint32_t)t); ++g.generated;
             bool is_stop = std::find(stop.begin(), stop.end(), t) != stop.end();
             on_token(t, is_stop ? std::string() : dec.push(t));
@@ -588,7 +643,7 @@ int main(int argc, char **argv) {
         fs::path bundle_dir = argv[1];
         std::string prompt_s = "9707,11,1879,0", prompt_file, score_file, nll_out, dump_dir = ".", system = "You are a helpful assistant.";
         std::string tok_in, tok_out, nfc_in, nfc_out, detok_in, detok_out;
-        int n_new = -1, runs = 3; std::vector<uint32_t> dump_at; bool chat = false, serve = false; long ctx = -1;
+        int n_new = -1, runs = 3; std::vector<uint32_t> dump_at; bool chat = false, serve = false, copy_only = false, host_sampling = false; long ctx = -1; std::vector<std::string> gpu_test;
         Options opt; opt.shaders = fs::path(argv[0]).parent_path() / "shaders"; SamplerParams sp;
         for (int i = 2; i < argc; ++i) {
             std::string a = argv[i];
@@ -598,6 +653,9 @@ int main(int argc, char **argv) {
             else if (a == "--shard") opt.shard = std::stol(next()); else if (a == "--halo") opt.halo = std::stol(next()); else if (a == "--sinks") opt.sinks = std::stol(next());
             else if (a == "--dump-at") dump_at = parse_list(next()); else if (a == "--dump-dir") dump_dir = next(); else if (a == "--shaders") opt.shaders = next();
             else if (a == "--spin") opt.spin = true; else if (a == "--ctx") ctx = std::stol(next());
+            else if (a == "--copy-logits") copy_only = true;           // analysis: pay the logits copy without sampling
+            else if (a == "--host-sampling") host_sampling = true;     // V21 path: full logits copied, sampled on the CPU
+            else if (a == "--sample-test-gpu") { for (int k = 0; k < 7; ++k) gpu_test.push_back(next()); }
             else if (a == "--score-file") score_file = next(); else if (a == "--nll-out") nll_out = next();
             else if (a == "--chat") chat = true; else if (a == "--serve") serve = true; else if (a == "--system") system = next();
             else if (a == "--temperature") sp.temperature = std::stof(next()); else if (a == "--top-k") sp.top_k = std::stoi(next());
@@ -622,13 +680,55 @@ int main(int argc, char **argv) {
             return 0;
         }
         Bundle meta; meta.load_meta(bundle_dir); const uint32_t max_pos = meta.a("max_positions");
+        if (!gpu_test.empty()) {                               // GPU-assisted sampler self-test on fixed logits
+            if (gpu_test.size() != 7) throw std::runtime_error("--sample-test-gpu logits.f32 T top_k top_p draws seed out.u32");
+            opt.positions = 16; opt.gpu_sampling = true; Engine e; e.init(bundle_dir, opt);
+            std::string raw = read_text(gpu_test[0]); if (raw.size() != (size_t)e.V * 4) throw std::runtime_error("logits size != vocab");
+            e.write_buffer(e.logits, raw.data(), raw.size());
+            SamplerParams tp{std::stof(gpu_test[1]), std::stoi(gpu_test[2]), std::stof(gpu_test[3]), std::stoull(gpu_test[5])};
+            Sampler sm(tp); e.set_sampling(tp); const long draws = std::stol(gpu_test[4]); std::vector<uint32_t> counts(e.V);
+            const char *path = "candidates"; uint32_t cand_count = 0;
+            VkCommandBufferAllocateInfo cai{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO}; cai.commandPool = e.c.pool; cai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; cai.commandBufferCount = 1;
+            VkCommandBufferBeginInfo cbi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
+            VkCommandBuffer cb; VK(vkAllocateCommandBuffers(e.c.dev, &cai, &cb)); VK(vkBeginCommandBuffer(cb, &cbi));
+            const uint32_t D = 4096; Buf out = e.c.buffer(D * 4, false), out_host = e.c.buffer(D * 4, true, true);
+            if (tp.top_k == 0 && tp.top_p >= 1.0f) {
+                path = "gumbel";
+                VkDescriptorSet ds = e.c.set({&e.state, &e.logits, &out}, e.dummy); Push pc{{e.V, 1}};
+                vkCmdBindPipeline(cb, VK_PIPELINE_BIND_POINT_COMPUTE, e.p_gumbel);
+                vkCmdBindDescriptorSets(cb, VK_PIPELINE_BIND_POINT_COMPUTE, e.c.pl, 0, 1, &ds, 0, nullptr);
+                vkCmdPushConstants(cb, e.c.pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(Push), &pc); vkCmdDispatch(cb, D, 1, 1);
+                Engine::mem_barrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+                VkBufferCopy r{0, 0, D * 4}; vkCmdCopyBuffer(cb, out.b, out_host.b, 1, &r);
+                Engine::mem_barrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, VK_ACCESS_HOST_READ_BIT);
+                VK(vkEndCommandBuffer(cb));
+                for (long done = 0; done < draws; done += D) {
+                    e.st[35] = (uint32_t)done; e.c.submit_wait(cb); e.c.invalidate(out_host);
+                    const uint32_t *o = (const uint32_t *)out_host.map;
+                    for (long k = 0; k < std::min<long>(D, draws - done); ++k) ++counts[o[k]];
+                }
+            } else {
+                Rec d{e.c, e.dummy, cb}; e.record_candidates(d);            // the same three dispatches as in every step
+                Engine::mem_barrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, VK_ACCESS_HOST_READ_BIT);
+                VK(vkEndCommandBuffer(cb)); e.c.submit_wait(cb); e.c.invalidate(e.cand);
+                const uint32_t *cd = (const uint32_t *)e.cand.map; float M, Z; memcpy(&M, cd, 4); memcpy(&Z, cd + 1, 4);
+                std::vector<int> ids; std::vector<double> probs; cand_count = cd[2];
+                if (cd[2] > Engine::CAND_CAP ||
+                    !sm.distribution_from_candidates((const float *)(cd + 4), cd + 4 + Engine::CAND_CAP, cd[2], M, Z, ids, probs)) {
+                    path = "fallback"; std::vector<float> lg(e.V); memcpy(lg.data(), raw.data(), raw.size()); sm.distribution(lg.data(), e.V, ids, probs);
+                }
+                for (long d = 0; d < draws; ++d) ++counts[(size_t)sm.draw(ids, probs)];
+            }
+            write_bytes(gpu_test[6], counts.data(), counts.size() * 4);
+            printf("{\"path\": \"%s\", \"draws\": %ld, \"candidates\": %u}\n", path, draws, cand_count); return 0;
+        }
         // ------------------------------------------------ chat / serve
         if (chat || serve) {
             if (!have_tok) throw std::runtime_error("bundle has no tokenizer.json");
 #ifdef _WIN32
             if (serve) { _setmode(_fileno(stdin), _O_BINARY); _setmode(_fileno(stdout), _O_BINARY); }
 #endif
-            opt.positions = (uint32_t)std::min<long>(ctx > 0 ? ctx : (opt.full ? 8192 : max_pos), max_pos); opt.copy_logits = true;
+            opt.positions = (uint32_t)std::min<long>(ctx > 0 ? ctx : (opt.full ? 8192 : max_pos), max_pos); opt.gpu_sampling = true;
             if (n_new < 0) n_new = 512;
             if (chat && sp.temperature == 0.0f && sp.top_k == 0) { sp.temperature = 0.7f; sp.top_k = 40; sp.top_p = 0.9f; }
             Engine e; e.init(bundle_dir, opt); Session s(e);
@@ -703,7 +803,8 @@ int main(int argc, char **argv) {
         if (scoring) n_new = 0;
         const uint32_t P = (uint32_t)prompt.size(), total = P + (uint32_t)n_new;
         const bool sampling = sp.temperature > 0.0f;
-        opt.scoring = scoring; opt.positions = total; opt.copy_logits = sampling;
+        opt.scoring = scoring; opt.positions = total; opt.gpu_sampling = sampling && !host_sampling;
+        opt.copy_logits = (sampling && host_sampling) || copy_only;
         Engine e; e.init(bundle_dir, opt);
         using clk = std::chrono::steady_clock; auto secs = [](clk::time_point a) { return std::chrono::duration<double>(clk::now() - a).count(); };
         printf("{\n  \"device\": \"%s\", \"subgroup_size\": %u, \"shared_bytes\": %u, \"dispatches_per_token\": %d, \"load_seconds\": %.3f,\n"
@@ -714,14 +815,19 @@ int main(int argc, char **argv) {
                e.c.spin ? "spin" : "sleep", e.S, e.HALO, e.K, e.W, e.nchunk, (unsigned long long)2 * e.L * e.W * e.slot_bytes, P, n_new,
                scoring ? "true" : "false", sp.temperature, sp.top_k, sp.top_p, (unsigned long long)sp.seed);
         for (int r = 0; r < runs; ++r) {
-            Session s(e); s.seq = prompt; e.batch_submits = 0; Sampler sm(sp);
+            Session s(e); s.seq = prompt; e.batch_submits = 0; e.fallbacks = 0; e.sampling_counter = 0; Sampler sm(sp); e.set_sampling(sp);
             std::vector<double> lat; lat.reserve((size_t)n_new); double prefill_s = 0, decode_s = 0, lat_max = 0; uint32_t lat_max_pos = 0;
+            double step_s = 0, sample_s = 0;   // decode-phase breakdown: GPU step (incl. sampling kernels / copies) vs host sampling
             for (uint32_t i = 0; i < total; ++i) {
                 auto t0 = clk::now();
                 const bool need = scoring || i + 1 >= P || !e.batch_ok();
                 uint32_t next = s.step(need, scoring && i + 1 < total ? s.seq[i + 1] : 0);
-                if (need && sampling && i + 1 >= P) next = (uint32_t)sm.sample(e.host_logits(), e.V);
+                double t_step = secs(t0);
+                if (need && sampling && i + 1 >= P) {
+                    auto ts = clk::now(); next = (uint32_t)e.next_token(sm, next); sample_s += secs(ts);
+                }
                 double dt = secs(t0);
+                if (i >= P) step_s += t_step;
                 if (i < P) prefill_s += dt; else { decode_s += dt; lat.push_back(dt); if (dt > lat_max) { lat_max = dt; lat_max_pos = i; } }
                 if (r == 0 && std::find(dump_at.begin(), dump_at.end(), i) != dump_at.end()) {
                     e.grab(e.logits, e.logits_host, (VkDeviceSize)e.V * 4);
@@ -739,9 +845,10 @@ int main(int argc, char **argv) {
             auto q = [&](double f) { return sl.empty() ? 0.0 : 1000 * sl[std::min(sl.size() - 1, (size_t)(f * (sl.size() - 1) + 0.5))]; };
             printf("    {\"prefill_seconds\": %.6f, \"decode_seconds\": %.6f, \"decode_tok_s\": %.3f, \"lat_median_ms\": %.4f, \"lat_p99_ms\": %.4f,"
                    " \"lat_max_ms\": %.4f, \"lat_max_pos\": %u, \"boundaries\": %d, \"rebuild_tokens\": %d, \"dual_submits\": %d, \"shadow_batch_tokens\": %d,"
-                   " \"batch_submits\": %d, \"nll_mean\": %.8f, \"tokens\": [",
+                   " \"batch_submits\": %d, \"nll_mean\": %.8f, \"step_ms_mean\": %.4f, \"sample_ms_mean\": %.4f, \"fallbacks\": %d, \"tokens\": [",
                    prefill_s, decode_s, n_new ? n_new / decode_s : 0.0, q(0.5), q(0.99), 1000 * lat_max, lat_max_pos,
-                   s.boundaries, s.extra, s.dual, s.shadow_items, e.batch_submits, total > 1 ? nll_sum / (total - 1) : 0.0);
+                   s.boundaries, s.extra, s.dual, s.shadow_items, e.batch_submits, total > 1 ? nll_sum / (total - 1) : 0.0,
+                   n_new ? 1000 * step_s / n_new : 0.0, n_new ? 1000 * sample_s / n_new : 0.0, e.fallbacks);
             for (size_t i = P; i < s.seq.size(); ++i) printf("%s%u", i > P ? "," : "", s.seq[i]);
             printf("]}%s\n", r + 1 < runs ? "," : "");
         }

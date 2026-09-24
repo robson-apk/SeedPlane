@@ -4,6 +4,10 @@ All notable changes are documented here. SeedPlane is currently alpha research s
 
 ## Unreleased
 
+- V22: sampling moved to the GPU. Temperature-only uses Gumbel-max (1% cost, was 43%); top-k/top-p use GPU statistics,
+  a histogram threshold and a small candidate list (top-p 0.9: 0.96× greedy, was 0.67×). The pre-registered ≥0.95×
+  gate fails for k=40/p=0.9 (0.9486×). Found afterwards: top-p 0.99 falls back to the host (116.8 tok/s). Fix planned
+  as V22b.
 - V21: the native runtime reads and writes text. It adds a C++ Qwen2 byte-level BPE tokenizer (NFC + split regex,
   identical to HF `tokenizers` on all of WikiText-2), temperature/top-k/top-p sampling, persistent chat sessions
   (continuation equals fresh prefill), `qwen_vk --chat` / `--serve`, `seedplane chat|generate --native`,

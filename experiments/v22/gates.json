@@ -1,0 +1,383 @@
+{
+ "G1": {
+  "cases": [
+   {
+    "logits": "2999",
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "path": "candidates",
+    "candidates": 40,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "logits": "2999",
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "path": "gumbel",
+    "candidates": 0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 0.00013480608451363959
+   },
+   {
+    "logits": "2999",
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "path": "candidates",
+    "candidates": 1,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "logits": "3500",
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "path": "candidates",
+    "candidates": 40,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "logits": "3500",
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "path": "gumbel",
+    "candidates": 0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 3.874380021286382e-06
+   },
+   {
+    "logits": "3500",
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "path": "candidates",
+    "candidates": 1,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "logits": "4020",
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "path": "candidates",
+    "candidates": 42,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "logits": "4020",
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "path": "gumbel",
+    "candidates": 0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 1.9253219878747534e-05
+   },
+   {
+    "logits": "4020",
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "path": "candidates",
+    "candidates": 1,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "logits": "1000",
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "path": "candidates",
+    "candidates": 40,
+    "support": 10,
+    "outside_draws": 0,
+    "tv": 0.0007552321213406482
+   },
+   {
+    "logits": "1000",
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "path": "gumbel",
+    "candidates": 0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 0.004109255477867609
+   },
+   {
+    "logits": "1000",
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "path": "candidates",
+    "candidates": 2,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "logits": "2000",
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "path": "candidates",
+    "candidates": 41,
+    "support": 10,
+    "outside_draws": 0,
+    "tv": 0.0009903672349427049
+   },
+   {
+    "logits": "2000",
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "path": "gumbel",
+    "candidates": 0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 0.004716527056712653
+   },
+   {
+    "logits": "2000",
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "path": "candidates",
+    "candidates": 2,
+    "support": 2,
+    "outside_draws": 0,
+    "tv": 0.00027741557948079976
+   },
+   {
+    "logits": "3000",
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "path": "candidates",
+    "candidates": 40,
+    "support": 2,
+    "outside_draws": 0,
+    "tv": 0.0001671527925286298
+   },
+   {
+    "logits": "3000",
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "path": "gumbel",
+    "candidates": 0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 0.0005845830995495654
+   },
+   {
+    "logits": "3000",
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "path": "candidates",
+    "candidates": 1,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "logits": "synthetic_s2",
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "path": "candidates",
+    "candidates": 42,
+    "support": 32,
+    "outside_draws": 0,
+    "tv": 0.0018684031794968317
+   },
+   {
+    "logits": "synthetic_s2",
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "path": "gumbel",
+    "candidates": 0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 0.00831161173135552
+   },
+   {
+    "logits": "synthetic_s2",
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "path": "candidates",
+    "candidates": 371,
+    "support": 348,
+    "outside_draws": 0,
+    "tv": 0.006335028793523815
+   },
+   {
+    "logits": "synthetic_s4",
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "path": "candidates",
+    "candidates": 40,
+    "support": 7,
+    "outside_draws": 0,
+    "tv": 0.0004658579130630697
+   },
+   {
+    "logits": "synthetic_s4",
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "path": "gumbel",
+    "candidates": 0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 0.006145988644815267
+   },
+   {
+    "logits": "synthetic_s4",
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "path": "candidates",
+    "candidates": 2,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   }
+  ],
+  "fallbacks": 0,
+  "max_tv": 0.00831161173135552,
+  "pass": true
+ },
+ "G2": {
+  "tok_s": {
+   "greedy": [
+    262.433,
+    264.087,
+    266.78
+   ],
+   "T0.7_k40_p0.9": [
+    246.368,
+    250.541,
+    250.502
+   ],
+   "T1.0_k0_p1": [
+    259.524,
+    261.362,
+    263.005
+   ],
+   "T0.7_k0_p0.9": [
+    253.198,
+    254.674,
+    252.453
+   ]
+  },
+  "median": {
+   "greedy": 264.087,
+   "T0.7_k40_p0.9": 250.502,
+   "T1.0_k0_p1": 261.362,
+   "T0.7_k0_p0.9": 253.198
+  },
+  "ratio_vs_greedy": {
+   "T0.7_k40_p0.9": 0.9485586189399706,
+   "T1.0_k0_p1": 0.9896814307406273,
+   "T0.7_k0_p0.9": 0.9587673759026382
+  },
+  "lat_median_ms": {
+   "greedy": [
+    3.4078,
+    3.4081,
+    3.4066
+   ],
+   "T0.7_k40_p0.9": [
+    3.592,
+    3.5805,
+    3.5955
+   ],
+   "T1.0_k0_p1": [
+    3.4463,
+    3.4459,
+    3.4465
+   ],
+   "T0.7_k0_p0.9": [
+    3.485,
+    3.4853,
+    3.4914
+   ]
+  },
+  "fallbacks": {
+   "greedy": [
+    0,
+    0,
+    0
+   ],
+   "T0.7_k40_p0.9": [
+    0,
+    0,
+    0
+   ],
+   "T1.0_k0_p1": [
+    0,
+    0,
+    0
+   ],
+   "T0.7_k0_p0.9": [
+    0,
+    0,
+    0
+   ]
+  },
+  "pass": false
+ },
+ "G3": {
+  "greedy_tokens_equal_v20_all_rounds": true,
+  "pass": true
+ },
+ "G4": {
+  "v21_G5": {
+   "turn1_tokens": 64,
+   "turn2_tokens": 19,
+   "conversation_positions": 1377,
+   "crossed_boundary_512": true,
+   "equal": true,
+   "turn2_text": "Ise Class Naval Guns: Type 91 Armour Piercing, Capped Shells",
+   "turn2_text_fresh": "Ise Class Naval Guns: Type 91 Armour Piercing, Capped Shells",
+   "pass": true
+  },
+  "v21_G6": {
+   "convert_ok": true,
+   "convert_out": "native bundle written to C:\\Users\\Windows 11\\sp_v19\\v21\\cli.sp  (seedplane-bundle/2, plan {'shard': 512, 'halo': 256, 'sinks': 4}, weights sha256 ef9f3f59f925e46a...)",
+   "chat_returncode": 0,
+   "answers": [
+    "A GPU (Gráficos Processadores) é um dispositivo especializado em processamento de arquivos e imagens, que funciona em paralelo e é usado para realizar tarefas computacionais complexas, como análise de imag",
+    "A CPU (Computador Processador) é um dispositivo especializado em processamento de arquivos e imagens, que funciona em paralelo e é usado para realizar tarefas computacionais complexas, como análise de imagens"
+   ],
+   "stderr_tail": "",
+   "seconds": 54.53054761886597,
+   "pass": true
+  },
+  "v21_G4_ratio_same_binary": 0.957348182821681,
+  "pass": true
+ }
+}

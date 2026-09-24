@@ -53,6 +53,42 @@ public:
         } else for (int i : cand_) { ids.push_back(i); probs.push_back(std::exp((logits[i] - mx) / T) / z); }
         double s = 0; for (double q : probs) s += q; for (double &q : probs) q /= s;
     }
+    // Same distribution from GPU candidates: every token with logit >= M - 30 T (vals/idx, any order), the
+    // full-vocabulary max M and Z = sum exp((l - M) / T). Returns false when the result could depend on tokens outside
+    // the candidates (top-p mass not reached); the caller then falls back to distribution() over the full logits.
+    // With top-k > candidates, the missing tokens (each < e^-30 of the top token) are dropped (documented approximation).
+    bool distribution_from_candidates(const float *vals, const uint32_t *idx, size_t n, float M, float Z,
+                                      std::vector<int> &ids, std::vector<double> &probs) {
+        const double T = p_.temperature; ids.clear(); probs.clear();
+        if (n == 0) return false;
+        order_.resize(n); std::iota(order_.begin(), order_.end(), 0);
+        auto desc = [&](int a, int b) { return vals[a] > vals[b] || (vals[a] == vals[b] && idx[a] < idx[b]); };
+        if (p_.top_k > 0) {
+            const size_t kk = std::min(n, (size_t)p_.top_k);
+            std::nth_element(order_.begin(), order_.begin() + (kk - 1), order_.end(), desc);
+            const float cutoff = vals[order_[kk - 1]];
+            size_t kept = (size_t)(std::partition(order_.begin(), order_.end(), [&](int a) { return vals[a] >= cutoff; }) - order_.begin());
+            std::sort(order_.begin(), order_.begin() + kept, desc);
+            const double mx = vals[order_[0]]; double z = 0;
+            for (size_t i = 0; i < kept; ++i) z += std::exp((vals[order_[i]] - mx) / T);
+            double cum = 0;
+            for (size_t i = 0; i < kept; ++i) {
+                if (p_.top_p < 1.0f && cum > p_.top_p) break;
+                double q = std::exp((vals[order_[i]] - mx) / T) / z; ids.push_back((int)idx[order_[i]]); probs.push_back(q); cum += q;
+            }
+        } else {                                                // top-p over the full-vocabulary softmax
+            std::sort(order_.begin(), order_.end(), desc);
+            double cum = 0; size_t i = 0;
+            for (; i < n; ++i) {
+                if (cum > p_.top_p) break;
+                double q = std::exp(((double)vals[order_[i]] - M) / T) / Z; ids.push_back((int)idx[order_[i]]); probs.push_back(q); cum += q;
+            }
+            if (i == n && cum <= p_.top_p) return false;        // mass not reached inside the candidates
+        }
+        double s = 0; for (double q : probs) s += q; for (double &q : probs) q /= s;
+        return true;
+    }
+    const SamplerParams &params() const { return p_; }
     // One draw from a filtered distribution (inverse CDF with a 64-bit uniform).
     int draw(const std::vector<int> &ids, const std::vector<double> &probs) {
         double u = std::uniform_real_distribution<double>(0.0, 1.0)(rng_), acc = 0;
@@ -65,5 +101,5 @@ public:
         return draw(ids_, probs_);
     }
 private:
-    SamplerParams p_; std::mt19937_64 rng_; std::vector<int> cand_, ids_; std::vector<double> probs_; std::vector<float> heap_;
+    SamplerParams p_; std::mt19937_64 rng_; std::vector<int> cand_, ids_, order_; std::vector<double> probs_; std::vector<float> heap_;
 };
