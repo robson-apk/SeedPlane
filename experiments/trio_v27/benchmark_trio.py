@@ -13,11 +13,13 @@ import hashlib
 import json
 import math
 import os
+import platform
 import select
 import shlex
 import subprocess
 import time
 from collections import deque
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -249,6 +251,8 @@ def main():
     parser.add_argument("--identity", action="append", required=True, type=parse_identity,
                         help="repeat: NAME|runtime_sha256|bundle_sha256|weights_sha256|tokenizer_sha256|plan_sha256")
     parser.add_argument("--output", required=True, type=Path, help="new output JSON path; existing file is rejected")
+    parser.add_argument("--network-note", action="append", required=True,
+                        help="observed link/RTT qualification; repeat for each caveat or measurement")
     parser.add_argument("--rounds", type=int, default=ROUND_COUNT)
     args = parser.parse_args()
     names = {row[0] for row in args.worker}
@@ -293,6 +297,9 @@ def main():
         payload = {
             "protocol": "V27-T3",
             "source_commit": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+            "recorded_at_utc": datetime.now(timezone.utc).isoformat(),
+            "controller_platform": platform.platform(),
+            "network_notes": args.network_note,
             "kind": "independent queued requests; not one-request distributed decoding",
             "workload": {"prompt": PROMPT, "requests": COUNT, "tokens_per_request": MAX_NEW,
                          "temperature": 0, "top_k": 0, "top_p": 1,
