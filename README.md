@@ -33,10 +33,10 @@ Want to help test it? Start with the [native runtime guide](native/vulkan_decode
 SeedPlane also explores splitting long prompts into independent windows for parallel processing. This changes the model's attention pattern, so quality depends on shard and halo sizes: +8–10% perplexity at 4k tokens with S=512/H=256 (V20). The results and failed hypotheses are documented below.
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT"></a>
-  <a href="experiments/v8/RESULTS.md"><img src="https://img.shields.io/badge/V8-2%C3%97%20faster%20%7C%20same--or--better%20quality-success.svg" alt="2x faster, same-or-better quality"></a>
-  <a href="experiments/"><img src="https://img.shields.io/badge/science-pre--registered-8A2BE2.svg" alt="pre-registered"></a>
-  <img src="https://img.shields.io/badge/runs%20on-CPU%20%7C%20Intel%20Arc%20%7C%20Apple%20Silicon-orange.svg" alt="hardware">
+  <a href="LICENSE">MIT License</a> &nbsp;·&nbsp;
+  <a href="experiments/v8/RESULTS.md">Open benchmark results</a> &nbsp;·&nbsp;
+  <a href="experiments/">Pre-registered experiments</a> &nbsp;·&nbsp;
+  CPU, Intel Arc &amp; Apple Silicon
 </p>
 
 <p align="center">
@@ -164,8 +164,6 @@ not evidence that combining devices speeds up one decode.
 | Apple M4 | 64.9 tok/s | 1.027× | 1.033× | 1.013× | 1.013× | 1.016× |
 | Radeon RX 570 | 116.6 tok/s | 0.993× | 0.978× | 0.994× | 0.992× | 0.983× |
 
-<p align="center"><img src="docs/img/v22b-sampling.gif" alt="The local runtime has been tested separately on B580, RX 570 and M4" width="760"></p>
-
 The fixed G1 distribution gate passed 47/48 cases; the remaining high-support case measured TV 0.04673 against a strict
 0.01 threshold at one million draws. It is recorded as a failure, not waived. G3 greedy regression and G4 session/CLI
 passed on Windows; the same session-continuation check passed on macOS and Linux. The experiment, raw measurements,
@@ -181,8 +179,6 @@ worker/pool and does not accelerate one request cooperatively; production integr
 remain future work. Full data and caveats are in
 [`experiments/v22b/RESULTS.md`](experiments/v22b/RESULTS.md). Build prerequisites and commands are in
 [`native/vulkan_decode/README.md`](native/vulkan_decode/README.md).
-
-<p align="center"><img src="docs/img/v22b-fleet.gif" alt="A 24-request test completed sooner on B580 plus RX 570 than on B580 alone" width="760"></p>
 
 ---
 

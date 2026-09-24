@@ -15,7 +15,7 @@ EXP = REPO / 'experiments'
 import os
 CHECK = Path(os.environ['CHART_CHECK']) if os.environ.get('CHART_CHECK') else None
 
-# Reference palette (dataviz skill): slots 1-3, validated all-pairs in both modes. Color follows the method everywhere.
+# SeedPlane's README visual system: warm paper, ink, and stable colors for each method.
 THEMES = {
     'light': dict(surface='#fcfcfb', text='#0b0b0b', text2='#52514e', grid='#e4e3df', ref='#8a8984',
                   sp='#2a78d6', trad='#eb6834', v8='#1baf7a'),
@@ -25,15 +25,17 @@ THEMES = {
 NAMES = {'sp': 'SeedPlane (optimized)', 'trad': 'Traditional Transformer', 'v8': 'SeedPlane (V8)'}
 
 
-def base(t, title, subtitle, w=7.2, h=3.9):
+def base(t, title, subtitle, w=8.4, h=4.9):
     fig, ax = plt.subplots(figsize=(w, h), dpi=100)
+    plt.rcParams['font.family'] = 'DejaVu Sans'
     fig.patch.set_facecolor(t['surface']); ax.set_facecolor(t['surface'])
-    for s in ('top', 'right'): ax.spines[s].set_visible(False)
-    for s in ('left', 'bottom'): ax.spines[s].set_color(t['grid'])
-    ax.tick_params(colors=t['text2'], labelsize=9, length=0); ax.grid(axis='y', color=t['grid'], linewidth=0.8); ax.set_axisbelow(True)
-    fig.text(0.02, 0.965, title, fontsize=13, fontweight='bold', color=t['text'], va='top')
-    fig.text(0.02, 0.885, subtitle, fontsize=9, color=t['text2'], va='top')
-    fig.subplots_adjust(top=0.78, left=0.1, right=0.78, bottom=0.14)
+    for s in ('top', 'right', 'left'): ax.spines[s].set_visible(False)
+    ax.spines['bottom'].set_color(t['grid'])
+    ax.tick_params(colors=t['text2'], labelsize=9, length=0, pad=7)
+    ax.grid(axis='y', color=t['grid'], linewidth=0.8); ax.set_axisbelow(True)
+    fig.text(0.035, 0.95, title, fontsize=15, fontweight='bold', color=t['text'], va='top')
+    fig.text(0.035, 0.885, subtitle, fontsize=9.5, color=t['text2'], va='top')
+    fig.subplots_adjust(top=0.77, left=0.12, right=0.77, bottom=0.15)
     return fig, ax
 
 
@@ -41,7 +43,7 @@ def lines(ax, t, xs, series, fmt, min_gap_px=38, names=None):
     """Direct labels at the line ends, nudged apart so they never collide."""
     names = names or NAMES
     for key, ys in series.items():
-        ax.plot(xs, ys, color=t[key], linewidth=2, marker='o', markersize=6, markeredgecolor=t['surface'], markeredgewidth=1.5, zorder=3)
+        ax.plot(xs, ys, color=t[key], linewidth=2.6, marker='o', markersize=7, markeredgecolor=t['surface'], markeredgewidth=1.8, zorder=3)
     ax.figure.canvas.draw()
     ends = sorted(((ax.transData.transform((xs[-1], ys[-1]))[1], key, ys[-1]) for key, ys in series.items()), reverse=True)
     placed = []
@@ -53,7 +55,10 @@ def lines(ax, t, xs, series, fmt, min_gap_px=38, names=None):
 
 
 def save(fig, name, mode):
-    fig.savefig(OUT / f'{name}-{mode}.svg', facecolor=fig.get_facecolor())
+    svg = OUT / f'{name}-{mode}.svg'
+    fig.savefig(svg, facecolor=fig.get_facecolor())
+    # Matplotlib emits indentation spaces at the end of SVG path lines; keep generated diffs clean.
+    svg.write_text('\n'.join(line.rstrip() for line in svg.read_text().splitlines()) + '\n')
     if CHECK: fig.savefig(CHECK / f'{name}-{mode}.png', facecolor=fig.get_facecolor())
     plt.close(fig)
 
