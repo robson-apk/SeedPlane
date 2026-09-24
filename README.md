@@ -129,6 +129,32 @@ Measured on an Arc B580 with Qwen2.5-0.5B at 3–4k tokens of context
 The native tokenizer matches HF `tokenizers` token for token on all of WikiText-2 (298,938 tokens). The SeedPlane plan
 still costs +8–10% perplexity at 4k tokens (S=512/H=256) vs full attention. Qwen2 family only, one GPU measured.
 
+#### V22b: Vulkan sampling and three-device validation
+
+V22b moves top-k/top-p selection and sampling to Vulkan for the native decoder. Builds were tested on three hosts:
+Ryzen 5 5600X + Intel Arc B580 (Windows), Apple M4 (MoltenVK), and Xeon E5-2650 v2 + Radeon RX 570 (RADV). All three
+passed the pre-registered fixed-mode
+decode-speed floor (each sampling configuration ≥0.95× greedy on that same device). This is a per-device runtime result,
+not evidence that combining devices speeds up one decode.
+
+| Device | Median greedy | T=1 | k40+p0.9 | p0.9 | p0.99 | k200 |
+|---|---:|---:|---:|---:|---:|---:|
+| Arc B580 | 264 tok/s | 1.004× | 0.974× | 0.983× | 0.976× | 0.973× |
+| Apple M4 | 64.9 tok/s | 1.027× | 1.033× | 1.013× | 1.013× | 1.016× |
+| Radeon RX 570 | 116.6 tok/s | 0.993× | 0.978× | 0.994× | 0.992× | 0.983× |
+
+<p align="center"><img src="docs/img/v22b-sampling.gif" alt="Per-device V22b sampling decode speed ratios versus greedy on B580, M4 and RX 570" width="900"></p>
+
+The fixed G1 distribution gate passed 47/48 cases; the remaining high-support case measured TV 0.04673 against a strict
+0.01 threshold at one million draws. It is recorded as a failure, not waived. G3 greedy regression and G4 session/CLI
+passed on Windows; the same session-continuation check passed on macOS and Linux. The experiment, raw measurements,
+reproduction scripts, protocol, and known limitations are in [`experiments/v22b/`](experiments/v22b/RESULTS.md).
+
+This does **not** yet demonstrate distributed autoregressive inference or an aggregate multi-device speedup. The
+current milestone validates the local Vulkan sampler/runtime on three distinct GPUs; the cluster worker/pool integration
+and end-to-end throughput experiment remain future work. Build prerequisites and commands are in
+[`native/vulkan_decode/README.md`](native/vulkan_decode/README.md).
+
 ---
 
 ## From diffusion research to real-model prefill

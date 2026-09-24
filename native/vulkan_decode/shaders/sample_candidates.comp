@@ -1,0 +1,53 @@
+#version 450
+// Exact top-k then top-p Gumbel sampling from the <=256 GPU-collected candidates; one workgroup per test draw.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_;
+    uint btok[8]; uint bpos[8]; uint bslot[8]; uint smode; float stemp; uint sseed; uint sctr; uint sampled; uint stopk; float stopp; };
+layout(std430, binding = 1) readonly buffer C { uint cand[]; };
+layout(std430, binding = 2) writeonly buffer O { uint draws[]; };
+layout(push_constant) uniform P { uint test; } p;
+const uint CAP = 256u;
+shared float v[CAP]; shared uint id[CAP]; shared float score[CAP]; shared uint best_id[CAP]; shared uint keep_count;
+uint pcg(uint x) { uint s = x * 747796405u + 2891336453u; uint w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u; return (w >> 22u) ^ w; }
+float gumbel(uint h) {
+    float L;
+    if (h < 0x80000000u) L = -log((float(h) + 0.5) * 2.3283064e-10);
+    else { float x = (float(~h) + 0.5) * 2.3283064e-10; L = x < 1e-3 ? x * (1.0 + 0.5 * x) : -log(1.0 - x); }
+    return -log(L);
+}
+bool before(float a, uint ai, float b, uint bi) { return a > b || (a == b && ai < bi); }
+void main() {
+    uint t = gl_LocalInvocationID.x, n = min(cand[2], CAP);
+    v[t] = t < n ? uintBitsToFloat(cand[4u + t]) : -3.4e38;
+    id[t] = t < n ? cand[4u + CAP + t] : 0xffffffffu;
+    barrier();
+    if (cand[2] > CAP) { if (t == 0u) draws[gl_WorkGroupID.x] = 0xffffffffu; return; }
+    for (uint k = 2u; k <= CAP; k <<= 1u) for (uint j = k >> 1u; j > 0u; j >>= 1u) {
+        uint other = t ^ j;
+        if (other > t) {
+            bool dir = (t & k) == 0u;
+            bool bt = before(v[t], id[t], v[other], id[other]);
+            bool bo = before(v[other], id[other], v[t], id[t]);
+            if ((dir && bo) || (!dir && bt)) { float fv = v[t]; v[t] = v[other]; v[other] = fv; uint iv = id[t]; id[t] = id[other]; id[other] = iv; }
+        }
+        barrier();
+    }
+    if (t == 0u) {
+        uint nk = min(stopk, n);
+        while (nk < n && v[nk] == v[nk - 1u]) ++nk;
+        float z = 0.0;
+        for (uint i = 0u; i < nk; ++i) z += exp((v[i] - v[0]) / stemp);
+        float cumulative = 0.0; keep_count = 0u;
+        for (uint i = 0u; i < nk; ++i) { if (cumulative > stopp) break; cumulative += exp((v[i] - v[0]) / stemp) / z; ++keep_count; }
+    }
+    barrier();
+    uint ctr = sctr + gl_WorkGroupID.x, key = pcg(ctr ^ pcg(sseed));
+    score[t] = t < keep_count ? v[t] / stemp + gumbel(pcg(id[t] ^ key)) : -3.4e38;
+    best_id[t] = t < keep_count ? id[t] : 0xffffffffu;
+    barrier();
+    for (uint s = 128u; s > 0u; s >>= 1u) {
+        if (t < s && (score[t + s] > score[t] || (score[t + s] == score[t] && best_id[t + s] < best_id[t]))) { score[t] = score[t + s]; best_id[t] = best_id[t + s]; }
+        barrier();
+    }
+    if (t == 0u) draws[gl_WorkGroupID.x] = p.test != 0u ? best_id[0] : best_id[0];
+}

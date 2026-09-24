@@ -1,26 +1,33 @@
 #version 450
-// top-k / top-p sampling (smode == 2), pass 1 of 3: per-workgroup max and sum of exp(l/T - max) (online);
-// workgroup 0 also clears the histogram and the candidate counter for this step.
+// top-k / top-p sampling (smode == 2), pass 1 of 4: per-workgroup max and sum of exp(l/T - max) (online).
+// Workgroup 0 also clears the histograms and the candidate counter for this step.
 layout(local_size_x = 256) in;
 layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_;
     uint btok[8]; uint bpos[8]; uint bslot[8]; uint smode; float stemp; uint sseed; uint sctr; uint sampled; uint stopk; float stopp; };
 layout(std430, binding = 1) readonly buffer L { float logits[]; };
 layout(std430, binding = 2) writeonly buffer Part { vec2 part[]; };
-layout(std430, binding = 3) writeonly buffer Hs { uint hist[]; };
+layout(std430, binding = 3) writeonly buffer Sh { uint sh[]; };
 layout(std430, binding = 4) writeonly buffer C { uint cand[]; };
 layout(push_constant) uniform P { uint n; } p;
+#include "sample_layout.glsl"
 shared float sm[256]; shared float ss[256];
 void main() {
     if (smode != 2u) return;
     uint t = gl_LocalInvocationID.x, stride = gl_NumWorkGroups.x * 256u; float invT = 1.0 / stemp, m = -3.4e38, s = 0.0;
-    if (gl_WorkGroupID.x == 0u) { for (uint b = t; b < 1024u; b += 256u) hist[b] = 0u; if (t == 0u) cand[2] = 0u; }
+    bool need_mass = stopk == 0u || stopp < 1.0;
+    if (gl_WorkGroupID.x == 0u) { for (uint b = t; b < SH_WORDS; b += 256u) sh[b] = 0u; if (t == 0u) cand[2] = 0u; }
     for (uint i = gl_WorkGroupID.x * 256u + t; i < p.n; i += stride) {
         float z = logits[i] * invT;
-        if (z > m) { s = s * exp(m - z) + 1.0; m = z; } else s += exp(z - m);
+        if (z > m) { if (need_mass) s = s * exp(m - z) + 1.0; m = z; }
+        else if (need_mass) s += exp(z - m);
     }
     sm[t] = m; ss[t] = s; barrier();
     for (uint k = 128; k > 0; k >>= 1) {
-        if (t < k) { float a = sm[t], b = sm[t + k], mm = max(a, b); ss[t] = ss[t] * exp(a - mm) + ss[t + k] * exp(b - mm); sm[t] = mm; }
+        if (t < k) {
+            float a = sm[t], b = sm[t + k], mm = max(a, b);
+            if (need_mass) ss[t] = ss[t] * exp(a - mm) + ss[t + k] * exp(b - mm);
+            sm[t] = mm;
+        }
         barrier();
     }
     if (t == 0) part[gl_WorkGroupID.x] = vec2(sm[0], ss[0]);

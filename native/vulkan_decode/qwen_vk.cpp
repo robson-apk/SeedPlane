@@ -255,7 +255,8 @@ struct Rec {
 
 struct Options {
     fs::path shaders; Mode mode = Mode::ShadowBatch; bool full = false, old_attn = false, spin = false, scoring = false, copy_logits = false;
-    bool gpu_sampling = false;   // V22: Gumbel-max / top-256 candidate kernels in every step submission
+    bool gpu_sampling = false, copy_candidates = false, dynamic_sampling = false;
+    uint32_t fixed_sampling_mode = 0;   // 0 greedy, 1 temperature/Gumbel, 2 top-k/top-p
     long shard = -1, halo = -1, sinks = -1; uint32_t positions = 0;   // positions: RoPE table size and full-attention window
 };
 
@@ -265,9 +266,10 @@ struct Engine {
     bool two_caches = false;
     std::vector<Layer> layers;
     Buf dummy, state, embed, head, final_norm, rope_b, x, qkv, att, act, part, logits, logits_host, nll, nll_host, xb, xn, qkvb, attb, actb, partb;
-    static constexpr uint32_t CAND_CAP = 4096, CAND_WORDS = 4 + 2 * CAND_CAP, STAT_WG = 64;
-    Buf cand, spart, shist;   // cand lives in host-visible memory: kernels write it, the host reads it                           // GPU-assisted sampling: candidates (header + values + ids), partials
-    VkPipeline p_stats = VK_NULL_HANDLE, p_hist = VK_NULL_HANDLE, p_collect = VK_NULL_HANDLE, p_gumbel = VK_NULL_HANDLE;
+    // V22b sampling scratch: sh = 2-level histograms + selection scalars (sample_layout.glsl); cand = top-k set for top-k+top-p.
+    static constexpr uint32_t CAND_CAP = 256, CAND_WORDS = 4 + 2 * CAND_CAP, STAT_WG = 64, SH_WORDS = 4104;
+    Buf cand, cand_host, spart, shist;
+    VkPipeline p_stats = VK_NULL_HANDLE, p_hist = VK_NULL_HANDLE, p_hist2 = VK_NULL_HANDLE, p_final = VK_NULL_HANDLE, p_gumbel = VK_NULL_HANDLE, p_candidates = VK_NULL_HANDLE;
     uint32_t sampling_counter = 0; int fallbacks = 0;
     VkCommandBuffer step[2][2]{}, batch_cb[2]{};
     int dispatches_single = 0, batch_submits = 0; double load_s = 0;
@@ -333,7 +335,8 @@ struct Engine {
         nll = c.buffer((VkDeviceSize)std::max(P, 1u) * 4, false); nll_host = c.buffer((VkDeviceSize)std::max(P, 1u) * 4, true, true);
         xb = c.buffer(BATCH * H * 4, false); xn = c.buffer(BATCH * H * 4, false); qkvb = c.buffer(BATCH * QN * 4, false);
         attb = c.buffer(BATCH * H * 4, false); actb = c.buffer(BATCH * I * 4, false); partb = c.buffer((VkDeviceSize)BATCH * NH * nchunk * 66 * 4, false);
-        cand = c.buffer(CAND_WORDS * 4, true, true); spart = c.buffer(STAT_WG * 8, false); shist = c.buffer(1024 * 4, false);
+        cand = c.buffer(CAND_WORDS * 4, false); cand_host = c.buffer(CAND_WORDS * 4, true, true);
+        spart = c.buffer(STAT_WG * 8, false); shist = c.buffer(SH_WORDS * 4, false);
         load_s = std::chrono::duration<double>(std::chrono::steady_clock::now() - t_load).count();
         record_all();
     }
@@ -350,8 +353,9 @@ struct Engine {
                    p_part = pipe("attn_part.spv"), p_comb = pipe("attn_combine.spv"), p_argmax = pipe("argmax.spv"), p_nll = pipe("nll.spv"),
                    p_embed_b = pipe("embed_b.spv"), p_norm_b = pipe("rmsnorm_b.spv"), p_gemm_b = pipe("gemm_b.spv"),
                    p_swiglu_b = pipe("swiglu_b.spv"), p_rope_b = pipe("rope_b.spv"), p_part_b = pipe("attn_part_b.spv");
-        if (o.gpu_sampling) { p_stats = pipe("sample_stats.spv"); p_hist = pipe("sample_hist.spv"); p_collect = pipe("sample_collect.spv");
-                              p_gumbel = pipe("sample_gumbel.spv"); }
+        if (o.gpu_sampling) { p_stats = pipe("sample_stats.spv"); p_hist = pipe("sample_hist.spv"); p_hist2 = pipe("sample_hist2.spv");
+                              p_final = pipe("sample_final.spv");
+                              p_gumbel = pipe("sample_gumbel.spv"); p_candidates = pipe("sample_candidates.spv"); }
         VkCommandBufferAllocateInfo cai{VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO}; cai.commandPool = c.pool; cai.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY; cai.commandBufferCount = 1;
         VkCommandBufferBeginInfo cbi{VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO};
         const VkPipelineStageFlags CS = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, TR = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -359,10 +363,12 @@ struct Engine {
         const uint32_t rows_per_wg = std::max(1u, 128u / std::max(1u, c.subgroup));
         auto gemv_groups = [&](uint32_t N) { return std::min((N + rows_per_wg - 1) / rows_per_wg, 4096u); };
         enum { BIAS = 1, RES = 2, NORM = 4 };
-        record_candidates = [this](Rec &d) {             // members only: also used after record_all()
+        // top-k / top-p passes (all exit at once unless state.smode == 2); `final_groups` > 1 only in the self-test.
+        record_candidates = [this](Rec &d, bool with_final, uint32_t test, uint32_t final_groups, const Buf *draws) {
             d(p_stats, {&state, &logits, &spart, &shist, &cand}, {{V}}, STAT_WG);
             d(p_hist, {&state, &logits, &spart, &shist}, {{V, STAT_WG}}, STAT_WG);
-            d(p_collect, {&state, &logits, &spart, &shist, &cand}, {{V, STAT_WG}}, STAT_WG);
+            d(p_hist2, {&state, &logits, &shist}, {{V}}, STAT_WG);
+            if (with_final) d(p_final, {&state, &logits, &shist, &cand, draws ? draws : &dummy}, {{V, test}}, final_groups);
         };
         // One-token graph for `ncols` batch columns; column 0 uses cache[cur], column 1 (shadow window) cache[1 - cur].
         auto record = [&](uint32_t ncols, int cur) {
@@ -385,11 +391,16 @@ struct Engine {
                 d(p_gemv, {nullptr, &act, &ly.down_w, nullptr, &x, nullptr}, {{H, I, RES, F(eps), ncols}}, gemv_groups(H));
             }
             d(p_gemv_n[0], {nullptr, &x, &head, nullptr, &logits, &final_norm}, {{V, H, NORM, F(eps), 1}}, gemv_groups(V));
-            d(p_argmax, {&state, &logits}, {{V}}, 1);
+            if (o.dynamic_sampling || o.fixed_sampling_mode == 0u) d(p_argmax, {&state, &logits}, {{V}}, 1);
             if (o.scoring) d(p_nll, {&state, &logits, &nll}, {{V}}, 1);
-            if (o.gpu_sampling) {                                 // both kernels exit at once unless state.smode selects them
-                record_candidates(d);
-                d(p_gumbel, {&state, &logits, &dummy}, {{V, 0}}, 1);   // the final compute->host barrier covers cand
+            if (o.gpu_sampling) {
+                if (o.dynamic_sampling || o.fixed_sampling_mode == 2u) record_candidates(d, true, 0, 1, nullptr);
+                if (o.dynamic_sampling || o.fixed_sampling_mode == 1u) d(p_gumbel, {&state, &logits, &dummy}, {{V, 0}}, 1);
+                if (o.copy_candidates) {
+                    mem_barrier(cb, CS, SW, TR, VK_ACCESS_TRANSFER_READ_BIT);   // 2 KB status exposes overflow to host fallback
+                    VkBufferCopy r{0, 0, CAND_WORDS * 4}; vkCmdCopyBuffer(cb, cand.b, cand_host.b, 1, &r);
+                    mem_barrier(cb, TR, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, VK_ACCESS_HOST_READ_BIT);
+                }
             }
             if (o.copy_logits) {                                  // logits to host memory for sampling, same submission
                 mem_barrier(cb, CS, SW, TR, VK_ACCESS_TRANSFER_READ_BIT);
@@ -471,17 +482,15 @@ struct Engine {
         if (sm.greedy()) return (int)greedy_token;
         const SamplerParams &sp = sm.params();
         if (o.gpu_sampling) {
-            if (sp.top_k == 0 && sp.top_p >= 1.0f) return (int)st[36];
-            c.invalidate(cand); const uint32_t *cd = (const uint32_t *)cand.map; float M, Z; memcpy(&M, cd, 4); memcpy(&Z, cd + 1, 4);
-            if (cd[2] <= CAND_CAP &&
-                sm.distribution_from_candidates((const float *)(cd + 4), cd + 4 + CAND_CAP, cd[2], M, Z, cand_ids_, cand_probs_))
-                return sm.draw(cand_ids_, cand_probs_);
+            if (!(sp.top_k > 0 && sp.top_p < 1.0f)) return (int)st[36];      // Gumbel-max, full or restricted to l >= tau
+            c.invalidate(cand_host); const uint32_t *cd = (const uint32_t *)cand_host.map;
+            if (cd[2] <= CAND_CAP) return (int)st[36];                  // GPU sorted top-k, applied top-p, and drew exactly
             ++fallbacks; grab(logits, logits_host, (VkDeviceSize)V * 4);
         }
         return sm.sample(host_logits(), V);
     }
     std::vector<int> cand_ids_; std::vector<double> cand_probs_;
-    std::function<void(Rec &)> record_candidates;
+    std::function<void(Rec &, bool, uint32_t, uint32_t, const Buf *)> record_candidates;
     // Logits of the last full step (host-cached mapping, so the sampler can read it directly).
     const float *host_logits() { c.invalidate(logits_host); return (const float *)logits_host.map; }
 };
@@ -718,17 +727,51 @@ int main(int argc, char **argv) {
                     const uint32_t *o = (const uint32_t *)out_host.map;
                     for (long k = 0; k < std::min<long>(D, draws - done); ++k) ++counts[o[k]];
                 }
-            } else {
-                Rec d{e.c, e.dummy, cb}; e.record_candidates(d);            // the same three dispatches as in every step
-                Engine::mem_barrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, VK_ACCESS_HOST_READ_BIT);
-                VK(vkEndCommandBuffer(cb)); e.c.submit_wait(cb); e.c.invalidate(e.cand);
-                const uint32_t *cd = (const uint32_t *)e.cand.map; float M, Z; memcpy(&M, cd, 4); memcpy(&Z, cd + 1, 4);
-                std::vector<int> ids; std::vector<double> probs; cand_count = cd[2];
-                if (cd[2] > Engine::CAND_CAP ||
-                    !sm.distribution_from_candidates((const float *)(cd + 4), cd + 4 + Engine::CAND_CAP, cd[2], M, Z, ids, probs)) {
-                    path = "fallback"; std::vector<float> lg(e.V); memcpy(lg.data(), raw.data(), raw.size()); sm.distribution(lg.data(), e.V, ids, probs);
+            } else if (!(tp.top_k > 0 && tp.top_p < 1.0f)) {       // top-k only / top-p only: GPU threshold + restricted Gumbel
+                path = "restricted-gumbel";
+                Rec d{e.c, e.dummy, cb}; e.record_candidates(d, true, 1, D, &out);   // same passes as every step, D draws
+                Engine::mem_barrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+                VkBufferCopy r{0, 0, D * 4}; vkCmdCopyBuffer(cb, out.b, out_host.b, 1, &r);
+                Engine::mem_barrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, VK_ACCESS_HOST_READ_BIT);
+                VK(vkEndCommandBuffer(cb));
+                for (long done = 0; done < draws; done += D) {
+                    e.st[35] = (uint32_t)done; e.c.submit_wait(cb); e.c.invalidate(out_host);
+                    const uint32_t *o = (const uint32_t *)out_host.map;
+                    for (long k = 0; k < std::min<long>(D, draws - done); ++k) ++counts[o[k]];
                 }
-                for (long d = 0; d < draws; ++d) ++counts[(size_t)sm.draw(ids, probs)];
+            } else {                                                  // top-k + top-p: GPU top-k set and GPU Gumbel draws
+                Rec d{e.c, e.dummy, cb}; e.record_candidates(d, true, 0, 1, nullptr);
+                Engine::mem_barrier(cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+                VkBufferCopy r{0, 0, Engine::CAND_WORDS * 4}; vkCmdCopyBuffer(cb, e.cand.b, e.cand_host.b, 1, &r);
+                Engine::mem_barrier(cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, VK_ACCESS_HOST_READ_BIT);
+                VK(vkEndCommandBuffer(cb)); e.c.submit_wait(cb); e.c.invalidate(e.cand_host);
+                const uint32_t *cd = (const uint32_t *)e.cand_host.map; float M, Z; memcpy(&M, cd, 4); memcpy(&Z, cd + 1, 4);
+                std::vector<int> ids; std::vector<double> probs; cand_count = cd[2];
+                if (cd[2] > Engine::CAND_CAP) {
+                    path = "fallback"; std::vector<float> lg(e.V); memcpy(lg.data(), raw.data(), raw.size()); sm.distribution(lg.data(), e.V, ids, probs);
+                    for (long k = 0; k < draws; ++k) ++counts[(size_t)sm.draw(ids, probs)];
+                } else {
+                    path = "gpu-top-k+p";
+                    VkCommandBuffer draw_cb; VK(vkAllocateCommandBuffers(e.c.dev, &cai, &draw_cb)); VK(vkBeginCommandBuffer(draw_cb, &cbi));
+                    Engine::mem_barrier(draw_cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT,
+                                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_READ_BIT);
+                    VkDescriptorSet ds = e.c.set({&e.state, &e.cand, &out}, e.dummy); uint32_t test = 1;
+                    vkCmdBindPipeline(draw_cb, VK_PIPELINE_BIND_POINT_COMPUTE, e.p_candidates);
+                    vkCmdBindDescriptorSets(draw_cb, VK_PIPELINE_BIND_POINT_COMPUTE, e.c.pl, 0, 1, &ds, 0, nullptr);
+                    vkCmdPushConstants(draw_cb, e.c.pl, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(test), &test); vkCmdDispatch(draw_cb, D, 1, 1);
+                    Engine::mem_barrier(draw_cb, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_ACCESS_SHADER_WRITE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_READ_BIT);
+                    VkBufferCopy ro{0, 0, D * 4}; vkCmdCopyBuffer(draw_cb, out.b, out_host.b, 1, &ro);
+                    Engine::mem_barrier(draw_cb, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_ACCESS_TRANSFER_WRITE_BIT, VK_PIPELINE_STAGE_HOST_BIT, VK_ACCESS_HOST_READ_BIT);
+                    VK(vkEndCommandBuffer(draw_cb));
+                    for (long done = 0; done < draws; done += D) {
+                        e.st[35] = (uint32_t)done; e.c.submit_wait(draw_cb); e.c.invalidate(out_host);
+                        const uint32_t *o = (const uint32_t *)out_host.map;
+                        for (long k = 0; k < std::min<long>(D, draws - done); ++k) {
+                            if (o[k] >= e.V) throw std::runtime_error("GPU top-k/top-p sampler returned invalid token");
+                            ++counts[o[k]];
+                        }
+                    }
+                }
             }
             write_bytes(gpu_test[6], counts.data(), counts.size() * 4);
             printf("{\"path\": \"%s\", \"draws\": %ld, \"candidates\": %u}\n", path, draws, cand_count); return 0;
@@ -740,6 +783,9 @@ int main(int argc, char **argv) {
             if (serve) { _setmode(_fileno(stdin), _O_BINARY); _setmode(_fileno(stdout), _O_BINARY); }
 #endif
             opt.positions = (uint32_t)std::min<long>(ctx > 0 ? ctx : (opt.full ? 8192 : max_pos), max_pos); opt.gpu_sampling = true;
+            opt.copy_candidates = serve || (sp.top_k > 0 && sp.top_p < 1.0f);
+            opt.dynamic_sampling = serve;
+            opt.fixed_sampling_mode = sp.temperature <= 0.0f ? 0u : (sp.top_k == 0 && sp.top_p >= 1.0f) ? 1u : 2u;
             if (n_new < 0) n_new = 512;
             if (chat && sp.temperature == 0.0f && sp.top_k == 0) { sp.temperature = 0.7f; sp.top_k = 40; sp.top_p = 0.9f; }
             Engine e; e.init(bundle_dir, opt); Session s(e);
@@ -815,6 +861,8 @@ int main(int argc, char **argv) {
         const uint32_t P = (uint32_t)prompt.size(), total = P + (uint32_t)n_new;
         const bool sampling = sp.temperature > 0.0f;
         opt.scoring = scoring; opt.positions = total; opt.gpu_sampling = sampling && !host_sampling;
+        opt.copy_candidates = opt.gpu_sampling && sp.top_k > 0 && sp.top_p < 1.0f;
+        opt.fixed_sampling_mode = sp.temperature <= 0.0f ? 0u : (sp.top_k == 0 && sp.top_p >= 1.0f) ? 1u : 2u;
         opt.copy_logits = (sampling && host_sampling) || copy_only;
         Engine e; e.init(bundle_dir, opt);
         using clk = std::chrono::steady_clock; auto secs = [](clk::time_point a) { return std::chrono::duration<double>(clk::now() - a).count(); };

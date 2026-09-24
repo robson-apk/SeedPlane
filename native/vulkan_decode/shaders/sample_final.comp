@@ -1,0 +1,105 @@
+#version 450
+// top-k / top-p sampling, pass 4 of 4 (one workgroup per draw). Finds the level-2 sub-bin where the criterion is reached
+// and sets tau = its lower edge. Then:
+//   top-k only / top-p only: Gumbel-max restricted to l >= tau (categorical draw over the kept set) -> state.sampled;
+//   top-k with top-p: collects <=256 candidates, applies exact top-k/top-p ordering, and draws on the GPU.
+// Test mode (push.test = 1): workgroup w is draw sctr + w and writes draws[w].
+layout(local_size_x = 1024) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_;
+    uint btok[8]; uint bpos[8]; uint bslot[8]; uint smode; float stemp; uint sseed; uint sctr; uint sampled; uint stopk; float stopp; };
+layout(std430, binding = 1) readonly buffer L { float logits[]; };
+layout(std430, binding = 2) readonly buffer Sh { uint sh[]; };
+layout(std430, binding = 3) buffer C { uint cand[]; };
+layout(std430, binding = 4) writeonly buffer O { uint draws[]; };
+layout(push_constant) uniform P { uint n; uint test; } p;
+#include "sample_layout.glsl"
+const uint CAP = 256u;
+shared uint pc[1024]; shared uint pm[1024]; shared uint best; shared float bv[1024]; shared uint bi[1024];
+shared float cv[CAP]; shared uint ci[CAP]; shared uint keep_count;
+uint pcg(uint v) { uint s = v * 747796405u + 2891336453u; uint w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u; return (w >> 22u) ^ w; }
+float gumbel(uint h) {
+    float L;
+    if (h < 0x80000000u) L = -log((float(h) + 0.5) * 2.3283064e-10);
+    else { float v = (float(~h) + 0.5) * 2.3283064e-10; L = v < 1e-3 ? v * (1.0 + 0.5 * v) : -log(1.0 - v); }
+    return -log(L);
+}
+void main() {
+    if (p.test == 0u && smode != 2u) return;
+    uint t = gl_LocalInvocationID.x; float M = uintBitsToFloat(sh[S_M]), span = 30.0 * stemp, w = span / float(NB), w2 = w / float(NB);
+    uint b1 = sh[S_B1]; float tau = M - span;
+    if (b1 < NB) {
+        pc[t] = sh[H2C + t]; pm[t] = sh[H2M + t]; if (t == 0u) best = NB; barrier();
+        for (uint off = 1u; off < 1024u; off <<= 1) {
+            uint cc = t >= off ? pc[t - off] : 0u, mm = t >= off ? pm[t - off] : 0u; barrier();
+            pc[t] += cc; pm[t] += mm; barrier();
+        }
+        if (reached(sh[S_CNT0] + pc[t], sh[S_MASS0] + pm[t], stopk, stopp)) atomicMin(best, t);
+        barrier();
+        uint s = best < NB ? best : NB - 1u;                      // fixed-point rounding can miss by a hair: close the bin
+        tau = M - (float(b1) * w + float(s + 1u) * w2);
+    }
+    bool both = stopk > 0u && stopp < 1.0;
+    if (both && p.test == 0u) {                                  // collect candidates for GPU sorting; host reads only overflow status
+        if (t == 0u) { cand[0] = floatBitsToUint(M); cand[1] = sh[S_Z]; cand[3] = floatBitsToUint(tau); }
+        for (uint i = t; i < p.n; i += 1024u) {
+            float f = logits[i];
+            if (f >= tau) { uint j = atomicAdd(cand[2], 1u); if (j < CAP) { cand[4u + j] = floatBitsToUint(f); cand[4u + CAP + j] = i; } }
+        }
+        barrier();
+        uint n = min(cand[2], CAP);
+        if (cand[2] > CAP) return;                                // host observes overflow and takes the documented fallback
+        for (uint i = t; i < CAP; i += 1024u) {
+            cv[i] = i < n ? uintBitsToFloat(cand[4u + i]) : -3.4e38;
+            ci[i] = i < n ? cand[4u + CAP + i] : 0xffffffffu;
+        }
+        barrier();
+        // Bitonic sort by descending logit, then ascending token id (stable top-k tie behavior).
+        for (uint k = 2u; k <= CAP; k <<= 1u) for (uint j = k >> 1u; j > 0u; j >>= 1u) {
+            uint other = t ^ j;
+            if (t < CAP && other > t) {
+                bool dir = (t & k) == 0u;
+                bool better_t = cv[t] > cv[other] || (cv[t] == cv[other] && ci[t] < ci[other]);
+                bool better_o = cv[other] > cv[t] || (cv[other] == cv[t] && ci[other] < ci[t]);
+                if ((dir && better_o) || (!dir && better_t)) {
+                    float fv = cv[t]; cv[t] = cv[other]; cv[other] = fv;
+                    uint iv = ci[t]; ci[t] = ci[other]; ci[other] = iv;
+                }
+            }
+            barrier();
+        }
+        if (t == 0u) {
+            uint nk = min(stopk, n);
+            while (nk < n && cv[nk] == cv[nk - 1u]) ++nk;
+            float z = 0.0;
+            for (uint i = 0u; i < nk; ++i) z += exp((cv[i] - cv[0]) / stemp);
+            float cumulative = 0.0; keep_count = 0u;
+            for (uint i = 0u; i < nk; ++i) {
+                if (cumulative > stopp) break;
+                cumulative += exp((cv[i] - cv[0]) / stemp) / z;
+                ++keep_count;
+            }
+        }
+        barrier();
+        uint ctr = sctr, key = pcg(ctr ^ pcg(sseed));
+        bv[t] = (t < keep_count) ? cv[t] / stemp + gumbel(pcg(ci[t] ^ key)) : -3.4e38;
+        bi[t] = t < keep_count ? ci[t] : 0xffffffffu; barrier();
+        for (uint s = 512u; s > 0u; s >>= 1u) {
+            if (t < s && (bv[t + s] > bv[t] || (bv[t + s] == bv[t] && bi[t + s] < bi[t]))) { bv[t] = bv[t + s]; bi[t] = bi[t + s]; }
+            barrier();
+        }
+        if (t == 0u) sampled = bi[0];
+        return;
+    }
+    uint ctr = sctr + (p.test != 0u ? gl_WorkGroupID.x : 0u), key = pcg(ctr ^ pcg(sseed));
+    float invT = 1.0 / stemp, bestv = -3.4e38; uint idx = 0xffffffffu;
+    for (uint i = t; i < p.n; i += 1024u) {
+        float l = logits[i];
+        if (l >= tau) { float z = l * invT + gumbel(pcg(i ^ key)); if (z > bestv) { bestv = z; idx = i; } }
+    }
+    bv[t] = bestv; bi[t] = idx; barrier();
+    for (uint s2 = 512u; s2 > 0u; s2 >>= 1) {
+        if (t < s2 && (bv[t + s2] > bv[t] || (bv[t + s2] == bv[t] && bi[t + s2] < bi[t]))) { bv[t] = bv[t + s2]; bi[t] = bi[t + s2]; }
+        barrier();
+    }
+    if (t == 0u) { if (p.test != 0u) draws[gl_WorkGroupID.x] = bi[0]; else sampled = bi[0]; }
+}

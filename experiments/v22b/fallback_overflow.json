@@ -1,0 +1,14 @@
+{
+  "device": "AMD Radeon RX 570 Series (RADV POLARIS10)",
+  "fixture": "all-equal float32 logits, vocabulary-sized from logits_2000.f32",
+  "temperature": 0.7,
+  "top_k": 40,
+  "top_p": 0.9,
+  "candidate_capacity": 256,
+  "candidates": 151936,
+  "path": "fallback",
+  "draws": 10000,
+  "reference_support": 136743,
+  "outside_draws": 0,
+  "note": "Fallback routing and support were checked. Draw count is too small for a TV quality gate at this support size."
+}
