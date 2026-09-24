@@ -4,6 +4,9 @@ All notable changes are documented here. SeedPlane is currently alpha research s
 
 ## Unreleased
 
+- V23: the unchanged runtime and bundle run correctly on AMD RX 570 / Mesa RADV / Ubuntu. GCC and Clang builds pass,
+  there are 0 validation-layer errors, greedy tokens are identical to the CPU FP32 oracles, and NLL is within 2.4e-7 of
+  the B580. 116.8 tok/s (SeedPlane) vs 101.1 (full attention).
 - V22: sampling moved to the GPU. Temperature-only uses Gumbel-max (1% cost, was 43%); top-k/top-p use GPU statistics,
   a histogram threshold and a small candidate list (top-p 0.9: 0.96× greedy, was 0.67×). The pre-registered ≥0.95×
   gate fails for k=40/p=0.9 (0.9486×). Found afterwards: top-p 0.99 falls back to the host (116.8 tok/s). Fix planned
