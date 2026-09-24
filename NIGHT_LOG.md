@@ -71,7 +71,8 @@ protocol → worker CLI → pool → M4 → auto scheduler → ...). Wake-up eve
 - Network gate fails: X79/RX570 Ethernet is 100 Mb/s full duplex; Mac controller was on Wi-Fi; no iperf3 or GPU clock/
   temperature telemetry. Classify the full result exploratory/network-conditioned. Next: repair/replace X79 link, capture
   pairwise bandwidth/telemetry, integrate gain-aware worker admission, and rerun the unchanged protocol.
-- CI spend guard: CI and Release workflows were disabled in GitHub settings and changed in repo to manual-only
-  `workflow_dispatch`; there were zero queued/in-progress runs at the time of disabling. No GitHub Actions runs were
-  started by the follow-up push. Copilot is still listed as an available integration, but this repository has no rulesets
-  to automatically request Copilot reviews.
+- CI spend guard: repository Actions permissions are globally `enabled: false`; CI and Release are also disabled in
+  GitHub settings and their files now expose only manual `workflow_dispatch`. There were zero queued/in-progress runs at
+  disable time, and no Actions run was started by the later push. Audit found one successful dynamic Copilot review on
+  PR #9 before the global disable; personal automatic review is now visibly off and the repository has no rulesets.
+  Copilot remains listed as a platform integration, but there is no configured automatic review source now.
