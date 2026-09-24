@@ -1,0 +1,12 @@
+#version 450
+// K/V-only batch: embeddings of up to 8 tokens (btok[c]), one column each.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_; uint btok[8]; uint bpos[8]; uint bslot[8]; };
+layout(std430, binding = 1) readonly buffer E { uint e[]; };
+layout(std430, binding = 2) writeonly buffer X { float x[]; };
+layout(push_constant) uniform P { uint H; } p;
+void main() {
+    uint i = gl_GlobalInvocationID.x;
+    if (i >= p.H / 2) return;
+    for (uint c = 0; c < bn; ++c) { vec2 v = unpackHalf2x16(e[btok[c] * (p.H / 2) + i]); x[c * p.H + 2 * i] = v.x; x[c * p.H + 2 * i + 1] = v.y; }
+}

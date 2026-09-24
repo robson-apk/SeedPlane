@@ -103,13 +103,17 @@ class Qwen2Engine:
         return q * cos + self._rotate_half(q) * sin, k * cos + self._rotate_half(k) * sin
 
     @torch.inference_mode()
-    def forward(self, input_ids, cache=None, all_logits=False):
+    def forward(self, input_ids, cache=None, all_logits=False, positions=None):
+        """Run tokens through the graph. `positions` (default: cache slots) are the RoPE position ids, so a
+        SeedPlane window can be fed with its original positions while the cache stays window-local."""
         ids = torch.as_tensor(input_ids, dtype=torch.long, device=self.device).flatten()
         if ids.numel() == 0: raise ValueError('input_ids cannot be empty')
         if cache is None: cache = self.new_cache()
         start, qlen = cache.length, ids.numel()
         if start + qlen > cache.capacity: raise ValueError(f'KV cache capacity {cache.capacity} exceeded')
-        positions = torch.arange(start, start + qlen, device=self.device)
+        slots = torch.arange(start, start + qlen, device=self.device)
+        positions = slots if positions is None else torch.as_tensor(positions, dtype=torch.long, device=self.device).flatten()
+        if positions.numel() != qlen: raise ValueError('positions must match input_ids')
         x = F.embedding(ids, self.w['model.embed_tokens.weight'])[None]
         for layer in range(self.n_layers):
             p = f'model.layers.{layer}'
@@ -127,7 +131,7 @@ class Qwen2Engine:
             if start == 0:
                 attn = F.scaled_dot_product_attention(qt, kt, vt, is_causal=qlen > 1)
             else:
-                allowed = torch.arange(start + qlen, device=self.device)[None, :] <= positions[:, None]
+                allowed = torch.arange(start + qlen, device=self.device)[None, :] <= slots[:, None]
                 attn = F.scaled_dot_product_attention(qt, kt, vt, attn_mask=allowed)
             x = residual + self._linear(attn.transpose(1, 2).reshape(1, qlen, self.hidden), p + '.self_attn.o_proj')
             residual = x; h = self._norm(x, p + '.post_attention_layernorm.weight')

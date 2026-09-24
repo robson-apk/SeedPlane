@@ -1,0 +1,20 @@
+#version 450
+// Teacher-forced scoring: nll[nidx] = logsumexp(logits) - logits[target] for column 0.
+layout(local_size_x = 1024) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_; uint btok[8]; uint bpos[8]; uint bslot[8]; };
+layout(std430, binding = 1) readonly buffer L { float logits[]; };
+layout(std430, binding = 2) writeonly buffer N { float nll[]; };
+layout(push_constant) uniform P { uint n; } p;
+shared float red[1024];
+void main() {
+    uint t = gl_LocalInvocationID.x; float m = -3.4e38;
+    for (uint i = t; i < p.n; i += 1024) m = max(m, logits[i]);
+    red[t] = m; barrier();
+    for (uint s = 512; s > 0; s >>= 1) { if (t < s) red[t] = max(red[t], red[t + s]); barrier(); }
+    m = red[0]; barrier();
+    float z = 0.0;
+    for (uint i = t; i < p.n; i += 1024) z += exp(logits[i] - m);
+    red[t] = z; barrier();
+    for (uint s = 512; s > 0; s >>= 1) { if (t < s) red[t] += red[t + s]; barrier(); }
+    if (t == 0) nll[nidx] = log(red[0]) + m - logits[target];
+}

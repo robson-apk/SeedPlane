@@ -6,9 +6,10 @@
 </p>
 
 > [!IMPORTANT]
-> SeedPlane is alpha research software. The current implementation accelerates prompt prefill and perplexity scoring;
-> it does **not** yet provide token-by-token text generation after sharded prefill. Sharding changes the attention
-> pattern, so quality depends on shard and halo sizes. See the measured trade-offs and failed hypotheses below.
+> SeedPlane is alpha research software. Token-by-token generation under the shard plan exists only in the native
+> Vulkan runtime (Qwen2 family, measured on one Intel Arc B580). The PyTorch/llama.cpp workers do prefill and scoring.
+> Sharding changes the attention pattern, so quality depends on shard and halo sizes: +8–10% perplexity at 4k tokens
+> with S=512/H=256 (V20). See the measured trade-offs and failed hypotheses below.
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT"></a>
@@ -103,19 +104,30 @@ python -m seedplane.probe --model qwen.gguf --worker ./seedplane-worker         
 ```
 Full API: [docs/API.md](docs/API.md).
 
-### Experimental native SeedPlane decoder
+### Native SeedPlane runtime (experimental)
 
-V17 introduces a SeedPlane-owned Qwen2 graph that loads safetensors directly, keeps a persistent KV cache and provides
-streaming chat without using the Transformers model runtime or llama.cpp model/runtime:
+`native/vulkan_decode` runs the SeedPlane model itself, with shard-window attention and window-local KV caches, on
+any Vulkan GPU. It needs no PyTorch, Transformers or llama.cpp at run time. Tokenizer, sampling, chat template and
+session state are all inside the engine.
 
 ```bash
-seedplane-chat qwen05.sp --device xpu
+seedplane convert ./qwen05.sp ./qwen05-native.sp --native      # seedplane-bundle/2: FP16 weights + plan + tokenizer
+cmake -S native/vulkan_decode -B native/vulkan_decode/build && cmake --build native/vulkan_decode/build --config Release
+seedplane chat ./qwen05-native.sp --native                     # streamed chat; or: qwen_vk <bundle> --chat
 ```
 
-This path is correctness-complete but not performance-complete: it matches the eight-token greedy oracle sequence on
-CPU and Arc B580, and currently reaches 17.57 output tok/s after KV and projection optimizations. The release target is
-to beat the existing ~296 tok/s B580 reference. See [V17 results](experiments/v17/RESULTS.md); prefill figures are not
-counted as decode progress.
+Measured on an Arc B580 with Qwen2.5-0.5B at 3–4k tokens of context
+([V18](experiments/v18/RESULTS.md) → [V21](experiments/v21/RESULTS.md)):
+
+| | tok/s | note |
+|---|---:|---|
+| PyTorch eager decoder (V17) | 18 | launch-bound: ≤ 8.5% GPU busy |
+| native, full attention | 250 | split attention kernel (V20) |
+| **native, SeedPlane plan** | **267** | exact vs a from-scratch window oracle; KV 19 MB vs 99 MB |
+| native, SeedPlane plan, sampling T=0.7/k=40/p=0.9 | 246 | pre-registered cost gate (≥ 0.95×) **failed**: 0.92× |
+
+The native tokenizer matches HF `tokenizers` token for token on all of WikiText-2 (298,938 tokens). The SeedPlane plan
+still costs +8–10% perplexity at 4k tokens (S=512/H=256) vs full attention. Qwen2 family only, one GPU measured.
 
 ---
 
@@ -321,9 +333,10 @@ Every experiment folder has `PROTOCOL.md` (criteria, written first), the code, r
 ```text
 SeedPlane/
 ├── demo.py            # zero-dependency shard/halo layout tour
-├── seedplane/         # original model + router code
+├── seedplane/         # CLI, shard planner, converters, PyTorch engines, native front end
+├── native/            # seedplane-worker (llama.cpp) and vulkan_decode (the native SeedPlane runtime)
 ├── checkpoints/       # original toy + V6 denoiser
-├── experiments/       # v4 … v14 — protocol, code, raw results, verdict
+├── experiments/       # v4 … v21 — protocol, code, raw results, verdict
 ├── docs/              # charts, GIFs and the scripts that render them
 └── data/              # local corpus/cache (git-ignored)
 ```

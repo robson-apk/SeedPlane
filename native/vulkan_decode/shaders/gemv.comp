@@ -1,0 +1,51 @@
+#version 450
+// For each batch column c < ncols (at most 2):
+//   y[c,row] = (res ? y[c,row] : 0) + (bias ? b[row] : 0) + W[row,:] . norm?(x[c,:])
+// W is FP16 packed as uvec4 (8 halves) and is read once for both columns. Rows are grid-strided over subgroups,
+// so correctness does not depend on the driver-selected subgroup size.
+#include "common.glsl"
+#ifndef NC
+#define NC 1   // batch columns, fixed at compile time (build.bat makes 1- and 2-column variants)
+#endif
+layout(local_size_x = 128) in;
+layout(std430, binding = 1) readonly buffer X { float x[]; };
+layout(std430, binding = 2) readonly buffer W { uvec4 w[]; };
+layout(std430, binding = 3) readonly buffer B { float b[]; };
+layout(std430, binding = 4) buffer Y { float y[]; };
+layout(std430, binding = 5) readonly buffer NW { float nw[]; };
+layout(push_constant) uniform P { uint N; uint K; uint flags; float eps; uint ncols; } p;
+shared vec4 xs4[NC * 4864 / 4];
+// k is a multiple of 8, so the 8 activations are two aligned vec4 loads from shared memory.
+float dot8(uvec4 q, uint k) {
+    vec4 x0 = xs4[k / 4], x1 = xs4[k / 4 + 1];
+    return dot(vec4(unpackHalf2x16(q.x), unpackHalf2x16(q.y)), x0) + dot(vec4(unpackHalf2x16(q.z), unpackHalf2x16(q.w)), x1);
+}
+void main() {
+    const uint nc = NC; uint tid = gl_LocalInvocationID.x, K = p.K;
+    for (uint c = 0; c < nc; ++c) {
+        float ss = 0.0;
+        for (uint i = tid; i < K / 4; i += 128) { vec4 v = vec4(x[c * K + 4 * i], x[c * K + 4 * i + 1], x[c * K + 4 * i + 2], x[c * K + 4 * i + 3]); xs4[c * K / 4 + i] = v; ss += dot(v, v); }
+        if ((p.flags & 4u) != 0u) {
+            float inv = inversesqrt(wg_sum(ss) / float(K) + p.eps);
+            for (uint i = tid; i < K / 4; i += 128) xs4[c * K / 4 + i] *= inv * vec4(nw[4 * i], nw[4 * i + 1], nw[4 * i + 2], nw[4 * i + 3]);
+        }
+    }
+    barrier();
+    uint K8 = K / 8, nsg = gl_NumSubgroups;
+    for (uint row = gl_WorkGroupID.x * nsg + gl_SubgroupID; row < p.N; row += gl_NumWorkGroups.x * nsg) {
+        float s0 = 0.0, s1 = 0.0; uint base = row * K8;
+        for (uint j = gl_SubgroupInvocationID; j < K8; j += gl_SubgroupSize) {
+            uvec4 q = w[base + j];
+            s0 += dot8(q, j * 8);
+            if (nc > 1) s1 += dot8(q, K + j * 8);
+        }
+        s0 = subgroupAdd(s0);
+        if (nc > 1) s1 = subgroupAdd(s1);
+        if (subgroupElect()) {
+            if ((p.flags & 1u) != 0u) { s0 += b[row]; s1 += b[row]; }
+            if ((p.flags & 2u) != 0u) { s0 += y[row]; if (nc > 1) s1 += y[p.N + row]; }
+            y[row] = s0;
+            if (nc > 1) y[p.N + row] = s1;
+        }
+    }
+}

@@ -1,0 +1,34 @@
+#version 450
+// V19 attention (kept for comparison as --attn old): single column, one workgroup per head, <= 4096 slots.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_; uint btok[8]; uint bpos[8]; uint bslot[8]; };
+layout(std430, binding = 1) readonly buffer QKV { float qkv[]; };
+layout(std430, binding = 2) readonly buffer KC { float kc[]; };
+layout(std430, binding = 3) readonly buffer VC { float vc[]; };
+layout(std430, binding = 4) writeonly buffer O { float o[]; };
+layout(push_constant) uniform P { uint nh; uint nkv; float scale; } p;
+const uint HD = 64, WG = 128, MAXCTX = 4096;
+shared float sc[MAXCTX]; shared float qs[HD]; shared float red[WG];
+void main() {
+    uint h = gl_WorkGroupID.x, t = gl_LocalInvocationID.x, kv = h / (p.nh / p.nkv), T = slot + 1;
+    if (t < HD) qs[t] = qkv[h * HD + t];
+    barrier();
+    float m = -1e30;
+    for (uint j = t; j < T; j += WG) {
+        uint b = (j * p.nkv + kv) * HD; float s = 0.0;
+        for (uint d = 0; d < HD; ++d) s += qs[d] * kc[b + d];
+        s *= p.scale; sc[j] = s; m = max(m, s);
+    }
+    red[t] = m; barrier();
+    for (uint s = WG / 2; s > 0; s >>= 1) { if (t < s) red[t] = max(red[t], red[t + s]); barrier(); }
+    m = red[0]; barrier();
+    float l = 0.0;
+    for (uint j = t; j < T; j += WG) { float e = exp(sc[j] - m); sc[j] = e; l += e; }
+    red[t] = l; barrier();
+    for (uint s = WG / 2; s > 0; s >>= 1) { if (t < s) red[t] += red[t + s]; barrier(); }
+    l = red[0]; barrier();
+    uint d = t & (HD - 1), half_ = t / HD; float acc = 0.0;
+    for (uint j = half_; j < T; j += 2) acc += sc[j] * vc[(j * p.nkv + kv) * HD + d];
+    red[t] = acc; barrier();
+    if (t < HD) o[h * HD + t] = (red[t] + red[t + HD]) / l;
+}

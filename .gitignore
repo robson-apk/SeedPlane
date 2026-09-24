@@ -22,3 +22,6 @@ Thumbs.db
 # Local-only
 LAUNCH_KIT.md
 data/
+
+# Native build outputs
+native/vulkan_decode/build/

@@ -1,0 +1,58 @@
+{
+ "G1_sha_hf": "ef9f3f59f925e46a303193d7b88a979a899c53b5fec2ed0ff679b61fdf3cbe49",
+ "G1_sha_v1": "ef9f3f59f925e46a303193d7b88a979a899c53b5fec2ed0ff679b61fdf3cbe49",
+ "G1_pass": true,
+ "fp16_stats": {
+  "qwen05_hf": {
+   "overflow": 0,
+   "flushed": 716
+  },
+  "qwen05_v1": {
+   "overflow": 0,
+   "flushed": 716
+  }
+ },
+ "G2_first_divergence_per_run": [
+  null,
+  null,
+  null
+ ],
+ "G2_pass": true,
+ "G3_logit_err_by_pos": {
+  "3": 2.288818359375e-05,
+  "63": 1.9073486328125e-05,
+  "64": 2.288818359375e-05,
+  "65": 1.6450881958007812e-05,
+  "128": 1.71661376953125e-05,
+  "200": 1.4066696166992188e-05,
+  "299": 0.00014781951904296875
+ },
+ "G3_pass": true,
+ "G4_manip_max_diff_pos65": 1.8570709228515625,
+ "G4_full_equals_v18_first128": true,
+ "G4_full_first_div_vs_v18": null,
+ "plan_vs_full_first_token_div": 68,
+ "G5_steady_tok_s": [
+  252.286,
+  259.382,
+  257.606
+ ],
+ "G5_median": 257.606,
+ "G5_pass": true,
+ "overall_tok_s_plan": [
+  171.768,
+  177.461,
+  172.638
+ ],
+ "overall_tok_s_full": [
+  228.78,
+  233.348,
+  229.248
+ ],
+ "rebuilds": 4,
+ "rebuild_submits": 144,
+ "kv_bytes_plan": 2457600,
+ "kv_bytes_full": 7372800,
+ "load_seconds": 1.102,
+ "G4_pass": true
+}

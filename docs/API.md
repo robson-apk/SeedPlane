@@ -122,11 +122,49 @@ worker ports to the internet. See [SECURITY.md](../SECURITY.md).
 - ⚠️ Quality cost depends on how far the text looks back: Qwen2.5-0.5B, 4,096 tokens, S=512/H=256 → +3.7% perplexity on
   short stories, +13% on Wikipedia text (V12). Larger halos cost less quality and more compute.
 - ❌ Not a drop-in for tasks that must connect information many shards apart (V7).
-- 🧪 Token-by-token generation after a sharded prefill is not implemented yet (prefill/scoring only).
+- 🧪 Token-by-token generation under the shard plan exists only in the native Vulkan decoder (section 6, Qwen2 family); the
+  PyTorch workers do prefill/scoring only.
 
 ---
 
-## 6. Native backend: `seedplane-worker` on llama.cpp kernels (V13, experimental)
+## 6. Native SeedPlane decoder: `seedplane-bundle/2` + `native/vulkan_decode` (V18/V19, experimental)
+
+Token-by-token generation of the SeedPlane model on any Vulkan GPU, with no PyTorch or llama.cpp at run time.
+
+```bash
+seedplane convert ./qwen05.sp ./qwen05-native.sp --native            # or an HF dir / hub id; keeps a v1 plan
+cmake -S native/vulkan_decode -B native/vulkan_decode/build && cmake --build native/vulkan_decode/build --config Release
+#   (Windows without CMake: native\vulkan_decode\build.bat, MSVC + Vulkan SDK; set VULKAN_SDK / VCVARS)
+seedplane chat ./qwen05-native.sp --native                           # terminal chat (text in, streamed text out)
+seedplane generate ./qwen05-native.sp --native --prompt "Once upon a time" -n 64
+native/vulkan_decode/build/qwen_vk ./qwen05-native.sp --chat         # the same chat without Python
+```
+
+- **Everything runs in the engine:** the Qwen2 byte-level BPE tokenizer (`tokenizer.hpp`, NFC + the Qwen split regex,
+  identical to HF `tokenizers` on all of WikiText-2 in V21), sampling (`--temperature/--top-k/--top-p/--seed`, the
+  `Qwen2Engine.sample` definition), the ChatML template, and a persistent session. A new chat turn appends tokens to the
+  existing window KV state instead of re-reading the conversation.
+- **`--serve` protocol** (what `seedplane.native.NativeEngine` speaks): one JSON request per line on stdin, JSON lines back.
+  `{"op":"chat","content":"...","reset":false,"temperature":0.7,"max_new_tokens":256}` streams `{"token":id,"text":"..."}`
+  and ends with `{"done":true,"reason":"stop|length|context","generated":n,"prefill_s":…,"decode_tok_s":…,"position":…}`.
+  Other ops: `generate` (`text` or `ids`), `tokenize`, `detokenize`, `state`, `reset`.
+
+- **Bundle v2:** `seedplane.json` (architecture, plan, tensor table, hashes) + `weights.spw` (FP16 matrices with fused QKV,
+  FP32 norms and biases, 256-byte aligned) + tokenizer files. Qwen2 family only for now (head_dim 64).
+- **Semantics:** position *t* attends to its `ShardPlan.windows` window with original position ids. The KV cache holds
+  `sinks + halo + shard` slots and is rebuilt in the new window's context at every shard boundary. `--full` switches to
+  the original full attention, and `--shard/--halo/--sinks` override the plan.
+- **Boundary modes** (`--mode`): `shadow-batch` (default, exact) appends each halo token to the next window in
+  K/V-only batches of 8, so the window is ready at the boundary. `rebuild-batch` / `rebuild` re-run sinks + halo at the
+  boundary (exact, with a stall). `shadow` uses a second batch column per halo token (exact). `reuse` keeps the
+  previous window's halo K/V (approximate, rejected as a default in V20 for worse NLL).
+- `--score-file ids.i32 --nll-out nll.f32` scores a token file (teacher-forced NLL per position). `--attn old` selects
+  the V19 attention kernel.
+- **Measured (Arc B580, Qwen2.5-0.5B, S512/H256/K4, context 3–4k):** shadow-batch 266.9 tok/s vs full attention 250.0,
+  KV 19 MB vs 99 MB, prefill of 3,000 tokens 2.5 s. The quality cost of the plan is +8–10% perplexity at 4k.
+  See [V18](../experiments/v18/RESULTS.md), [V19](../experiments/v19/RESULTS.md) and [V20](../experiments/v20/RESULTS.md).
+
+## 7. Native backend: `seedplane-worker` on llama.cpp kernels (V13, experimental)
 
 The PyTorch workers above are the reference implementation. For speed, `native/seedplane-worker.cpp` serves the same
 windows through the llama.cpp C API, so the math runs on llama.cpp's optimized kernels (CPU, Vulkan, SYCL, CUDA, Metal)

@@ -1,5 +1,10 @@
+import json
+import os
+import sys
+import tempfile
 import unittest
 import socket
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -9,6 +14,7 @@ from seedplane.engine import ShardPlan
 from seedplane import llama_backend
 from seedplane.qwen_engine import Qwen2Engine, chat_prompt
 from seedplane.planner import Device, plan_pipeline
+from seedplane import native_bundle, native
 
 
 class ShardPlanTests(unittest.TestCase):
@@ -134,6 +140,102 @@ class QwenEngineUtilityTests(unittest.TestCase):
     def test_chatml_rendering(self):
         text = chat_prompt([{'role': 'user', 'content': 'olá'}])
         self.assertEqual(text, '<|im_start|>user\nolá<|im_end|>\n<|im_start|>assistant\n')
+
+
+
+def tiny_qwen2(directory, seed=0):
+    """Random 2-layer Qwen2 with head_dim 64 in BF16 safetensors (the layout Hugging Face ships)."""
+    from safetensors.torch import save_file
+    L, H, NH, NKV, HD, I, V = 2, 128, 2, 1, 64, 256, 50
+    (Path(directory) / 'config.json').write_text(json.dumps({
+        'model_type': 'qwen2', 'num_hidden_layers': L, 'num_attention_heads': NH, 'num_key_value_heads': NKV,
+        'hidden_size': H, 'intermediate_size': I, 'vocab_size': V, 'max_position_embeddings': 512,
+        'rope_theta': 1e6, 'rms_norm_eps': 1e-6}))
+    g = torch.Generator().manual_seed(seed); r = lambda *shape: torch.randn(*shape, generator=g) * 0.05
+    w = {'model.embed_tokens.weight': r(V, H) * 20, 'model.norm.weight': torch.ones(H)}
+    for l in range(L):
+        p = f'model.layers.{l}.'
+        w.update({p + 'input_layernorm.weight': torch.ones(H), p + 'post_attention_layernorm.weight': torch.ones(H),
+                  p + 'self_attn.q_proj.weight': r(H, H), p + 'self_attn.q_proj.bias': r(H),
+                  p + 'self_attn.k_proj.weight': r(NKV * HD, H), p + 'self_attn.k_proj.bias': r(NKV * HD),
+                  p + 'self_attn.v_proj.weight': r(NKV * HD, H), p + 'self_attn.v_proj.bias': r(NKV * HD),
+                  p + 'self_attn.o_proj.weight': r(H, H), p + 'mlp.gate_proj.weight': r(I, H),
+                  p + 'mlp.up_proj.weight': r(I, H), p + 'mlp.down_proj.weight': r(H, I)})
+    save_file({k: v.to(torch.bfloat16) for k, v in w.items()}, str(Path(directory) / 'model.safetensors'))
+    return w
+
+
+class QwenEnginePositionTests(unittest.TestCase):
+    def test_explicit_positions_match_default_and_shift_changes_logits(self):
+        with tempfile.TemporaryDirectory() as d:
+            tiny_qwen2(d); e = Qwen2Engine(d, 'cpu'); ids = [1, 2, 3, 4]
+            a, _ = e.forward(ids, e.new_cache(8), all_logits=True)
+            b, _ = e.forward(ids, e.new_cache(8), all_logits=True, positions=[0, 1, 2, 3])
+            c, _ = e.forward(ids, e.new_cache(8), all_logits=True, positions=[0, 40, 41, 42])
+            self.assertTrue(torch.equal(a, b)); self.assertGreater(float((a - c).abs().max()), 1e-4)
+
+
+class NativeBundleTests(unittest.TestCase):
+    def test_convert_layout_roundtrip_and_plan(self):
+        with tempfile.TemporaryDirectory() as d:
+            w = tiny_qwen2(d); out = Path(d) / 'out.sp'
+            m = native_bundle.convert(d, out, shard=8, halo=4, sinks=2)
+            self.assertEqual(m['format'], 'seedplane-bundle/2'); self.assertEqual(m['plan'], {'shard': 8, 'halo': 4, 'sinks': 2})
+            self.assertTrue(all(t['offset'] % native_bundle.ALIGN == 0 for t in m['tensors'].values()))
+            blob = np.fromfile(out / 'weights.spw', dtype=np.uint8); t = m['tensors']['1.qkv_w']
+            got = blob[t['offset']:t['offset'] + t['bytes']].view('<f2').reshape(t['shape']).astype(np.float32)
+            p = 'model.layers.1.self_attn.'
+            ref = torch.cat([w[p + 'q_proj.weight'], w[p + 'k_proj.weight'], w[p + 'v_proj.weight']]).to(torch.bfloat16).float()
+            self.assertLess(float(np.abs(got - ref.numpy().astype(np.float16).astype(np.float32)).max()), 1e-12)
+            self.assertEqual(json.loads((out / 'seedplane.json').read_text())['weights']['sha256'], m['weights']['sha256'])
+
+    def test_keeps_v1_plan_and_rejects_oversized_window(self):
+        with tempfile.TemporaryDirectory() as d:
+            tiny_qwen2(d)
+            (Path(d) / 'seedplane.json').write_text(json.dumps({'format': 'seedplane-bundle/1', 'source': 'tiny',
+                                                                 'plan': {'shard': 16, 'halo': 8, 'sinks': 1}}))
+            m = native_bundle.convert(d, Path(d) / 'a.sp')
+            self.assertEqual((m['plan'], m['source']), ({'shard': 16, 'halo': 8, 'sinks': 1}, 'tiny'))
+            with self.assertRaises(ValueError):
+                native_bundle.convert(d, Path(d) / 'b.sp', shard=4000, halo=200)
+
+
+
+FAKE_ENGINE = '''#!{python}
+import json, sys
+print(json.dumps({{"ready": True, "device": "fake", "mode": "shadow-batch", "plan": {{"shard": 8, "halo": 4, "sinks": 2}},
+                  "positions": 64, "window_slots": 14}}), flush=True)
+seq = []
+for line in sys.stdin:
+    q = json.loads(line)
+    if q["op"] == "chat":
+        if q.get("reset"): seq.clear()
+        for t in ("Ol", "á", "!"):
+            seq.append(t); print(json.dumps({{"token": len(seq), "text": t}}), flush=True)
+        print(json.dumps({{"done": True, "reason": "stop", "generated": 3, "prompt_tokens": 5, "prefill_s": 0.0,
+                          "decode_s": 0.0, "decode_tok_s": 1.0, "position": len(seq)}}), flush=True)
+    elif q["op"] == "tokenize": print(json.dumps({{"ids": [ord(c) for c in q["text"]]}}), flush=True)
+    else: print(json.dumps({{"error": "unknown op " + q["op"]}}), flush=True)
+'''
+
+
+@unittest.skipIf(os.name == 'nt', 'fake engine script needs a POSIX shebang')
+class NativeFrontEndTests(unittest.TestCase):
+    def test_protocol_streaming_state_and_errors(self):
+        with tempfile.TemporaryDirectory() as d:
+            exe = Path(d) / 'qwen_vk'; exe.write_text(FAKE_ENGINE.format(python=sys.executable)); exe.chmod(0o755)
+            with native.NativeEngine(d, engine=exe) as eng:
+                self.assertEqual(eng.info['plan']['shard'], 8)
+                self.assertEqual(''.join(eng.chat('oi', reset=True)), 'Olá!')
+                self.assertEqual((eng.last['reason'], eng.last['position']), ('stop', 3))
+                self.assertEqual(''.join(eng.chat('de novo')), 'Olá!'); self.assertEqual(eng.last['position'], 6)
+                self.assertEqual(eng.tokenize('ab'), [97, 98])
+                with self.assertRaises(RuntimeError): eng.state()
+
+    def test_missing_engine_is_reported(self):
+        with patch.dict(os.environ, {'SEEDPLANE_NATIVE_ENGINE': ''}), patch.object(native, 'REPO_ENGINE', Path('/nonexistent/qwen_vk')), \
+             patch('shutil.which', return_value=None):
+            with self.assertRaises(FileNotFoundError): native.find_engine()
 
 
 if __name__ == '__main__':

@@ -1,6 +1,9 @@
 """seedplane — run existing Hugging Face models with SeedPlane shard windows, on any mix of devices.
 
   seedplane convert Qwen/Qwen2.5-0.5B-Instruct ./qwen05.sp --shard 512 --halo 256
+  seedplane convert ./qwen05.sp ./qwen05-native.sp --native      # engine-ready bundle for native/vulkan_decode
+  seedplane chat     ./qwen05-native.sp --native                   # chat on the native runtime (Vulkan GPU)
+  seedplane generate ./qwen05-native.sp --native --prompt "Once upon a time" -n 64
   seedplane serve   --bundle ./qwen05.sp --device cpu --port 52000        # turn this machine/core/GPU into a worker
   seedplane run     --bundle ./qwen05.sp --prompt-file long.txt --workers local:xpu:1,local:cpu:4,OTHER-PC:52000
   seedplane bench   --bundle ./qwen05.sp --text-file corpus.txt --length 4096
@@ -47,8 +50,43 @@ def plan_of(bundle):
 
 # ------------------------------------------------------------------ convert
 def cmd_convert(a):
-    out = engine.save_bundle(a.out, a.model, engine.ShardPlan(a.shard, a.halo, a.sinks))
+    if a.native:
+        try: from . import native_bundle
+        except ImportError: import native_bundle
+        m = native_bundle.convert(a.model, a.out, a.shard, a.halo, a.sinks)
+        print(f"native bundle written to {a.out}  ({m['format']}, plan {m['plan']}, weights sha256 {m['weights']['sha256'][:16]}...)")
+        return
+    plan = engine.ShardPlan(512 if a.shard is None else a.shard, 256 if a.halo is None else a.halo, a.sinks or 0)
+    out = engine.save_bundle(a.out, a.model, plan)
     print(f'bundle written to {out}  (weights unchanged + seedplane.json)')
+
+
+# ------------------------------------------------------------------ native chat / generate
+def _native_engine(a):
+    try: from . import native
+    except ImportError: import native
+    sampling = {'temperature': a.temperature, 'top_k': a.top_k, 'top_p': a.top_p, 'seed': a.seed}
+    return native, native.NativeEngine(a.bundle, engine=a.engine, mode=a.mode, full=a.full, ctx=a.ctx, max_new_tokens=a.max_new_tokens,
+                                       system=getattr(a, 'system', None), **sampling)
+
+
+def cmd_chat(a):
+    if not a.native:
+        raise SystemExit('seedplane chat runs the native runtime: add --native (PyTorch reference chat: seedplane-chat <hf_dir>)')
+    native, eng = _native_engine(a)
+    with eng: native.chat_repl(eng)
+
+
+def cmd_generate(a):
+    if not a.native:
+        raise SystemExit('seedplane generate runs the native runtime: add --native')
+    text = Path(a.prompt_file).read_text(encoding='utf-8') if a.prompt_file else a.prompt
+    native, eng = _native_engine(a)
+    with eng:
+        for piece in eng.generate(text): print(piece, end='', flush=True)
+        s = eng.last
+        print(f"\n[{s['generated']} tokens, {s['decode_tok_s']:.1f} tok/s, prompt {s['prompt_tokens']} tokens in {s['prefill_s']:.2f}s, {s['reason']}]",
+              file=sys.stderr)
 
 
 # ------------------------------------------------------------------ serve (a worker)
@@ -202,14 +240,27 @@ def cmd_bench(a):
 def main():
     ap = argparse.ArgumentParser(prog='seedplane', description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter); sub = ap.add_subparsers(dest='cmd', required=True)
     c = sub.add_parser('convert', help='make a SeedPlane bundle from a Hugging Face model'); c.add_argument('model'); c.add_argument('out')
-    c.add_argument('--shard', type=int, default=512); c.add_argument('--halo', type=int, default=256); c.add_argument('--sinks', type=int, default=0)
+    c.add_argument('--shard', type=int, help='default 512 (native: keep a v1 source plan, else 512)')
+    c.add_argument('--halo', type=int, help='default 256'); c.add_argument('--sinks', type=int, help='default 0 (native from scratch: 4)')
+    c.add_argument('--native', action='store_true', help='write a seedplane-bundle/2 for the native engine (source: HF dir, v1 bundle or hub id)')
     s = sub.add_parser('serve', help='run a worker on this device'); s.add_argument('--bundle', required=True); s.add_argument('--device', default='cpu')
     s.add_argument('--port', type=int, default=52000); s.add_argument('--host', default='127.0.0.1'); s.add_argument('--threads', type=int, default=1)
     r = sub.add_parser('run', help='process a long prompt across workers'); r.add_argument('--bundle', required=True); r.add_argument('--prompt-file', required=True)
     r.add_argument('--workers', default='local:cpu:4'); r.add_argument('--scheduler', choices=['dynamic', 'static'], default='dynamic'); r.add_argument('--max-tokens', type=int, default=8192)
     b = sub.add_parser('bench', help='quality + speed vs the original full attention'); b.add_argument('--bundle', required=True); b.add_argument('--text-file', required=True)
     b.add_argument('--device', default='cpu'); b.add_argument('--length', type=int, default=4096); b.add_argument('--samples', type=int, default=3)
-    a = ap.parse_args(); {'convert': cmd_convert, 'serve': cmd_serve, 'run': cmd_run, 'bench': cmd_bench}[a.cmd](a)
+    for name, helptext in (('chat', 'interactive chat on the native runtime'), ('generate', 'continue a text prompt on the native runtime')):
+        n = sub.add_parser(name, help=helptext); n.add_argument('bundle', help='seedplane-bundle/2 directory')
+        n.add_argument('--native', action='store_true', help='use the native Vulkan runtime (required)')
+        n.add_argument('--engine', help='path to qwen_vk (default: $SEEDPLANE_NATIVE_ENGINE or the in-repo build)')
+        n.add_argument('--mode', help='boundary mode (default shadow-batch)'); n.add_argument('--full', action='store_true', help='original full attention')
+        n.add_argument('--ctx', type=int, help='maximum positions'); n.add_argument('-n', '--max-new-tokens', type=int, default=256)
+        n.add_argument('--temperature', type=float, default=0.7); n.add_argument('--top-k', type=int, default=40)
+        n.add_argument('--top-p', type=float, default=0.9); n.add_argument('--seed', type=int, default=1)
+        if name == 'chat': n.add_argument('--system', default='You are a helpful assistant.')
+        else: n.add_argument('--prompt', default=''); n.add_argument('--prompt-file')
+    a = ap.parse_args()
+    {'convert': cmd_convert, 'serve': cmd_serve, 'run': cmd_run, 'bench': cmd_bench, 'chat': cmd_chat, 'generate': cmd_generate}[a.cmd](a)
 
 
 if __name__ == '__main__':

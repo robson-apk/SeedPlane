@@ -1,0 +1,44 @@
+#version 450
+// Split attention, pass 1: one workgroup per (column, head, 128-slot chunk) computes the chunk's softmax statistics
+// (max m, sum l) and unnormalised output acc[64]. part layout: [(col * nh + h) * nchunk + chunk][66] = m, l, acc.
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_; uint btok[8]; uint bpos[8]; uint bslot[8]; };
+layout(std430, binding = 1) readonly buffer QKV { float qkv[]; };
+layout(std430, binding = 2) readonly buffer KC0 { float kc0[]; };
+layout(std430, binding = 3) readonly buffer VC0 { float vc0[]; };
+layout(std430, binding = 4) writeonly buffer Part { float part[]; };
+layout(std430, binding = 5) readonly buffer KC1 { float kc1[]; };
+layout(std430, binding = 6) readonly buffer VC1 { float vc1[]; };
+layout(push_constant) uniform P { uint nh; uint nkv; float scale; uint qn; uint nchunk; } p;
+const uint HD = 64, CH = 128, REC = HD + 2;
+shared float qs[HD]; shared float es[CH]; shared float red[CH];
+void main() {
+    uint id = gl_WorkGroupID.x, t = gl_LocalInvocationID.x;
+    uint col = id / (p.nh * p.nchunk), rem = id % (p.nh * p.nchunk), h = rem / p.nchunk, ch = rem % p.nchunk;
+    uint kv = h / (p.nh / p.nkv), T = (col == 0 ? slot : slot2) + 1, j0 = ch * CH, out0 = id * REC;
+    if (j0 >= T) {                                   // uniform per workgroup: empty chunk
+        if (t < REC) part[out0 + t] = t == 0 ? -1e30 : 0.0;
+        return;
+    }
+    if (t < HD) qs[t] = qkv[col * p.qn + h * HD + t];
+    barrier();
+    uint j = j0 + t; float s = -1e30;
+    if (j < T) {
+        uint b = (j * p.nkv + kv) * HD; s = 0.0;
+        if (col == 0) { for (uint d = 0; d < HD; ++d) s += qs[d] * kc0[b + d]; }
+        else          { for (uint d = 0; d < HD; ++d) s += qs[d] * kc1[b + d]; }
+        s *= p.scale;
+    }
+    red[t] = s; barrier();
+    for (uint k = CH / 2; k > 0; k >>= 1) { if (t < k) red[t] = max(red[t], red[t + k]); barrier(); }
+    float m = red[0]; barrier();
+    float e = j < T ? exp(s - m) : 0.0; es[t] = e; red[t] = e; barrier();
+    for (uint k = CH / 2; k > 0; k >>= 1) { if (t < k) red[t] += red[t + k]; barrier(); }
+    float l = red[0]; barrier();
+    uint d = t & (HD - 1), half_ = t / HD, n = min(CH, T - j0); float acc = 0.0;
+    if (col == 0) { for (uint jj = half_; jj < n; jj += 2) acc += es[jj] * vc0[((j0 + jj) * p.nkv + kv) * HD + d]; }
+    else          { for (uint jj = half_; jj < n; jj += 2) acc += es[jj] * vc1[((j0 + jj) * p.nkv + kv) * HD + d]; }
+    red[t] = acc; barrier();
+    if (t < HD) part[out0 + 2 + t] = red[t] + red[t + HD];
+    if (t == 0) { part[out0] = m; part[out0 + 1] = l; }
+}

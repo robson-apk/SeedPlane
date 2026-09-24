@@ -4,6 +4,27 @@ All notable changes are documented here. SeedPlane is currently alpha research s
 
 ## Unreleased
 
+- V21: the native runtime reads and writes text. It adds a C++ Qwen2 byte-level BPE tokenizer (NFC + split regex,
+  identical to HF `tokenizers` on all of WikiText-2), temperature/top-k/top-p sampling, persistent chat sessions
+  (continuation equals fresh prefill), `qwen_vk --chat` / `--serve`, `seedplane chat|generate --native`,
+  `seedplane.native.NativeEngine`, and a CMake build. Sampling runs at 0.92× greedy (246 vs 267 tok/s), which fails the
+  pre-registered 0.95× gate; the first run was 0.04× because of uncached readback memory, fixed post hoc.
+- Added `seedplane-bundle/2` and `seedplane convert --native` / `python -m seedplane.native_bundle`: engine-ready FP16
+  weights with fused QKV, FP32 norms/biases, architecture, shard plan and SHA-256 hashes; converts from a Hugging Face
+  directory, a v1 bundle or a hub id using only numpy (V19 G1: identical weights from both sources).
+- Added the native Vulkan decoder `native/vulkan_decode` (C++ + GLSL, one command-buffer submission per token). With full
+  attention: 258.2 tok/s on the Arc B580 vs 18.11 tok/s for the PyTorch decoder, but below the pre-registered 296 tok/s
+  (V18 G3 failed).
+- The native decoder now runs the SeedPlane model: shard-window attention with a window-local KV cache, rebuilt at
+  every shard boundary so decoding matches `ShardPlan.windows` exactly (V19: 296/296 tokens equal to a from-scratch
+  window oracle). Boundary rebuilds currently make overall decode slower than full attention at short lengths.
+- `Qwen2Engine.forward` accepts original `positions` for window-local caches.
+- Native decoder V20: boundary modes `shadow-batch` (new default, exact), `shadow`, `rebuild-batch`, `rebuild` and
+  approximate `reuse`; split (chunked) attention; K/V-only batched prompt prefill; teacher-forced NLL scoring
+  (`--score-file`). At 3–4k context on the B580, exact SeedPlane decode is 266.9 tok/s vs 250.0 for full attention
+  (V19 rebuild: 187.0, with 0.92 s boundary stalls). Split attention is 4.78× the old kernel at that context, and
+  prompt prefill is 6.2× faster. Reuse was rejected (worse NLL than exact on all 3 chunks). The pre-registered
+  max-latency gate failed in every mode, including full attention, because of ~30 ms spikes of unidentified origin.
 - Added a SeedPlane-owned Qwen2/Qwen2.5 autoregressive graph loading safetensors directly, with persistent preallocated
   KV cache, fused QKV and gate/up projections, sampling and streaming chat.
 - Added CPU and Arc B580 oracle validation: eight greedy tokens match Transformers; CPU FP32 maximum logit error is
