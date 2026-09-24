@@ -150,10 +150,15 @@ The fixed G1 distribution gate passed 47/48 cases; the remaining high-support ca
 passed on Windows; the same session-continuation check passed on macOS and Linux. The experiment, raw measurements,
 reproduction scripts, protocol, and known limitations are in [`experiments/v22b/`](experiments/v22b/RESULTS.md).
 
-This does **not** yet demonstrate distributed autoregressive inference or an aggregate multi-device speedup. The
-current milestone validates the local Vulkan sampler/runtime on three distinct GPUs; the cluster worker/pool integration
-and end-to-end throughput experiment remain future work. Build prerequisites and commands are in
+An initial two-node batch feasibility test also sent 24 independent 128-token requests through persistent SSH streams:
+B580 alone reached 271.9 tok/s median, versus 378.3 tok/s on B580 + RX570 (**1.391× aggregate**). All output tokens matched.
+However, p99 request latency increased from about 0.48–0.50 s to 1.95 s, so the planned latency gate failed. This test
+uses an experimental harness, not the `seedplane` network worker/pool, and does not accelerate one request cooperatively;
+the production cluster integration and latency-aware scheduler remain future work. Full data and caveats are in
+[`experiments/v22b/RESULTS.md`](experiments/v22b/RESULTS.md). Build prerequisites and commands are in
 [`native/vulkan_decode/README.md`](native/vulkan_decode/README.md).
+
+<p align="center"><img src="docs/img/v22b-fleet.gif" alt="B580 plus RX 570 batch throughput clears its target while p99 request latency misses its limit" width="760"></p>
 
 ---
 

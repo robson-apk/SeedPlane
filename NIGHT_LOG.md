@@ -37,3 +37,20 @@ protocol → worker CLI → pool → M4 → auto scheduler → ...). Wake-up eve
 - Next: communicate G1's statistical limitation, decide a prospective replacement protocol without changing V22b; verify
   V22b on more RX570 distributions; then continue cluster inference/data-plane integration. Distributed end-to-end LLM
   throughput gain has not yet been measured or established.
+
+## 13:40 — B580 + RX570 batch feasibility
+
+- Confirmed the exact `weights.spw` SHA-256 matches on the Windows/B580 and X79/RX570 hosts.
+- Smoke-tested the native `--serve` JSON-lines interface over persistent SSH on both hosts; both reported the expected
+  physical GPU and generated the same greedy token.
+- Added an experimental two-worker benchmark harness using separate local model processes and independent requests.
+  Three interleaved rounds, 24 requests × 128 generated tokens per condition: B580 270.39/271.87/274.00 tok/s;
+  B580+RX570 379.32/378.31/378.20 tok/s; ratios 1.4029/1.3915/1.3803× (median 1.3915×). Every output sequence
+  was identical. The first harness run overcounted one request and was discarded; the committed JSON is from the corrected
+  exact-24-request run.
+- Aggregate throughput target 1.30× passes for this test harness. The p99 latency target fails: ~0.48–0.50 s B580-only
+  vs ~1.95 s pool; typical RX570 request is ~1.02 s. Therefore not full V26 acceptance and not integrated into the
+  public `seedplane` network worker/pool. No single-request decode speedup claim.
+- X79 link remains 100 Mb/s full-duplex; iperf3 absent. Current JSONL test transfers small prompt/token messages over SSH.
+- Update README/report, publish result branch, then safely promote the intended commits to `main`; run CI on main. Keep the
+  protocol-v2 branch separate pending review/integration.

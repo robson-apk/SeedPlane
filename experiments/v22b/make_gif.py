@@ -1,5 +1,6 @@
 """Create a small README animation from the published V22b per-device ratios."""
 from pathlib import Path
+import json
 
 import matplotlib
 matplotlib.use("Agg")
@@ -8,6 +9,7 @@ from matplotlib.animation import FuncAnimation, PillowWriter
 
 
 OUT = Path(__file__).resolve().parents[2] / "docs" / "img" / "v22b-sampling.gif"
+FLEET_OUT = OUT.with_name("v22b-fleet.gif")
 DEVICES = ["Intel Arc B580", "Apple M4", "AMD Radeon RX 570"]
 MODES = ["T=1", "k40 + p0.9", "p=0.9", "p=0.99", "k=200"]
 RATIOS = [
@@ -53,7 +55,50 @@ def main():
     OUT.parent.mkdir(parents=True, exist_ok=True)
     animation.save(OUT, writer=PillowWriter(fps=1.25))
     plt.close(fig)
+    make_fleet_gif()
     print(OUT)
+
+
+def make_fleet_gif():
+    data = json.loads((Path(__file__).resolve().parent / "fleet_g2.json").read_text(encoding="utf-8"))
+    rounds = data["rounds"]
+    speedups = [r["speedup"] for r in rounds]
+    p99_ratios = [r["fleet_b580_rx570"]["request_latency_p99_s"] /
+                  r["single_b580"]["request_latency_p99_s"] for r in rounds]
+    fig, axes = plt.subplots(1, 2, figsize=(9.4, 3.4))
+    fig.patch.set_facecolor("#fbfaf7")
+    fig.suptitle("B580 + RX 570 · independent-request batch", fontsize=14, fontweight="bold", y=0.98)
+    panels = [
+        (axes[0], speedups, 1.30, "Aggregate throughput", "× B580 alone", 1.5, "#2a78d6"),
+        (axes[1], p99_ratios, 1.20, "Request p99 latency", "× B580 alone", 4.5, "#b54b37"),
+    ]
+    rect_groups = []
+    for ax, values, threshold, title, xlabel, xmax, color in panels:
+        ax.set_facecolor("#fbfaf7")
+        ax.set_title(title, fontsize=11, fontweight="bold")
+        rects = ax.bar(range(1, len(values) + 1), values, color=["#a8b4bf"] * len(values), width=0.62)
+        ax.axhline(threshold, color="#b54b37", lw=1.2, ls="--")
+        ax.set_xticks(range(1, len(values) + 1), [f"Round {i}" for i in range(1, len(values) + 1)], fontsize=8)
+        ax.set_ylabel(xlabel, fontsize=8)
+        ax.set_ylim(0, xmax)
+        ax.grid(axis="y", color="#e6e2dc", lw=0.7)
+        ax.set_axisbelow(True)
+        for rect, value in zip(rects, values):
+            ax.text(rect.get_x() + rect.get_width() / 2, value + xmax * 0.025, f"{value:.2f}×",
+                    ha="center", fontsize=8, color="#202a35")
+        rect_groups.append((rects, color))
+    fig.text(0.25, 0.035, "Target ≥1.30× · PASS", ha="center", fontsize=8.5, color="#315a3c")
+    fig.text(0.75, 0.035, "Limit ≤1.20× · FAIL", ha="center", fontsize=8.5, color="#9b3f31")
+    fig.subplots_adjust(left=0.08, right=0.99, top=0.82, bottom=0.18, wspace=0.35)
+
+    def frame(i):
+        for rects, color in rect_groups:
+            for j, rect in enumerate(rects):
+                rect.set_color(color if j == i else "#a8b4bf")
+        return [rect for rects, _ in rect_groups for rect in rects]
+
+    FuncAnimation(fig, frame, frames=len(rounds), interval=900, blit=False).save(FLEET_OUT, writer=PillowWriter(fps=1.25))
+    plt.close(fig)
 
 
 if __name__ == "__main__":
