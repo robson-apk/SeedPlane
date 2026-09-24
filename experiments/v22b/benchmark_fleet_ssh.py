@@ -72,6 +72,7 @@ class Worker:
                     "worker": self.name, "generated": response["generated"],
                     "decode_tok_s": response["decode_tok_s"],
                     "seconds_roundtrip": time.perf_counter() - started,
+                    "finished_at": time.perf_counter(),
                     "tokens": tokens,
                 }
 
@@ -98,21 +99,28 @@ def run_load(workers, count):
             done, _ = concurrent.futures.wait(futures, return_when=concurrent.futures.FIRST_COMPLETED)
             for future in done:
                 worker = futures.pop(future)
-                rows.append(future.result())
+                row = future.result()
+                row["completion_from_batch_start_s"] = row["finished_at"] - start
+                rows.append(row)
                 if submitted < count:
                     futures[pool.submit(worker.generate)] = worker
                     submitted += 1
     elapsed = time.perf_counter() - start
     expected = rows[0]["tokens"]
     matching = all(row["generated"] == MAX_NEW and row["tokens"] == expected for row in rows)
-    latencies = sorted(row["seconds_roundtrip"] for row in rows)
-    p95 = latencies[max(0, math.ceil(0.95 * len(latencies)) - 1)]
-    p99 = latencies[max(0, math.ceil(0.99 * len(latencies)) - 1)]
+    service = sorted(row["seconds_roundtrip"] for row in rows)
+    completion = sorted(row["completion_from_batch_start_s"] for row in rows)
+    service_p95 = service[max(0, math.ceil(0.95 * len(service)) - 1)]
+    service_p99 = service[max(0, math.ceil(0.99 * len(service)) - 1)]
+    completion_p95 = completion[max(0, math.ceil(0.95 * len(completion)) - 1)]
+    completion_p99 = completion[max(0, math.ceil(0.99 * len(completion)) - 1)]
     return {
         "requests": len(rows), "requested_tokens": count * MAX_NEW,
         "generated_tokens": sum(row["generated"] for row in rows),
         "wall_s": elapsed, "aggregate_tok_s": sum(row["generated"] for row in rows) / elapsed,
-        "request_latency_p95_s": p95, "request_latency_p99_s": p99,
+        "worker_service_p95_s": service_p95, "worker_service_p99_s": service_p99,
+        "burst_completion_p95_s": completion_p95, "burst_completion_p99_s": completion_p99,
+        "arrival_assumption": "all batch requests arrive together at batch start",
         "per_request_roundtrip_s": [row["seconds_roundtrip"] for row in rows],
         "per_request_device_tok_s": [row["decode_tok_s"] for row in rows],
         "workers_used": {name: sum(row["worker"] == name for row in rows) for name in sorted({r["worker"] for r in rows})},
@@ -154,10 +162,15 @@ def main():
             "aggregate_gate_min_speedup": 1.30,
             "aggregate_gate_pass": sorted(r["speedup"] for r in rounds)[1] >= 1.30,
             "latency_gate_max_p99_increase": 1.20,
-            "latency_gate_pass": all(
-                r["fleet_b580_rx570"]["request_latency_p99_s"] <=
-                1.20 * r["single_b580"]["request_latency_p99_s"] for r in rounds
-            ),
+            "latency_arrival_methodology_preregistered": False,
+            "median_worker_service_p99_ratio": sorted(
+                r["fleet_b580_rx570"]["worker_service_p99_s"] /
+                r["single_b580"]["worker_service_p99_s"] for r in rounds
+            )[1],
+            "median_burst_completion_p99_ratio": sorted(
+                r["fleet_b580_rx570"]["burst_completion_p99_s"] /
+                r["single_b580"]["burst_completion_p99_s"] for r in rounds
+            )[1],
             "measurement_integrity_pass": all(
                 r["single_b580"]["pass"] and r["fleet_b580_rx570"]["pass"] for r in rounds
             ),

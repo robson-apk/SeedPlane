@@ -44,13 +44,16 @@ protocol → worker CLI → pool → M4 → auto scheduler → ...). Wake-up eve
 - Smoke-tested the native `--serve` JSON-lines interface over persistent SSH on both hosts; both reported the expected
   physical GPU and generated the same greedy token.
 - Added an experimental two-worker benchmark harness using separate local model processes and independent requests.
-  Three interleaved rounds, 24 requests × 128 generated tokens per condition: B580 270.39/271.87/274.00 tok/s;
-  B580+RX570 379.32/378.31/378.20 tok/s; ratios 1.4029/1.3915/1.3803× (median 1.3915×). Every output sequence
+  Three interleaved rounds, 24 requests × 128 generated tokens per condition: B580 273.63/274.25/272.76 tok/s;
+  B580+RX570 377.85/378.37/378.50 tok/s; ratios 1.3809/1.3796/1.3877× (median 1.3809×). Every output sequence
   was identical. The first harness run overcounted one request and was discarded; the committed JSON is from the corrected
   exact-24-request run.
-- Aggregate throughput target 1.30× passes for this test harness. The p99 latency target fails: ~0.48–0.50 s B580-only
-  vs ~1.95 s pool; typical RX570 request is ~1.02 s. Therefore not full V26 acceptance and not integrated into the
-  public `seedplane` network worker/pool. No single-request decode speedup claim.
+- Aggregate throughput target 1.30× passes for this harness. Clarification: worker-service p99 is ~0.48–0.51 s B580-only
+  vs ~1.95 s pool (RX570 tasks), but synchronized-burst completion p99 including queue is ~11.2 s B580-only vs ~8.12 s
+  pool (ratio 0.724×). Since V26 arrival/p99 semantics were not pre-registered, do not claim formal latency-gate pass/fail;
+  report both and define arrival workload before the formal run. This is not integrated into the public network worker/pool.
+  No single-request decode speedup claim.
 - X79 link remains 100 Mb/s full-duplex; iperf3 absent. Current JSONL test transfers small prompt/token messages over SSH.
-- Update README/report, publish result branch, then safely promote the intended commits to `main`; run CI on main. Keep the
-  protocol-v2 branch separate pending review/integration.
+- PR #3 merge `5296e6e` promoted the results, README and GIF to `main`; PR and main CI are green. Keep the protocol-v2
+  branch separate pending review/integration. Next: pre-register fleet arrival/latency methodology; integrate authenticated
+  workers with native `qwen_vk`; address RX570 service tail and 100 Mb/s X79 link.

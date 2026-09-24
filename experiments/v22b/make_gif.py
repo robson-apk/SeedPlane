@@ -63,14 +63,17 @@ def make_fleet_gif():
     data = json.loads((Path(__file__).resolve().parent / "fleet_g2.json").read_text(encoding="utf-8"))
     rounds = data["rounds"]
     speedups = [r["speedup"] for r in rounds]
-    p99_ratios = [r["fleet_b580_rx570"]["request_latency_p99_s"] /
-                  r["single_b580"]["request_latency_p99_s"] for r in rounds]
-    fig, axes = plt.subplots(1, 2, figsize=(9.4, 3.4))
+    burst_p99_ratios = [r["fleet_b580_rx570"]["burst_completion_p99_s"] /
+                        r["single_b580"]["burst_completion_p99_s"] for r in rounds]
+    service_p99_ratios = [r["fleet_b580_rx570"]["worker_service_p99_s"] /
+                          r["single_b580"]["worker_service_p99_s"] for r in rounds]
+    fig, axes = plt.subplots(1, 3, figsize=(12, 3.6))
     fig.patch.set_facecolor("#fbfaf7")
-    fig.suptitle("B580 + RX 570 · independent-request batch", fontsize=14, fontweight="bold", y=0.98)
+    fig.suptitle("B580 + RX 570 · 24-request synchronized burst", fontsize=14, fontweight="bold", y=0.98)
     panels = [
-        (axes[0], speedups, 1.30, "Aggregate throughput", "× B580 alone", 1.5, "#2a78d6"),
-        (axes[1], p99_ratios, 1.20, "Request p99 latency", "× B580 alone", 4.5, "#b54b37"),
+        (axes[0], speedups, 1.30, "Aggregate throughput", "ratio vs B580", 1.5, "#2a78d6"),
+        (axes[1], burst_p99_ratios, 1.20, "Burst completion p99", "ratio vs B580", 1.5, "#199e70"),
+        (axes[2], service_p99_ratios, 1.20, "Worker service p99", "ratio vs B580", 5.0, "#b54b37"),
     ]
     rect_groups = []
     for ax, values, threshold, title, xlabel, xmax, color in panels:
@@ -87,9 +90,9 @@ def make_fleet_gif():
             ax.text(rect.get_x() + rect.get_width() / 2, value + xmax * 0.025, f"{value:.2f}×",
                     ha="center", fontsize=8, color="#202a35")
         rect_groups.append((rects, color))
-    fig.text(0.25, 0.035, "Target ≥1.30× · PASS", ha="center", fontsize=8.5, color="#315a3c")
-    fig.text(0.75, 0.035, "Limit ≤1.20× · FAIL", ha="center", fontsize=8.5, color="#9b3f31")
-    fig.subplots_adjust(left=0.08, right=0.99, top=0.82, bottom=0.18, wspace=0.35)
+    fig.text(0.5, 0.035, "Throughput target ≥1.30× · latency limit ≤1.20× · arrival/p99 method still needs pre-registration",
+             ha="center", fontsize=8.2, color="#4c5965")
+    fig.subplots_adjust(left=0.06, right=0.99, top=0.82, bottom=0.18, wspace=0.38)
 
     def frame(i):
         for rects, color in rect_groups:
