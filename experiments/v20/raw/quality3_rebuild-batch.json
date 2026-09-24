@@ -1,0 +1,8 @@
+{
+  "device": "Intel(R) Arc(TM) B580 Graphics", "subgroup_size": 32, "shared_bytes": 49152, "dispatches_per_token": 172, "load_seconds": 1.039,
+  "mode": "rebuild-batch", "attn": "split", "fence_wait": "sleep", "plan": {"shard": 512, "halo": 256, "sinks": 4}, "window_slots": 772, "chunks": 7,
+  "kv_bytes_per_cache": 18972672, "prompt_tokens": 4096, "generated_tokens": 0, "scoring": true,
+  "runs": [
+    {"prefill_seconds": 15.642548, "decode_seconds": 0.000000, "decode_tok_s": 0.000, "lat_median_ms": 0.0000, "lat_p99_ms": 0.0000, "lat_max_ms": 0.0000, "lat_max_pos": 0, "boundaries": 7, "rebuild_tokens": 1820, "dual_submits": 0, "shadow_batch_tokens": 0, "batch_submits": 231, "nll_mean": 2.83413564, "tokens": []}
+  ]
+}

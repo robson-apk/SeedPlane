@@ -1,0 +1,92 @@
+{
+ "commit": "39c8e43 V22: GPU-assisted sampling (Gumbel-max, histogram threshold + candidates)",
+ "G1": {
+  "gcc": true,
+  "clang": true,
+  "pass": true
+ },
+ "G2": {
+  "spv_files": 21,
+  "expected": 21,
+  "pass": true
+ },
+ "G3": {
+  "executed": true,
+  "returncode": 0,
+  "validation_errors": 0,
+  "first_errors": [],
+  "stderr_tail": "",
+  "pass": true
+ },
+ "G4": {
+  "devices": [
+   "AMD Radeon RX 570 Series (RADV POLARIS10)"
+  ],
+  "pass": true
+ },
+ "G5": {
+  "full_first8_equal": true,
+  "full_128_equal": true,
+  "plan_296_equal": true,
+  "full_first_div": null,
+  "plan_first_div": null,
+  "pass": true
+ },
+ "G6": {
+  "max_abs_logit_error": 3.337860107421875e-05,
+  "argmax_equal": true,
+  "pass": true
+ },
+ "G7": {
+  "mean_nll_rx570": 2.7642264366149902,
+  "mean_nll_b580": 2.7642266750335693,
+  "mean_abs_diff": 2.384185791015625e-07,
+  "max_pos_abs_diff": 7.43865966796875e-05,
+  "positions": 4095,
+  "pass": true
+ },
+ "G8": {
+  "runs_identical": true,
+  "equal_b580_v20_reported": true,
+  "first_div_vs_b580": null,
+  "device": "AMD Radeon RX 570 Series (RADV POLARIS10)",
+  "pass": true
+ },
+ "G9": {
+  "vram_peak_20_40pct_mib": 991.12109375,
+  "vram_peak_last20pct_mib": 991.12109375,
+  "samples": 988,
+  "pass": true
+ },
+ "reported": {
+  "seedplane_tok_s": [
+   116.817,
+   116.765,
+   116.782
+  ],
+  "full_tok_s": [
+   101.097,
+   101.098,
+   101.106
+  ],
+  "prefill_s_median": 6.452232,
+  "lat_median_ms": 8.116,
+  "lat_p99_ms": 19.3863,
+  "lat_max_ms": [
+   19.5647,
+   19.5424,
+   19.5982
+  ],
+  "sampling_tok_s": {
+   "T0.7_k40_p0.9": 116.124,
+   "T1.0": 114.687,
+   "T0.7_p0.9": 116.126
+  },
+  "clang_tok_s": 116.609,
+  "clang_tokens_equal_gcc": true,
+  "load_seconds": 3.558,
+  "subgroup_size": 64,
+  "shared_bytes": 65536,
+  "kv_bytes_per_cache": 18972672
+ }
+}

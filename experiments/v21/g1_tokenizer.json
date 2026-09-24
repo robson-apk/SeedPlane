@@ -1,0 +1,36 @@
+{
+ "wikitext": {
+  "chars": 1285622,
+  "hf_tokens": 298938,
+  "native_tokens": 298938,
+  "identical": true,
+  "first_mismatch": null,
+  "context": null,
+  "roundtrip_equals_nfc": true
+ },
+ "stress": {
+  "chars": 1369,
+  "hf_tokens": 454,
+  "native_tokens": 454,
+  "identical": true,
+  "first_mismatch": null,
+  "context": null,
+  "roundtrip_equals_nfc": true
+ },
+ "fuzz_extra": {
+  "chars": 64283,
+  "hf_tokens": 88894,
+  "native_tokens": 88894,
+  "identical": true,
+  "first_mismatch": null,
+  "context": null,
+  "roundtrip_equals_nfc": true
+ },
+ "nfc_extra": {
+  "code_points": 145854,
+  "nfc_equal": true,
+  "nfc_of_nfd_equal": true,
+  "python_unicode": "14.0.0"
+ },
+ "G1_pass": true
+}

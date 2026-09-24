@@ -1,0 +1,20 @@
+#version 450
+// Greedy pick (first index on ties, like torch.argmax) over column 0. The host owns pos/slot.
+layout(local_size_x = 1024) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_; uint btok[8]; uint bpos[8]; uint bslot[8]; };
+layout(std430, binding = 1) readonly buffer L { float logits[]; };
+layout(push_constant) uniform P { uint n; } p;
+shared float bv[1024]; shared uint bi[1024];
+void main() {
+    uint t = gl_LocalInvocationID.x; float v = -3.4e38; uint idx = 0xffffffffu;
+    for (uint i = t; i < p.n; i += 1024) { float z = logits[i]; if (z > v) { v = z; idx = i; } }
+    bv[t] = v; bi[t] = idx; barrier();
+    for (uint s = 512; s > 0; s >>= 1) {
+        if (t < s) {
+            float v2 = bv[t + s]; uint i2 = bi[t + s];
+            if (v2 > bv[t] || (v2 == bv[t] && i2 < bi[t])) { bv[t] = v2; bi[t] = i2; }
+        }
+        barrier();
+    }
+    if (t == 0) token = bi[0];
+}

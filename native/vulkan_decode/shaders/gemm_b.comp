@@ -1,0 +1,32 @@
+#version 450
+// K/V-only batch: y[c,row] = (res ? y[c,row] : 0) + (bias ? b[row] : 0) + W[row,:] . x[c,:] for c < bn (<= 8).
+// Each FP16 weight is read once for all columns; activations come from global memory (L1/L2 resident).
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+layout(local_size_x = 128) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_; uint btok[8]; uint bpos[8]; uint bslot[8]; };
+layout(std430, binding = 1) readonly buffer X { vec4 x4[]; };
+layout(std430, binding = 2) readonly buffer W { uvec4 w[]; };
+layout(std430, binding = 3) readonly buffer B { float b[]; };
+layout(std430, binding = 4) buffer Y { float y[]; };
+layout(push_constant) uniform P { uint N; uint K; uint flags; } p;
+void main() {
+    uint n = bn, K8 = p.K / 8, K4 = p.K / 4, nsg = gl_NumSubgroups;
+    for (uint row = gl_WorkGroupID.x * nsg + gl_SubgroupID; row < p.N; row += gl_NumWorkGroups.x * nsg) {
+        float s[8] = float[8](0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0); uint base = row * K8;
+        for (uint j = gl_SubgroupInvocationID; j < K8; j += gl_SubgroupSize) {
+            uvec4 q = w[base + j];
+            vec4 w0 = vec4(unpackHalf2x16(q.x), unpackHalf2x16(q.y)), w1 = vec4(unpackHalf2x16(q.z), unpackHalf2x16(q.w));
+            for (uint c = 0; c < 8; ++c) if (c < n) s[c] += dot(w0, x4[c * K4 + 2 * j]) + dot(w1, x4[c * K4 + 2 * j + 1]);
+        }
+        for (uint c = 0; c < 8; ++c) {
+            if (c >= n) break;
+            float t = subgroupAdd(s[c]);
+            if (subgroupElect()) {
+                if ((p.flags & 1u) != 0u) t += b[row];
+                if ((p.flags & 2u) != 0u) t += y[c * p.N + row];
+                y[c * p.N + row] = t;
+            }
+        }
+    }
+}

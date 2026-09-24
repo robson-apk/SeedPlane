@@ -1,0 +1,31 @@
+#version 450
+// Exact categorical draw from softmax(logits / T) by Gumbel-max: argmax_i (l_i / T + G_i), G_i = -log(-log(u_i)).
+// u_i comes from a counter-based hash of (seed, draw counter, i). -log(u) is computed without cancellation near u -> 1
+// so the largest attainable G is ~22.9 (tokens more than ~23 nats below the winner cannot be drawn: mass < V e^-23).
+// Production: one workgroup, result in state.sampled when smode == 1. Test (push.test = 1): workgroup w is draw sctr + w.
+layout(local_size_x = 1024) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_;
+    uint btok[8]; uint bpos[8]; uint bslot[8]; uint smode; float stemp; uint sseed; uint sctr; uint sampled; };
+layout(std430, binding = 1) readonly buffer L { float logits[]; };
+layout(std430, binding = 2) writeonly buffer O { uint draws[]; };
+layout(push_constant) uniform P { uint n; uint test; } p;
+shared float bv[1024]; shared uint bi[1024];
+uint pcg(uint v) { uint s = v * 747796405u + 2891336453u; uint w = ((s >> ((s >> 28u) + 4u)) ^ s) * 277803737u; return (w >> 22u) ^ w; }
+float gumbel(uint h) {
+    float L;                                           // L = -log(u), u = (h + 0.5) / 2^32
+    if (h < 0x80000000u) L = -log((float(h) + 0.5) * 2.3283064e-10);
+    else { float v = (float(~h) + 0.5) * 2.3283064e-10; L = v < 1e-3 ? v * (1.0 + 0.5 * v) : -log(1.0 - v); }
+    return -log(L);
+}
+void main() {
+    if (p.test == 0u && smode != 1u) return;
+    uint t = gl_LocalInvocationID.x, ctr = sctr + (p.test != 0u ? gl_WorkGroupID.x : 0u), key = pcg(ctr ^ pcg(sseed));
+    float invT = 1.0 / stemp, best = -3.4e38; uint idx = 0xffffffffu;
+    for (uint i = t; i < p.n; i += 1024) { float z = logits[i] * invT + gumbel(pcg(i ^ key)); if (z > best) { best = z; idx = i; } }
+    bv[t] = best; bi[t] = idx; barrier();
+    for (uint s = 512; s > 0; s >>= 1) {
+        if (t < s && (bv[t + s] > bv[t] || (bv[t + s] == bv[t] && bi[t + s] < bi[t]))) { bv[t] = bv[t + s]; bi[t] = bi[t + s]; }
+        barrier();
+    }
+    if (t == 0) { if (p.test != 0u) draws[gl_WorkGroupID.x] = bi[0]; else sampled = bi[0]; }
+}

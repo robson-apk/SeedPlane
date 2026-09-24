@@ -1,0 +1,131 @@
+{
+ "G2": {
+  "speed_tokens_equal_v20": true,
+  "v19_tokens_equal_oracle": true,
+  "nll_q1_max_abs_diff_vs_v20": 0.0,
+  "mode": "shadow-batch",
+  "pass": true
+ },
+ "G3": {
+  "cases": [
+   {
+    "pos": 2999,
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "pos": 2999,
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 0.00013889600675686704
+   },
+   {
+    "pos": 2999,
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "pos": 3500,
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "pos": 3500,
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 3.874380021286389e-06
+   },
+   {
+    "pos": 3500,
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "pos": 4020,
+    "T": 0.7,
+    "k": 40,
+    "p": 0.9,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   },
+   {
+    "pos": 4020,
+    "T": 1.0,
+    "k": 0,
+    "p": 1.0,
+    "support": 151936,
+    "outside_draws": 0,
+    "tv": 2.1253219878720775e-05
+   },
+   {
+    "pos": 4020,
+    "T": 0.7,
+    "k": 0,
+    "p": 0.5,
+    "support": 1,
+    "outside_draws": 0,
+    "tv": 0.0
+   }
+  ],
+  "pass": true
+ },
+ "G4": {
+  "greedy_tok_s": [
+   266.64,
+   266.445,
+   267.519
+  ],
+  "sampling_tok_s": [
+   246.062,
+   243.799,
+   246.461
+  ],
+  "ratio": 0.922824782478248,
+  "pass": false
+ },
+ "G5": {
+  "turn1_tokens": 64,
+  "turn2_tokens": 19,
+  "conversation_positions": 1377,
+  "crossed_boundary_512": true,
+  "equal": true,
+  "turn2_text": "Ise Class Naval Guns: Type 91 Armour Piercing, Capped Shells",
+  "turn2_text_fresh": "Ise Class Naval Guns: Type 91 Armour Piercing, Capped Shells",
+  "pass": true
+ },
+ "G6": {
+  "convert_ok": true,
+  "convert_out": "native bundle written to C:\\Users\\Windows 11\\sp_v19\\v21\\cli.sp  (seedplane-bundle/2, plan {'shard': 512, 'halo': 256, 'sinks': 4}, weights sha256 ef9f3f59f925e46a...)",
+  "chat_returncode": 0,
+  "answers": [
+   "A GPU (Gráficos Processadores) é um dispositivo especializado em processamento de arquivos e imagens, que funciona em paralelo e é usado para realizar tarefas computacionais complexas, como análise de imag",
+   "A CPU (Computador Processador) é um dispositivo especializado em processamento de arquivos e imagens, que funciona em paralelo e é usado para realizar tarefas computacionais complexas, como análise de imagens"
+  ],
+  "stderr_tail": "",
+  "seconds": 17.448071718215942,
+  "pass": true
+ }
+}

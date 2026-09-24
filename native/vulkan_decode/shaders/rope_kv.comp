@@ -1,0 +1,32 @@
+#version 450
+// One workgroup per (column, head): rotate q in place (RoPE at the original position state.pos); rotate k and copy v
+// into the column's window-local KV cache (column 0 at state.slot, column 1 = shadow window at state.slot2).
+layout(local_size_x = 64) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_; uint btok[8]; uint bpos[8]; uint bslot[8]; };
+layout(std430, binding = 1) buffer QKV { float qkv[]; };
+layout(std430, binding = 2) writeonly buffer KC0 { float kc0[]; };
+layout(std430, binding = 3) writeonly buffer VC0 { float vc0[]; };
+layout(std430, binding = 4) readonly buffer Rope { vec2 cs[]; };
+layout(std430, binding = 5) writeonly buffer KC1 { float kc1[]; };
+layout(std430, binding = 6) writeonly buffer VC1 { float vc1[]; };
+layout(push_constant) uniform P { uint nh; uint nkv; uint qn; } p;
+const uint HD = 64, HALF = 32;
+void main() {
+    uint nheads = p.nh + p.nkv, col = gl_WorkGroupID.x / nheads, h = gl_WorkGroupID.x % nheads, t = gl_LocalInvocationID.x;
+    uint q0 = col * p.qn; vec2 r = cs[pos * HALF + (t & (HALF - 1))];
+    if (h < p.nh) {
+        if (t < HALF) {
+            uint b = q0 + h * HD; float x1 = qkv[b + t], x2 = qkv[b + t + HALF];
+            qkv[b + t] = x1 * r.x - x2 * r.y; qkv[b + t + HALF] = x2 * r.x + x1 * r.y;
+        }
+        return;
+    }
+    uint kv = h - p.nh, kb = q0 + p.nh * HD + kv * HD, vb = q0 + (p.nh + p.nkv) * HD + kv * HD;
+    uint dst = ((col == 0 ? slot : slot2) * p.nkv + kv) * HD;
+    float v = qkv[vb + t];
+    if (col == 0) vc0[dst + t] = v; else vc1[dst + t] = v;
+    if (t < HALF) {
+        float x1 = qkv[kb + t], x2 = qkv[kb + t + HALF], k1 = x1 * r.x - x2 * r.y, k2 = x2 * r.x + x1 * r.y;
+        if (col == 0) { kc0[dst + t] = k1; kc0[dst + t + HALF] = k2; } else { kc1[dst + t] = k1; kc1[dst + t + HALF] = k2; }
+    }
+}

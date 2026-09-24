@@ -1,0 +1,19 @@
+#version 450
+// Split attention, pass 2: merge the per-chunk softmax statistics of one (column, head).
+layout(local_size_x = 64) in;
+layout(std430, binding = 1) readonly buffer Part { float part[]; };
+layout(std430, binding = 2) writeonly buffer O { float o[]; };
+layout(push_constant) uniform P { uint nh; uint nchunk; uint hidden; } p;
+const uint HD = 64, REC = HD + 2;
+void main() {
+    uint id = gl_WorkGroupID.x, t = gl_LocalInvocationID.x, col = id / p.nh, h = id % p.nh, base = id * p.nchunk * REC;
+    float M = -1e30;
+    for (uint c = 0; c < p.nchunk; ++c) M = max(M, part[base + c * REC]);
+    float L = 0.0, acc = 0.0;
+    for (uint c = 0; c < p.nchunk; ++c) {
+        float m = part[base + c * REC];
+        if (m <= -1e29) continue;
+        float w = exp(m - M); L += w * part[base + c * REC + 1]; acc += w * part[base + c * REC + 2 + t];
+    }
+    o[col * p.hidden + h * HD + t] = acc / L;
+}

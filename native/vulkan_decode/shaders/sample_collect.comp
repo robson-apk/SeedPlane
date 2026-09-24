@@ -1,0 +1,41 @@
+#version 450
+// top-k / top-p sampling, pass 3 of 3. Each workgroup derives the threshold itself: the highest bin edge that keeps
+// >= k tokens (top-k) or whose lower-bound mass count * exp((edge - M)/T) / Z exceeds p (top-p only), else the 30 T edge;
+// then appends every token >= threshold. Candidate buffer (uint): [0] M bits, [1] Z bits, [2] count (grows past the
+// 4,096 capacity so overflow is visible), [3] threshold bits, [4..4100) values, [4100..8196) ids.
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_;
+    uint btok[8]; uint bpos[8]; uint bslot[8]; uint smode; float stemp; uint sseed; uint sctr; uint sampled; uint stopk; float stopp; };
+layout(std430, binding = 1) readonly buffer L { float logits[]; };
+layout(std430, binding = 2) readonly buffer Part { vec2 part[]; };
+layout(std430, binding = 3) readonly buffer Hs { uint hist[]; };
+layout(std430, binding = 4) buffer C { uint cand[]; };
+layout(push_constant) uniform P { uint n; uint nparts; } p;
+#include "sample_common.glsl"
+const uint CAP = 4096;
+shared uint pc[256]; shared float pm[256]; shared uint best;
+void main() {
+    if (smode != 2u) return;
+    uint t = gl_LocalInvocationID.x; vec2 mz = reduce_partials(t, p.nparts);
+    float M = mz.x * stemp, Z = mz.y, span = 30.0 * stemp, w = span / 1024.0;
+    uint c = 0u; float m = 0.0;                                   // thread t owns bins 4t..4t+3
+    for (uint b = 4u * t; b < 4u * t + 4u; ++b) { c += hist[b]; m += float(hist[b]) * exp(-float(b + 1u) * w / stemp) / Z; }
+    pc[t] = c; pm[t] = m; if (t == 0u) best = 1024u; barrier();
+    for (uint off = 1u; off < 256u; off <<= 1) {                  // inclusive scan
+        uint cc = t >= off ? pc[t - off] : 0u; float mm = t >= off ? pm[t - off] : 0.0; barrier();
+        pc[t] += cc; pm[t] += mm; barrier();
+    }
+    uint cnt = t > 0u ? pc[t - 1u] : 0u; float mass = t > 0u ? pm[t - 1u] : 0.0;
+    for (uint b = 4u * t; b < 4u * t + 4u; ++b) {
+        cnt += hist[b]; mass += float(hist[b]) * exp(-float(b + 1u) * w / stemp) / Z;
+        if (stopk > 0u ? cnt >= stopk : mass > stopp) { atomicMin(best, b); break; }
+    }
+    barrier();
+    float thr = best < 1024u ? M - float(best + 1u) * w : M - span;
+    if (gl_WorkGroupID.x == 0u && t == 0u) { cand[0] = floatBitsToUint(M); cand[1] = floatBitsToUint(Z); cand[3] = floatBitsToUint(thr); }
+    uint stride = gl_NumWorkGroups.x * 256u;
+    for (uint i = gl_WorkGroupID.x * 256u + t; i < p.n; i += stride) {
+        float f = logits[i];
+        if (f >= thr) { uint j = atomicAdd(cand[2], 1u); if (j < CAP) { cand[4 + j] = floatBitsToUint(f); cand[4 + CAP + j] = i; } }
+    }
+}
