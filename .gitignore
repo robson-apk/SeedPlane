@@ -25,3 +25,4 @@ data/
 
 # Native build outputs
 native/vulkan_decode/build/
+native/vulkan_decode/build_*/

@@ -160,6 +160,13 @@ struct Ctx {
         VkInstanceCreateInfo ici{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO}; ici.pApplicationInfo = &app;
         const char *layer = "VK_LAYER_KHRONOS_validation";
         if (getenv("SP_VK_VALIDATE")) { ici.enabledLayerCount = 1; ici.ppEnabledLayerNames = &layer; }
+        // Portability drivers (MoltenVK on macOS) are only enumerated when the instance asks for them.
+        uint32_t ne = 0; vkEnumerateInstanceExtensionProperties(nullptr, &ne, nullptr);
+        std::vector<VkExtensionProperties> iexts(ne); vkEnumerateInstanceExtensionProperties(nullptr, &ne, iexts.data());
+        const char *portability_enum = "VK_KHR_portability_enumeration";
+        for (auto &e : iexts) if (!strcmp(e.extensionName, portability_enum)) {
+            ici.enabledExtensionCount = 1; ici.ppEnabledExtensionNames = &portability_enum; ici.flags |= 0x00000001;  // ENUMERATE_PORTABILITY_BIT_KHR
+        }
         VK(vkCreateInstance(&ici, nullptr, &inst));
         uint32_t n = 0; vkEnumeratePhysicalDevices(inst, &n, nullptr); std::vector<VkPhysicalDevice> pds(n); vkEnumeratePhysicalDevices(inst, &n, pds.data());
         pd = VK_NULL_HANDLE;
@@ -178,6 +185,10 @@ struct Ctx {
         for (uint32_t i = 0; i < nq; ++i) if (qfp[i].queueFlags & VK_QUEUE_COMPUTE_BIT) { qf = i; break; }
         float prio = 1.f; VkDeviceQueueCreateInfo qci{VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO}; qci.queueFamilyIndex = qf; qci.queueCount = 1; qci.pQueuePriorities = &prio;
         VkDeviceCreateInfo dci{VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO}; dci.queueCreateInfoCount = 1; dci.pQueueCreateInfos = &qci;
+        uint32_t nd = 0; vkEnumerateDeviceExtensionProperties(pd, nullptr, &nd, nullptr);
+        std::vector<VkExtensionProperties> dexts(nd); vkEnumerateDeviceExtensionProperties(pd, nullptr, &nd, dexts.data());
+        const char *portability_subset = "VK_KHR_portability_subset";   // must be enabled when a device exposes it
+        for (auto &e : dexts) if (!strcmp(e.extensionName, portability_subset)) { dci.enabledExtensionCount = 1; dci.ppEnabledExtensionNames = &portability_subset; }
         VK(vkCreateDevice(pd, &dci, nullptr, &dev)); vkGetDeviceQueue(dev, qf, 0, &q);
         VkCommandPoolCreateInfo cpi{VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO}; cpi.queueFamilyIndex = qf; cpi.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
         VK(vkCreateCommandPool(dev, &cpi, nullptr, &pool));

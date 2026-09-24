@@ -29,11 +29,49 @@ jobs:
       - run: seedplane --help
 
   native:
-    runs-on: ubuntu-latest
+    name: native (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
-      - run: sudo apt-get update && sudo apt-get install -y libvulkan-dev
-      - name: Tokenizer tool builds with GCC
-        run: g++ -std=c++17 -O2 -Wall -Wextra native/vulkan_decode/tools/tok_cli.cpp -o tok_cli
-      - name: Engine compiles against the Vulkan headers (no GPU in CI)
-        run: g++ -std=c++17 -fsyntax-only -Wall -Wextra -Wno-missing-field-initializers native/vulkan_decode/qwen_vk.cpp
+      - name: Vulkan toolchain (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libvulkan-dev glslc ninja-build
+      - name: Vulkan toolchain (macOS, MoltenVK)
+        if: runner.os == 'macOS'
+        run: brew install molten-vk vulkan-loader vulkan-headers shaderc ninja
+      - name: Vulkan SDK (Windows)
+        if: runner.os == 'Windows'
+        uses: jakoch/install-vulkan-sdk-action@v1
+        with:
+          vulkan_version: latest
+          install_runtime: false
+          cache: true
+          stripdown: true
+      - name: Configure
+        shell: bash
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            cmake -S native/vulkan_decode -B build -A x64
+          else
+            cmake -S native/vulkan_decode -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+          fi
+      - name: Build engine + SPIR-V shaders
+        run: cmake --build build --config Release
+      - name: Tokenizer tool (no GPU needed)
+        if: runner.os != 'Windows'
+        run: c++ -std=c++17 -O2 -Wall -Wextra native/vulkan_decode/tools/tok_cli.cpp -o build/tok_cli
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p dist/seedplane-native && cp -r build/shaders dist/seedplane-native/
+          cp build/qwen_vk* dist/seedplane-native/ 2>/dev/null || true
+          cp native/vulkan_decode/README.md dist/seedplane-native/ 2>/dev/null || true
+          ls -la dist/seedplane-native
+      - uses: actions/upload-artifact@v4
+        with:
+          name: seedplane-native-${{ runner.os }}-${{ runner.arch }}
+          path: dist/seedplane-native
