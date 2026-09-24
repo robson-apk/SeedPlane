@@ -14,16 +14,18 @@ own devices, share independent work between them, and get more done than one com
 
 - The native local model runtime builds and runs on **Intel Arc B580**, **AMD Radeon RX 570**, and **Apple M4**.
 - A first two-computer test processed a batch of independent requests **1.38× faster** with B580 + RX 570 than with the B580 alone. The outputs matched.
-- These are early experiments, not a finished plug-and-play cluster. The three devices have **not** yet been tested together, and this test did not make one answer generate faster by splitting it across GPUs.
+- A later three-device test kept every output identical. On a burst of queued requests, B580 + RX 570 + M4 reached **1.44×** the B580's median throughput—but it missed the pre-set 1.50× goal. With one request arriving per second, the trio added **no throughput** and its worst completion time was about **3.8× longer** than B580 alone.
+- This remains experimental, not a plug-and-play cluster. The X79's RX 570 was connected at only 100 Mb/s, so the result is network-conditioned; and neither test split one answer's generation across GPUs.
 
-The next milestone is to connect all three devices and compare each one alone, useful pairs, and the full group—measuring how much work finishes, how long requests wait, and how much time the network and coordinator add.
+The next milestone is a better-connected rerun with a scheduler that only admits slower devices when they improve the workload, then comparing throughput and tail latency again.
 
 <p align="center"><img src="docs/img/v22b-fleet.gif" alt="An experimental batch test compared 24 independent requests on B580 alone and B580 plus RX 570" width="760"></p>
 
-The next comparison will run the current native runtime on **B580 alone**, **RX 570 alone**, **M4 alone**, useful pairs,
-and **all three together**. It will use the same model and request set, and report total work completed, request wait
-times, and coordination/network overhead. The [pre-registered test protocol](experiments/trio_v27/PROTOCOL.md)
-defines the exact matrix and pass criteria. Until that run is complete, the three-device pool is a goal—not a result.
+The first full comparison has now run: all three individual devices, all pairs, and the trio, under both burst and steady
+arrivals. The [protocol](experiments/trio_v27/PROTOCOL.md), [results and limitations](experiments/trio_v27/RESULTS.md),
+and [raw per-request data](experiments/trio_v27/results_20260924_exploratory.json) are public. It confirms the hardware
+can share a deterministic workload, but the speedup and latency goals remain unproven until the network and scheduler
+are improved.
 
 Want to help test it? Start with the [native runtime guide](native/vulkan_decode/README.md). SeedPlane is alpha research software; below are the detailed results, trade-offs, and experiments that explain what is and is not proven.
 

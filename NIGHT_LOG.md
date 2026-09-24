@@ -57,3 +57,21 @@ protocol → worker CLI → pool → M4 → auto scheduler → ...). Wake-up eve
 - PR #3 merge `5296e6e` promoted the results, README and GIF to `main`; PR and main CI are green. Keep the protocol-v2
   branch separate pending review/integration. Next: pre-register fleet arrival/latency methodology; integrate authenticated
   workers with native `qwen_vk`; address RX570 service tail and 100 Mb/s X79 link.
+
+## 16:34 — V27-T3 heterogeneous three-device matrix
+
+- Ran the pre-registered `experiments/trio_v27/PROTOCOL.md` with CI-built native runtime on B580/Windows, RX570/RADV/Linux,
+  and M4/MoltenVK/macOS. Seven isolated/pair/trio conditions × two arrival patterns × three rotated rounds = 42 workloads;
+  24 requests × 128 tokens each, 1,008 requests and 129,024 generated tokens.
+- Same model bundle, weights, tokenizer and plan hashes across hosts. Every output was exactly 128 tokens; all 1,008 token
+  sequence hashes matched. Raw JSON and full analysis committed alongside the protocol.
+- Burst trio median 389.4 tok/s = 1.44× B580 (below 1.50× gate); trio failed to beat the best pair in one round. At one
+  arrival/sec, trio was 130.7 tok/s = 1.00× B580 and arrival-to-completion p99 1.99 s vs 0.52 s B580-only (3.8× worse).
+  Overall throughput and latency gates fail; this is feasibility evidence, not a general speedup or cooperative decode.
+- Network gate fails: X79/RX570 Ethernet is 100 Mb/s full duplex; Mac controller was on Wi-Fi; no iperf3 or GPU clock/
+  temperature telemetry. Classify the full result exploratory/network-conditioned. Next: repair/replace X79 link, capture
+  pairwise bandwidth/telemetry, integrate gain-aware worker admission, and rerun the unchanged protocol.
+- CI spend guard: CI and Release workflows were disabled in GitHub settings and changed in repo to manual-only
+  `workflow_dispatch`; there were zero queued/in-progress runs at the time of disabling. No GitHub Actions runs were
+  started by the follow-up push. Copilot is still listed as an available integration, but this repository has no rulesets
+  to automatically request Copilot reviews.
