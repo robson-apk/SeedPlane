@@ -81,27 +81,46 @@ def cmd_worker(a):
 
 
 def cmd_devices(a):
-    try: from .cluster import cluster_key, probe
-    except ImportError: from cluster import cluster_key, probe
+    try: from .cluster import DeviceRegistry, cluster_key, probe
+    except ImportError: from cluster import DeviceRegistry, cluster_key, probe
     key, cluster_id, coordinator_id = cluster_key(), _identity('cluster'), _identity('coordinator')
-    addresses = a.address or [('127.0.0.1', 52100)]
+    registry = DeviceRegistry(_config_dir() / 'devices.json')
+    if a.action == 'forget':
+        if not a.target: raise SystemExit('devices forget requires NAME')
+        registry.forget(a.target); print(f'forgot {a.target}'); return
+    if a.action == 'add':
+        if not a.target or not a.address or len(a.address) != 1:
+            raise SystemExit('usage: seedplane devices add NAME --address HOST:PORT')
+        host, port = a.address[0]
+        info = probe(host, port, key, cluster_id, coordinator_id, timeout=a.timeout)
+        worker_id = info['hello']['worker_id']
+        registry.add(a.target, host, port, worker_id)
+        print(f'added {a.target} ({host}:{port}, worker {worker_id})'); return
+    stored = registry.load()
+    endpoints = [(name, value['host'], value['port'], value['worker_id']) for name, value in stored.items()]
+    endpoints.extend((f'{host}:{port}', host, port, '') for host, port in (a.address or []))
+    if not endpoints: endpoints = [('local', '127.0.0.1', 52100, '')]
     rows = []
-    for host, port in addresses:
+    for name, host, port, expected_worker in endpoints:
         t0 = time.perf_counter()
         try:
             info = probe(host, port, key, cluster_id, coordinator_id, timeout=a.timeout)
+            actual_worker = info['hello']['worker_id']
+            if expected_worker and actual_worker != expected_worker:
+                raise RuntimeError(f'worker identity changed (expected {expected_worker}, got {actual_worker})')
             cap = info['capabilities']
-            rows.append({'address': f'{host}:{port}', 'status': 'ready', 'latency_ms': round((time.perf_counter() - t0) * 1000, 2),
+            rows.append({'name': name, 'address': f'{host}:{port}', 'worker_id': actual_worker,
+                         'status': 'ready', 'latency_ms': round((time.perf_counter() - t0) * 1000, 2),
                          'system': cap.get('system', '?'), 'machine': cap.get('machine', '?'),
                          'backends': cap.get('backends', []), 'hostname': cap.get('hostname', '?')})
         except Exception as exc:
-            rows.append({'address': f'{host}:{port}', 'status': 'error', 'error': str(exc)[:200]})
+            rows.append({'name': name, 'address': f'{host}:{port}', 'status': 'error', 'error': str(exc)[:200]})
     if a.json:
         print(json.dumps({'protocol': 1, 'devices': rows}, indent=2)); return
-    print(f"{'ADDRESS':<24} {'STATUS':<8} {'HOST':<18} {'SYSTEM/ARCH':<22} BACKENDS")
+    print(f"{'NAME':<16} {'ADDRESS':<24} {'STATUS':<8} {'HOST':<18} {'SYSTEM/ARCH':<22} BACKENDS")
     for row in rows:
         detail = row.get('error', ','.join(row.get('backends', [])))
-        print(f"{row['address']:<24} {row['status']:<8} {row.get('hostname', '-'):<18} "
+        print(f"{row['name']:<16} {row['address']:<24} {row['status']:<8} {row.get('hostname', '-'):<18} "
               f"{(row.get('system', '-') + '/' + row.get('machine', '-')):<22} {detail}")
     if a.action == 'test' and any(row['status'] != 'ready' for row in rows):
         raise SystemExit(1)
@@ -346,7 +365,8 @@ def main():
     w = sub.add_parser('worker', help='run a safe protocol-v1 control-plane worker')
     w.add_argument('--host', default='127.0.0.1'); w.add_argument('--port', type=int, default=52100)
     d = sub.add_parser('devices', help='list or test protocol-v1 workers')
-    d.add_argument('action', nargs='?', choices=['list', 'test'], default='list')
+    d.add_argument('action', nargs='?', choices=['list', 'test', 'add', 'forget'], default='list')
+    d.add_argument('target', nargs='?', help='device name for add/forget')
     d.add_argument('--address', action='append', type=_endpoint, metavar='HOST:PORT')
     d.add_argument('--timeout', type=float, default=5.0); d.add_argument('--json', action='store_true')
     doc = sub.add_parser('doctor', help='check this machine and give actionable fixes'); doc.add_argument('--json', action='store_true')

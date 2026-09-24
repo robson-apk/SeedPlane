@@ -27,11 +27,18 @@ export SEEDPLANE_CLUSTER_ID="the-same-uuid"
 export SEEDPLANE_CLUSTER_KEY="the-same-key"
 seedplane devices --address 192.168.1.20:52100
 seedplane devices test --address 192.168.1.20:52100
+seedplane devices add rx570-x79 --address 192.168.1.20:52100
+seedplane devices                         # checks saved identity on every probe
+seedplane devices forget rx570-x79
 seedplane doctor
 ```
 
 Until mutual TLS/Noise pairing lands, expose the port only on a trusted private LAN, Tailscale or another authenticated
 VPN. HMAC authenticates messages but does not encrypt their contents.
+
+The device catalog stores only name, endpoint and worker UUID in `~/.config/seedplane/devices.json` (mode 0600). Keys
+remain in the environment/keychain. Re-adding a name with different identity or reusing one identity under another name
+is rejected; `devices forget` is required before replacement.
 
 ## Frame
 

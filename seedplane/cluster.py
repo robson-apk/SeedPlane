@@ -20,6 +20,62 @@ DEFAULT_PORT = 52100
 ENV_KEY = "SEEDPLANE_CLUSTER_KEY"
 
 
+class DeviceRegistry:
+    """Small non-secret device catalog; authentication keys never enter it."""
+
+    def __init__(self, path: Path):
+        self.path = path
+
+    def load(self) -> dict[str, dict[str, Any]]:
+        if not self.path.exists():
+            return {}
+        try:
+            raw = json.loads(self.path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise ProtocolError(f"invalid device registry {self.path}: {exc}") from exc
+        if not isinstance(raw, dict) or raw.get("version") != 1 or not isinstance(raw.get("devices"), dict):
+            raise ProtocolError("invalid device registry schema")
+        out: dict[str, dict[str, Any]] = {}
+        for name, record in raw["devices"].items():
+            if not isinstance(name, str) or not name or not isinstance(record, dict):
+                raise ProtocolError("invalid device registry entry")
+            host, port, worker_id = record.get("host"), record.get("port"), record.get("worker_id")
+            if not isinstance(host, str) or not isinstance(port, int) or not 1 <= port <= 65535:
+                raise ProtocolError(f"invalid endpoint for device {name!r}")
+            if worker_id:
+                worker_id = str(uuid.UUID(worker_id))
+            out[name] = {"host": host, "port": port, "worker_id": worker_id or ""}
+        return out
+
+    def save(self, devices: dict[str, dict[str, Any]]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = self.path.with_suffix(self.path.suffix + ".tmp")
+        tmp.write_text(json.dumps({"version": 1, "devices": devices}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        try: tmp.chmod(0o600)
+        except OSError: pass
+        tmp.replace(self.path)
+
+    def add(self, name: str, host: str, port: int, worker_id: str) -> None:
+        if not name or any(ch not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_" for ch in name):
+            raise ProtocolError("device name may contain only letters, digits, '-' and '_'")
+        worker_id = str(uuid.UUID(worker_id))
+        devices = self.load()
+        if name in devices and devices[name] != {"host": host, "port": port, "worker_id": worker_id}:
+            raise ProtocolError(f"device {name!r} already exists; forget it before replacing")
+        for other, record in devices.items():
+            if other != name and record["worker_id"] == worker_id:
+                raise ProtocolError(f"worker identity already registered as {other!r}")
+        devices[name] = {"host": host, "port": port, "worker_id": worker_id}
+        self.save(devices)
+
+    def forget(self, name: str) -> None:
+        devices = self.load()
+        if name not in devices:
+            raise ProtocolError(f"unknown device {name!r}")
+        del devices[name]
+        self.save(devices)
+
+
 def cluster_key(value: str | None = None) -> bytes:
     raw = value if value is not None else os.environ.get(ENV_KEY, "")
     if len(raw) < 16:

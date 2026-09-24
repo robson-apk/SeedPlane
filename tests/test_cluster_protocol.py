@@ -6,11 +6,13 @@ import threading
 import time
 import unittest
 import uuid
+import tempfile
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from seedplane import cli
-from seedplane.cluster import WorkerServer, probe
+from seedplane.cluster import DeviceRegistry, WorkerServer, probe
 from seedplane.protocol import (DATA_HEADER, HEADER, MAGIC, MAX_CONTROL_BYTES, DataFrame, ProtocolError, ReplayGuard,
                                 decode_payload, encode_data_frame, encode_message, new_message, recv_data_frame,
                                 recv_message, require_context)
@@ -136,6 +138,23 @@ class WorkerTests(unittest.TestCase):
         server.stop(); thread.join(2)
         self.assertEqual(got["hello"]["protocol"], 1)
         self.assertEqual(got["capabilities"]["backends"], ["test"])
+
+
+class RegistryTests(unittest.TestCase):
+    def test_add_reload_forget_and_permissions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'devices.json'; registry = DeviceRegistry(path)
+            registry.add('rx570-x79', '10.0.0.253', 52100, W)
+            self.assertEqual(registry.load()['rx570-x79']['worker_id'], W)
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            registry.forget('rx570-x79'); self.assertEqual(registry.load(), {})
+
+    def test_duplicate_identity_and_replace_are_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            registry = DeviceRegistry(Path(directory) / 'devices.json')
+            registry.add('one', '127.0.0.1', 1, W)
+            with self.assertRaises(ProtocolError): registry.add('two', '127.0.0.1', 2, W)
+            with self.assertRaises(ProtocolError): registry.add('one', '127.0.0.1', 2, str(uuid.uuid4()))
 
 
 class CliTests(unittest.TestCase):
