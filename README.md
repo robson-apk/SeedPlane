@@ -22,7 +22,8 @@ The next milestone is to connect all three devices and compare each one alone, u
 
 The next comparison will run the current native runtime on **B580 alone**, **RX 570 alone**, **M4 alone**, useful pairs,
 and **all three together**. It will use the same model and request set, and report total work completed, request wait
-times, and coordination/network overhead. Until that run is complete, the three-device pool is a goal—not a result.
+times, and coordination/network overhead. The [pre-registered test protocol](experiments/trio_v27/PROTOCOL.md)
+defines the exact matrix and pass criteria. Until that run is complete, the three-device pool is a goal—not a result.
 
 Want to help test it? Start with the [native runtime guide](native/vulkan_decode/README.md). SeedPlane is alpha research software; below are the detailed results, trade-offs, and experiments that explain what is and is not proven.
 
