@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 450" role="img" aria-labelledby="title desc">
+  <title id="title">Independent-request throughput across SeedPlane home-lab GPU pools</title>
+  <desc id="desc">Three-round median burst throughput. B580 plus RX 570 reached 362.7 tokens per second on the direct path and 339.0 with HIVE pull. The three-device pool reached 330.6 direct and 340.1 with HIVE pull.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1"><stop stop-color="#0b1220"/><stop offset="1" stop-color="#111d31"/></linearGradient>
+  </defs>
+  <rect width="1200" height="450" rx="24" fill="url(#bg)"/>
+  <text x="56" y="62" fill="#f4f7fb" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="24" font-weight="700">Same model. Same requests. Different device pools.</text>
+  <text x="56" y="96" fill="#9aacbf" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="16">Burst throughput · 16 requests × 32 tokens · median of 3 rounds · outputs matched</text>
+  <rect x="760" y="126" width="18" height="18" rx="4" fill="#72c9ff"/>
+  <text x="788" y="141" fill="#cbd6e4" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="15">Direct worker stream</text>
+  <rect x="990" y="126" width="18" height="18" rx="4" fill="#68dfbe"/>
+  <text x="1018" y="141" fill="#cbd6e4" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="15">HIVE pull</text>
+  <text x="56" y="202" fill="#e3eaf3" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="20" font-weight="600">B580 + RX 570</text>
+  <text x="56" y="226" fill="#8295ad" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="14">two-device pool</text>
+  <rect x="300" y="174" width="520" height="36" rx="8" fill="#72c9ff"/>
+  <text x="838" y="199" fill="#eaf6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18" font-weight="650">362.7 tok/s</text>
+  <rect x="300" y="222" width="486" height="36" rx="8" fill="#68dfbe"/>
+  <text x="804" y="247" fill="#e9fff8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18" font-weight="650">339.0 tok/s</text>
+  <line x1="56" y1="286" x2="1144" y2="286" stroke="#2b3b52" stroke-width="1"/>
+  <text x="56" y="340" fill="#e3eaf3" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="20" font-weight="600">B580 + RX 570 + M4</text>
+  <text x="56" y="364" fill="#8295ad" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="14">three-device pool</text>
+  <rect x="300" y="312" width="474" height="36" rx="8" fill="#72c9ff"/>
+  <text x="792" y="337" fill="#eaf6ff" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18" font-weight="650">330.6 tok/s</text>
+  <rect x="300" y="360" width="488" height="36" rx="8" fill="#68dfbe"/>
+  <text x="806" y="385" fill="#e9fff8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18" font-weight="650">340.1 tok/s</text>
+  <text x="56" y="426" fill="#9aacbf" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="14">More devices did not beat the faster pair in this run. Aggregate throughput is not single-answer speed.</text>
+</svg>
