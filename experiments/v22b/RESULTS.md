@@ -55,3 +55,27 @@ An all-equal logits fixture exercised overflow: the candidate count was 151,936 
 selected `fallback`, and the 10,000 observed draws stayed within the reference nucleus support. This validates fallback
 routing; that draw count is not used for a TV-quality claim. The repeatable fixture generator is
 [`make_uniform_logits.py`](make_uniform_logits.py), and the summary is [`fallback_overflow.json`](fallback_overflow.json).
+
+## B580 + RX570 independent-request fleet feasibility
+
+A separate SSH/JSONL harness drove the two native `--serve` processes concurrently. Both loaded identical `weights.spw`
+(SHA-256 `ef9f3f59f925e46a303193d7b88a979a899c53b5fec2ed0ff679b61fdf3cbe49`). Each interleaved round compared 24
+independent 128-token greedy requests on B580 alone against the same 24 requests distributed over B580 + RX570; every
+request generated 128 tokens, and all outputs were token-identical across workers.
+
+| Round | B580 alone | B580 + RX570 | Aggregate ratio |
+|---|---:|---:|---:|
+| 1 | 270.39 tok/s | 379.32 tok/s | 1.4029× |
+| 2 | 271.87 tok/s | 378.31 tok/s | 1.3915× |
+| 3 | 274.00 tok/s | 378.20 tok/s | 1.3803× |
+
+The median aggregate throughput ratio is **1.3915×**, above the prospective 1.30× throughput target for this workload.
+This is the first measured two-device aggregate result in this run, but it is a feasibility harness over persistent SSH
+stdio—not yet the product `seedplane` network worker/pool or an acceleration of one generation. Raw request timings and
+worker assignment are in [`fleet_g2.json`](fleet_g2.json); reproduce with [`benchmark_fleet_ssh.py`](benchmark_fleet_ssh.py).
+
+The separate p99 request-latency criterion (no more than +20%) **failed**: B580-only p99 was about 0.48–0.50 s, while
+fleet p99 was about 1.95 s in each round. RX570 requests normally took about 1.02–1.03 s end-to-end and one initial
+request per round was about 1.95 s. The scheduler assigned 17 requests to B580 and 7 to RX570; the slower worker raises
+tail latency even while improving aggregate tokens/s. The result therefore passes the throughput gate but not the
+latency gate, and is not a full V26 acceptance.
