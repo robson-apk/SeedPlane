@@ -65,17 +65,19 @@ request generated 128 tokens, and all outputs were token-identical across worker
 
 | Round | B580 alone | B580 + RX570 | Aggregate ratio |
 |---|---:|---:|---:|
-| 1 | 270.39 tok/s | 379.32 tok/s | 1.4029× |
-| 2 | 271.87 tok/s | 378.31 tok/s | 1.3915× |
-| 3 | 274.00 tok/s | 378.20 tok/s | 1.3803× |
+| 1 | 273.63 tok/s | 377.85 tok/s | 1.3809× |
+| 2 | 274.25 tok/s | 378.37 tok/s | 1.3796× |
+| 3 | 272.76 tok/s | 378.50 tok/s | 1.3877× |
 
-The median aggregate throughput ratio is **1.3915×**, above the prospective 1.30× throughput target for this workload.
-This is the first measured two-device aggregate result in this run, but it is a feasibility harness over persistent SSH
-stdio—not yet the product `seedplane` network worker/pool or an acceleration of one generation. Raw request timings and
-worker assignment are in [`fleet_g2.json`](fleet_g2.json); reproduce with [`benchmark_fleet_ssh.py`](benchmark_fleet_ssh.py).
+The median aggregate throughput ratio is **1.3809×**, above the prospective 1.30× throughput target for this workload.
+This is a persistent-SSH-stdio feasibility harness, not the product `seedplane` network worker/pool or an acceleration of
+one generation. The scheduler assigned 17 requests to B580 and 7 to RX570 in each pool round.
 
-The separate p99 request-latency criterion (no more than +20%) **failed**: B580-only p99 was about 0.48–0.50 s, while
-fleet p99 was about 1.95 s in each round. RX570 requests normally took about 1.02–1.03 s end-to-end and one initial
-request per round was about 1.95 s. The scheduler assigned 17 requests to B580 and 7 to RX570; the slower worker raises
-tail latency even while improving aggregate tokens/s. The result therefore passes the throughput gate but not the
-latency gate, and is not a full V26 acceptance.
+Latency needs two separate readings. For this synchronized burst, all 24 requests are assumed to arrive at batch start;
+the p99 completion time from that arrival was 11.20–11.26 s on B580 alone and 8.12–8.13 s on the pool (median ratio
+0.724×), because shorter total queueing outweighed the slower RX570 service. By contrast, the p99 worker service/SSH
+round-trip was ~0.48–0.51 s for B580-only tasks and ~1.95 s for the pool, with most RX570 service times ~1.02 s; the
+median ratio was 4.07×. The arrival process and which p99 definition should govern V26 were not pre-registered for this
+exploratory run, so **do not count either reading as formal V26 latency-gate acceptance**. The next formal experiment
+must define the request arrival pattern and report both queue-inclusive completion and service latency. Raw values are in
+[`fleet_g2.json`](fleet_g2.json); reproduce with [`benchmark_fleet_ssh.py`](benchmark_fleet_ssh.py).

@@ -1,15 +1,36 @@
 <h1 align="center">SeedPlane</h1>
 
 <p align="center">
-  <b>Parallel long-context prefill and scoring across heterogeneous devices.</b><br>
-  Split a prompt into independent shard windows and run them concurrently on CPUs, GPUs and machines.
+  <b>Make the computers you already own work together to run local AI.</b><br>
+  Your gaming PC, Linux machine, and Mac can become one private pool for AI workloads.
 </p>
 
-> [!IMPORTANT]
-> SeedPlane is alpha research software. Token-by-token generation under the shard plan exists only in the native
-> Vulkan runtime (Qwen2 family, measured on one Intel Arc B580). The PyTorch/llama.cpp workers do prefill and scoring.
-> Sharding changes the attention pattern, so quality depends on shard and halo sizes: +8–10% perplexity at 4k tokens
-> with S=512/H=256 (V20). See the measured trade-offs and failed hypotheses below.
+SeedPlane is an experiment in combining the GPUs and CPUs already sitting at home. The goal is simple: keep AI on your
+own devices, share independent work between them, and get more done than one computer can alone.
+
+<p align="center"><img src="docs/img/v22b-sampling.gif" alt="The same small local AI runtime has been tested on an Arc B580, a Radeon RX 570, and an Apple M4" width="760"></p>
+
+### What works today
+
+- The native local model runtime builds and runs on **Intel Arc B580**, **AMD Radeon RX 570**, and **Apple M4**.
+- A first two-computer test processed a batch of independent requests **1.38× faster** with B580 + RX 570 than with the B580 alone. The outputs matched.
+- These are early experiments, not a finished plug-and-play cluster. The three devices have **not** yet been tested together, and this test did not make one answer generate faster by splitting it across GPUs.
+
+The next milestone is to connect all three devices and compare each one alone, useful pairs, and the full group—measuring how much work finishes, how long requests wait, and how much time the network and coordinator add.
+
+<p align="center"><img src="docs/img/v22b-fleet.gif" alt="An experimental batch test compared 24 independent requests on B580 alone and B580 plus RX 570" width="760"></p>
+
+The next comparison will run the current native runtime on **B580 alone**, **RX 570 alone**, **M4 alone**, useful pairs,
+and **all three together**. It will use the same model and request set, and report total work completed, request wait
+times, and coordination/network overhead. Until that run is complete, the three-device pool is a goal—not a result.
+
+Want to help test it? Start with the [native runtime guide](native/vulkan_decode/README.md). SeedPlane is alpha research software; below are the detailed results, trade-offs, and experiments that explain what is and is not proven.
+
+---
+
+## Research background
+
+SeedPlane also explores splitting long prompts into independent windows for parallel processing. This changes the model's attention pattern, so quality depends on shard and halo sizes: +8–10% perplexity at 4k tokens with S=512/H=256 (V20). The results and failed hypotheses are documented below.
 
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-blue.svg" alt="MIT"></a>
@@ -21,7 +42,7 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/img/hero-race-dark.gif">
-    <img src="docs/img/hero-race-light.gif" alt="Real decoding of the same 1,024-token page: SeedPlane finishes in about half the time of a traditional Transformer" width="760">
+    <img src="docs/img/hero-race-light.gif" alt="Historical CPU research: SeedPlane processes the same 1,024-token page in about half the time" width="760">
   </picture>
 </p>
 
@@ -143,22 +164,25 @@ not evidence that combining devices speeds up one decode.
 | Apple M4 | 64.9 tok/s | 1.027× | 1.033× | 1.013× | 1.013× | 1.016× |
 | Radeon RX 570 | 116.6 tok/s | 0.993× | 0.978× | 0.994× | 0.992× | 0.983× |
 
-<p align="center"><img src="docs/img/v22b-sampling.gif" alt="Per-device V22b sampling decode speed ratios versus greedy on B580, M4 and RX 570" width="900"></p>
+<p align="center"><img src="docs/img/v22b-sampling.gif" alt="The local runtime has been tested separately on B580, RX 570 and M4" width="760"></p>
 
 The fixed G1 distribution gate passed 47/48 cases; the remaining high-support case measured TV 0.04673 against a strict
 0.01 threshold at one million draws. It is recorded as a failure, not waived. G3 greedy regression and G4 session/CLI
 passed on Windows; the same session-continuation check passed on macOS and Linux. The experiment, raw measurements,
 reproduction scripts, protocol, and known limitations are in [`experiments/v22b/`](experiments/v22b/RESULTS.md).
 
-An initial two-node batch feasibility test also sent 24 independent 128-token requests through persistent SSH streams:
-B580 alone reached 271.9 tok/s median, versus 378.3 tok/s on B580 + RX570 (**1.391× aggregate**). All output tokens matched.
-However, p99 request latency increased from about 0.48–0.50 s to 1.95 s, so the planned latency gate failed. This test
-uses an experimental harness, not the `seedplane` network worker/pool, and does not accelerate one request cooperatively;
-the production cluster integration and latency-aware scheduler remain future work. Full data and caveats are in
+An initial two-node batch feasibility test sent 24 independent 128-token requests through persistent SSH streams:
+B580 alone reached 273.6 tok/s median, versus 378.4 tok/s on B580 + RX570 (**1.381× aggregate**). All output tokens
+matched. For a synchronized 24-request burst, p99 completion from batch arrival improved from ~11.2 s to ~8.1 s because
+the queue drained faster. Individual worker service p99 moved the other way (~0.48–0.51 s on B580 versus ~1.95 s in the
+pool, driven by RX570 tasks). The V26 arrival pattern/p99 definition was not pre-registered in this exploratory run, so
+neither result counts as formal latency-gate acceptance. This experimental harness is not the `seedplane` network
+worker/pool and does not accelerate one request cooperatively; production integration and a pre-registered latency test
+remain future work. Full data and caveats are in
 [`experiments/v22b/RESULTS.md`](experiments/v22b/RESULTS.md). Build prerequisites and commands are in
 [`native/vulkan_decode/README.md`](native/vulkan_decode/README.md).
 
-<p align="center"><img src="docs/img/v22b-fleet.gif" alt="B580 plus RX 570 batch throughput clears its target while p99 request latency misses its limit" width="760"></p>
+<p align="center"><img src="docs/img/v22b-fleet.gif" alt="A 24-request test completed sooner on B580 plus RX 570 than on B580 alone" width="760"></p>
 
 ---
 
