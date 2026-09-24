@@ -33,7 +33,7 @@ def grid_colors(t, kind, step_now):
 
 def hero(mode):
     t = THEMES[mode]; fig = plt.figure(figsize=(8.4, 4.9), dpi=90); fig.patch.set_facecolor(t['surface'])
-    fig.text(0.03, 0.955, 'Same model. Same text. Half the time.', fontsize=16, fontweight='bold', color=t['text'], va='top')
+    fig.text(0.03, 0.955, 'Same model. Same text. Half the time.', fontsize=17, fontweight='bold', color=t['text'], va='top')
     fig.text(0.03, 0.885, f'Real decoding of one 1,024-token page · 16 refinement steps · 4 CPU cores · played at 1/{SLOW:.0f} speed',
              fontsize=9.5, color=t['text2'], va='top')
     axes, cells, clocks = {}, {}, {}
@@ -73,7 +73,7 @@ def hero(mode):
 def how(mode):
     t = THEMES[mode]; words = TR['truth']; st = np.array(TR['sp']['commit_step']); fin = TR['sp']['final']
     fig = plt.figure(figsize=(8.4, 5.2), dpi=90); fig.patch.set_facecolor(t['surface'])
-    fig.text(0.03, 0.96, 'Every core writes its own paragraph — at the same time', fontsize=15, fontweight='bold', color=t['text'], va='top')
+    fig.text(0.03, 0.96, 'Every core writes its own paragraph — at the same time', fontsize=16.5, fontweight='bold', color=t['text'], va='top')
     fig.text(0.03, 0.9, 'Four shards of the same page, real model output. Hidden words (▢) are filled in parallel by every core, '
              'step by step.', fontsize=9, color=t['text2'], va='top')
     shards = [0, 1, 2, 3]; N = 36                                       # first 36 words of each of four shards
@@ -167,7 +167,7 @@ def scheduler(mode):
 
     fig = plt.figure(figsize=(8.4, 4.6), dpi=100); fig.patch.set_facecolor(t['surface'])
     ax = fig.add_axes([0, 0, 1, 1]); ax.set_xlim(0, 84); ax.set_ylim(46, 0); ax.axis('off')
-    ax.text(3, 3.2, 'Split by speed. Run in parallel.', fontsize=17, fontweight='bold', color=t['text'], va='center')
+    ax.text(3, 3.2, 'Split by speed. Run in parallel.', fontsize=18, fontweight='bold', color=t['text'], va='center')
     ax.text(3, 6.6, 'Real run · Qwen2.5-0.5B · 16,384-token prompt', fontsize=10, color=t['text2'], va='center')
     chip = ax.text(70, 6.6, '', fontsize=10.5, fontweight='bold', color=t['text'], va='center', ha='right')
     clock = ax.text(81, 6.6, '', fontsize=10, color=t['text2'], va='center', ha='right', fontfamily='monospace')
