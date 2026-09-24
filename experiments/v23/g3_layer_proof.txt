@@ -1,0 +1,4 @@
+spawn ssh -o PubkeyAuthentication=no -o StrictHostKeyChecking=no -o ConnectTimeout=10 robson@10.0.0.253 grep -E "Insert|Inserted|VUID|Validation Error" ~/sp_v23/v23/g3_loader.txt
+[Vulkan Loader] INFO | LAYER:   Insert instance layer "VK_LAYER_KHRONOS_validation" (/home/robson/sp_v23/vksdk/1.4.357.1/x86_64/lib/libVkLayer_khronos_validation.so)
+[Vulkan Loader] INFO | LAYER:   Insert instance layer "VK_LAYER_MESA_device_select" (/usr/lib/x86_64-linux-gnu/libVkLayer_MESA_device_select.so)
+[Vulkan Loader] INFO | LAYER:   Inserted device layer "VK_LAYER_KHRONOS_validation" (/home/robson/sp_v23/vksdk/1.4.357.1/x86_64/lib/libVkLayer_khronos_validation.so)
