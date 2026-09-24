@@ -1,0 +1,24 @@
+{
+  "G5_session": {
+    "first_generated": 64,
+    "second_generated": 9,
+    "context_positions": 2000,
+    "crossed_512": true,
+    "equal_tokens": true,
+    "turn2_text": "\"Context-Aware Observation Explanation System\"",
+    "fresh_text": "\"Context-Aware Observation Explanation System\"",
+    "pass": true
+  },
+  "G6_cli": {
+    "convert_ok": true,
+    "convert_output": "native bundle written to C:\\Users\\Windows 11\\sp_v22b_codex\\v22b\\cli.sp  (seedplane-bundle/2, plan {'shard': 512, 'halo': 256, 'sinks': 4}, weights sha256 ef9f3f59f925e46a...)\n",
+    "chat_returncode": 0,
+    "answers": [
+      "A GPU é um componente computacional de alto desempenho em computadores, especialmente nos computadores de alta performance. Ela tem capacidade de processar grandes volumes de dados em tempo real e é fundamental para muitos sistemas oper",
+      "Sim, a CPU é um componente computacional de alto desempenho em computadores, especialmente nos computadores de alta performance. Ela é responsável por executar o código em si e é fundamental para muitos sistemas operacionais"
+    ],
+    "stderr_tail": "",
+    "seconds": 23.52672791481018,
+    "pass": true
+  }
+}

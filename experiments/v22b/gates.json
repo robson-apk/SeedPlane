@@ -1,0 +1,689 @@
+{
+  "protocol": "experiments/v22b/PROTOCOL.md",
+  "binary": "C:\\Users\\Windows 11\\sp_v22b_codex\\native\\build\\qwen_vk.exe",
+  "G1": {
+    "cases": [
+      {
+        "logits": "2999",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 0.9,
+        "path": "gpu-top-k+p",
+        "candidates": 40,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "2999",
+        "temperature": 1.0,
+        "top_k": 0,
+        "top_p": 1.0,
+        "path": "gumbel",
+        "candidates": 0,
+        "support": 151936,
+        "outside_draws": 0,
+        "tv": 0.00013480608451363959
+      },
+      {
+        "logits": "2999",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.5,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "2999",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.99,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "2999",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 40,
+        "outside_draws": 0,
+        "tv": 3.7666646844976814e-05
+      },
+      {
+        "logits": "2999",
+        "temperature": 0.7,
+        "top_k": 200,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 200,
+        "outside_draws": 0,
+        "tv": 4.5877201400166165e-05
+      },
+      {
+        "logits": "3500",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 0.9,
+        "path": "gpu-top-k+p",
+        "candidates": 40,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "3500",
+        "temperature": 1.0,
+        "top_k": 0,
+        "top_p": 1.0,
+        "path": "gumbel",
+        "candidates": 0,
+        "support": 151936,
+        "outside_draws": 0,
+        "tv": 3.874380021286382e-06
+      },
+      {
+        "logits": "3500",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.5,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "3500",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.99,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "3500",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 40,
+        "outside_draws": 0,
+        "tv": 6.541500970727173e-07
+      },
+      {
+        "logits": "3500",
+        "temperature": 0.7,
+        "top_k": 200,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 200,
+        "outside_draws": 0,
+        "tv": 6.613008425196297e-07
+      },
+      {
+        "logits": "4020",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 0.9,
+        "path": "gpu-top-k+p",
+        "candidates": 40,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "4020",
+        "temperature": 1.0,
+        "top_k": 0,
+        "top_p": 1.0,
+        "path": "gumbel",
+        "candidates": 0,
+        "support": 151936,
+        "outside_draws": 0,
+        "tv": 1.9253219878747534e-05
+      },
+      {
+        "logits": "4020",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.5,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "4020",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.99,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "4020",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 40,
+        "outside_draws": 0,
+        "tv": 1.6203726827264934e-06
+      },
+      {
+        "logits": "4020",
+        "temperature": 0.7,
+        "top_k": 200,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 200,
+        "outside_draws": 0,
+        "tv": 1.6758269380847969e-06
+      },
+      {
+        "logits": "1000",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 0.9,
+        "path": "gpu-top-k+p",
+        "candidates": 40,
+        "support": 10,
+        "outside_draws": 0,
+        "tv": 0.0010601764775872687
+      },
+      {
+        "logits": "1000",
+        "temperature": 1.0,
+        "top_k": 0,
+        "top_p": 1.0,
+        "path": "gumbel",
+        "candidates": 0,
+        "support": 151936,
+        "outside_draws": 0,
+        "tv": 0.004109255477867609
+      },
+      {
+        "logits": "1000",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.5,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "1000",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.99,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 101,
+        "outside_draws": 0,
+        "tv": 0.0018314106465976642
+      },
+      {
+        "logits": "1000",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 40,
+        "outside_draws": 0,
+        "tv": 0.0013608276105289605
+      },
+      {
+        "logits": "1000",
+        "temperature": 0.7,
+        "top_k": 200,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 200,
+        "outside_draws": 0,
+        "tv": 0.002032811610948367
+      },
+      {
+        "logits": "2000",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 0.9,
+        "path": "gpu-top-k+p",
+        "candidates": 40,
+        "support": 10,
+        "outside_draws": 0,
+        "tv": 0.0007656604162679936
+      },
+      {
+        "logits": "2000",
+        "temperature": 1.0,
+        "top_k": 0,
+        "top_p": 1.0,
+        "path": "gumbel",
+        "candidates": 0,
+        "support": 151936,
+        "outside_draws": 0,
+        "tv": 0.004716527056712653
+      },
+      {
+        "logits": "2000",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.5,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 2,
+        "outside_draws": 0,
+        "tv": 0.0001715844205192052
+      },
+      {
+        "logits": "2000",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.99,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 131,
+        "outside_draws": 0,
+        "tv": 0.0018918958995433857
+      },
+      {
+        "logits": "2000",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 40,
+        "outside_draws": 0,
+        "tv": 0.001071608540806793
+      },
+      {
+        "logits": "2000",
+        "temperature": 0.7,
+        "top_k": 200,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 200,
+        "outside_draws": 0,
+        "tv": 0.0020090324075514063
+      },
+      {
+        "logits": "3000",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 0.9,
+        "path": "gpu-top-k+p",
+        "candidates": 40,
+        "support": 2,
+        "outside_draws": 0,
+        "tv": 0.0004021527925286289
+      },
+      {
+        "logits": "3000",
+        "temperature": 1.0,
+        "top_k": 0,
+        "top_p": 1.0,
+        "path": "gumbel",
+        "candidates": 0,
+        "support": 151936,
+        "outside_draws": 0,
+        "tv": 0.0005845830995495654
+      },
+      {
+        "logits": "3000",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.5,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "3000",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.99,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 2,
+        "outside_draws": 0,
+        "tv": 0.0004021527925286289
+      },
+      {
+        "logits": "3000",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 40,
+        "outside_draws": 0,
+        "tv": 0.0004545986575627062
+      },
+      {
+        "logits": "3000",
+        "temperature": 0.7,
+        "top_k": 200,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 200,
+        "outside_draws": 0,
+        "tv": 0.00048276124109398414
+      },
+      {
+        "logits": "synthetic_s2",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 0.9,
+        "path": "gpu-top-k+p",
+        "candidates": 40,
+        "support": 32,
+        "outside_draws": 0,
+        "tv": 0.002047828976076565
+      },
+      {
+        "logits": "synthetic_s2",
+        "temperature": 1.0,
+        "top_k": 0,
+        "top_p": 1.0,
+        "path": "gumbel",
+        "candidates": 0,
+        "support": 151936,
+        "outside_draws": 0,
+        "tv": 0.00831161173135552
+      },
+      {
+        "logits": "synthetic_s2",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.5,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 348,
+        "outside_draws": 0,
+        "tv": 0.006528328587180719
+      },
+      {
+        "logits": "synthetic_s2",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.99,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 45999,
+        "outside_draws": 0,
+        "tv": 0.04672982164291512
+      },
+      {
+        "logits": "synthetic_s2",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 40,
+        "outside_draws": 0,
+        "tv": 0.0022837257642337894
+      },
+      {
+        "logits": "synthetic_s2",
+        "temperature": 0.7,
+        "top_k": 200,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 200,
+        "outside_draws": 0,
+        "tv": 0.005104679132439418
+      },
+      {
+        "logits": "synthetic_s4",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 0.9,
+        "path": "gpu-top-k+p",
+        "candidates": 40,
+        "support": 7,
+        "outside_draws": 0,
+        "tv": 0.0008967276488983881
+      },
+      {
+        "logits": "synthetic_s4",
+        "temperature": 1.0,
+        "top_k": 0,
+        "top_p": 1.0,
+        "path": "gumbel",
+        "candidates": 0,
+        "support": 151936,
+        "outside_draws": 0,
+        "tv": 0.006145988644815267
+      },
+      {
+        "logits": "synthetic_s4",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.5,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 1,
+        "outside_draws": 0,
+        "tv": 0.0
+      },
+      {
+        "logits": "synthetic_s4",
+        "temperature": 0.7,
+        "top_k": 0,
+        "top_p": 0.99,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 367,
+        "outside_draws": 0,
+        "tv": 0.0031477371721727702
+      },
+      {
+        "logits": "synthetic_s4",
+        "temperature": 0.7,
+        "top_k": 40,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 40,
+        "outside_draws": 0,
+        "tv": 0.0014310733033679182
+      },
+      {
+        "logits": "synthetic_s4",
+        "temperature": 0.7,
+        "top_k": 200,
+        "top_p": 1.0,
+        "path": "restricted-gumbel",
+        "candidates": 0,
+        "support": 200,
+        "outside_draws": 0,
+        "tv": 0.0026791393621670564
+      }
+    ],
+    "fallbacks": 0,
+    "max_tv": 0.04672982164291512,
+    "pass": false
+  },
+  "G2": {
+    "tok_s": {
+      "greedy": [
+        263.8,
+        267.915,
+        264.004
+      ],
+      "T1": [
+        261.999,
+        266.7,
+        265.057
+      ],
+      "k40p0.9": [
+        257.212,
+        256.813,
+        258.245
+      ],
+      "p0.9": [
+        259.562,
+        259.417,
+        260.45
+      ],
+      "p0.99": [
+        257.681,
+        256.422,
+        258.721
+      ],
+      "k200": [
+        258.492,
+        256.784,
+        256.597
+      ]
+    },
+    "median": {
+      "greedy": 264.004,
+      "T1": 265.057,
+      "k40p0.9": 257.212,
+      "p0.9": 259.562,
+      "p0.99": 257.681,
+      "k200": 256.784
+    },
+    "ratio_vs_greedy": {
+      "T1": 1.0039885759306677,
+      "k40p0.9": 0.9742731170739836,
+      "p0.9": 0.9831744973561006,
+      "p0.99": 0.9760496053090103,
+      "k200": 0.9726519295162194
+    },
+    "step_ms": {
+      "greedy": [
+        3.7907,
+        3.7325,
+        3.7878
+      ],
+      "T1": [
+        3.8166,
+        3.7493,
+        3.7725
+      ],
+      "k40p0.9": [
+        3.8874,
+        3.8935,
+        3.8719
+      ],
+      "p0.9": [
+        3.8524,
+        3.8545,
+        3.8393
+      ],
+      "p0.99": [
+        3.8805,
+        3.8996,
+        3.8649
+      ],
+      "k200": [
+        3.8683,
+        3.894,
+        3.8969
+      ]
+    },
+    "sample_ms": {
+      "greedy": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "T1": [
+        0.0002,
+        0.0002,
+        0.0002
+      ],
+      "k40p0.9": [
+        0.0003,
+        0.0003,
+        0.0003
+      ],
+      "p0.9": [
+        0.0002,
+        0.0002,
+        0.0002
+      ],
+      "p0.99": [
+        0.0002,
+        0.0002,
+        0.0002
+      ],
+      "k200": [
+        0.0002,
+        0.0002,
+        0.0002
+      ]
+    },
+    "fallbacks": {
+      "greedy": [
+        0,
+        0,
+        0
+      ],
+      "T1": [
+        0,
+        0,
+        0
+      ],
+      "k40p0.9": [
+        0,
+        0,
+        0
+      ],
+      "p0.9": [
+        0,
+        0,
+        0
+      ],
+      "p0.99": [
+        0,
+        0,
+        0
+      ],
+      "k200": [
+        0,
+        0,
+        0
+      ]
+    },
+    "pass": true
+  },
+  "G3": {
+    "greedy_tokens_equal_v20_all_rounds": true,
+    "pass": true
+  }
+}

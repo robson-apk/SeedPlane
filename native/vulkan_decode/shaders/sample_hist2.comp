@@ -34,11 +34,13 @@ void main() {
     }
     if (b1 >= NB) return;                                         // uniform: nothing to refine
     float span = 30.0 * stemp, w = span / float(NB), scale2 = float(NB) / w; uint stride = gl_NumWorkGroups.x * 256u;
+    bool need_mass = stopk == 0u || stopp < 1.0;
     for (uint i = gl_WorkGroupID.x * 256u + t; i < p.n; i += stride) {
         float l = logits[i], d = max(M - l, 0.0);
         if (d <= span && min(NB - 1u, uint(d * (float(NB) / span))) == b1) {
             uint s = min(NB - 1u, uint(max(d - float(b1) * w, 0.0) * scale2));
-            atomicAdd(sh[H2C + s], 1u); atomicAdd(sh[H2M + s], uint(exp((l - M) / stemp) / Z * FIX));
+            atomicAdd(sh[H2C + s], 1u);
+            if (need_mass) atomicAdd(sh[H2M + s], uint(exp((l - M) / stemp) / Z * FIX));
         }
     }
 }

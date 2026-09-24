@@ -15,11 +15,13 @@ void main() {
     uint t = gl_LocalInvocationID.x; vec2 mz = reduce_partials(t, p.nparts); float M = mz.x * stemp, Z = mz.y;
     if (gl_WorkGroupID.x == 0u && t == 0u) { sh[S_M] = floatBitsToUint(M); sh[S_Z] = floatBitsToUint(Z); }
     float span = 30.0 * stemp, scale = float(NB) / span; uint stride = gl_NumWorkGroups.x * 256u;
+    bool need_mass = stopk == 0u || stopp < 1.0;
     for (uint i = gl_WorkGroupID.x * 256u + t; i < p.n; i += stride) {
         float l = logits[i], d = max(M - l, 0.0);   // M is max(l/T)*T: rounding can put the top token above it
         if (d <= span) {
             uint b = min(NB - 1u, uint(d * scale));
-            atomicAdd(sh[H1C + b], 1u); atomicAdd(sh[H1M + b], uint(exp((l - M) / stemp) / Z * FIX));
+            atomicAdd(sh[H1C + b], 1u);
+            if (need_mass) atomicAdd(sh[H1M + b], uint(exp((l - M) / stemp) / Z * FIX));
         }
     }
 }
