@@ -1,0 +1,44 @@
+#version 450
+// top-k / top-p sampling, pass 3 of 4: every workgroup finds the level-1 bin where the criterion is first reached (parallel
+// scan), then histograms the tokens of that bin into 1,024 level-2 sub-bins (counts + fixed-point mass).
+// Workgroup 0 stores the crossing bin and the count / mass above it. No crossing bin -> S_B1 = NB (keep the whole span).
+layout(local_size_x = 256) in;
+layout(std430, binding = 0) buffer State { uint token; uint pos; uint slot; uint slot2; uint target; uint nidx; uint bn; uint pad_;
+    uint btok[8]; uint bpos[8]; uint bslot[8]; uint smode; float stemp; uint sseed; uint sctr; uint sampled; uint stopk; float stopp; };
+layout(std430, binding = 1) readonly buffer L { float logits[]; };
+layout(std430, binding = 2) buffer Sh { uint sh[]; };
+layout(push_constant) uniform P { uint n; } p;
+#include "sample_layout.glsl"
+shared uint pc[256]; shared uint pm[256]; shared uint best;
+void main() {
+    if (smode != 2u) return;
+    uint t = gl_LocalInvocationID.x; float M = uintBitsToFloat(sh[S_M]), Z = uintBitsToFloat(sh[S_Z]);
+    uint c = 0u, m = 0u;                                          // thread t owns level-1 bins 4t..4t+3
+    for (uint b = 4u * t; b < 4u * t + 4u; ++b) { c += sh[H1C + b]; m += sh[H1M + b]; }
+    pc[t] = c; pm[t] = m; if (t == 0u) best = NB; barrier();
+    for (uint off = 1u; off < 256u; off <<= 1) {
+        uint cc = t >= off ? pc[t - off] : 0u, mm = t >= off ? pm[t - off] : 0u; barrier();
+        pc[t] += cc; pm[t] += mm; barrier();
+    }
+    uint cnt = t > 0u ? pc[t - 1u] : 0u, mass = t > 0u ? pm[t - 1u] : 0u;
+    for (uint b = 4u * t; b < 4u * t + 4u; ++b) {
+        uint nc = cnt + sh[H1C + b], nm = mass + sh[H1M + b];
+        if (reached(nc, nm, stopk, stopp)) { atomicMin(best, b); break; }
+        cnt = nc; mass = nm;
+    }
+    barrier();
+    uint b1 = best;
+    if (gl_WorkGroupID.x == 0u && t == 0u) {
+        uint c0 = 0u, m0 = 0u; for (uint b = 0u; b < min(b1, NB); ++b) { c0 += sh[H1C + b]; m0 += sh[H1M + b]; }
+        sh[S_B1] = b1; sh[S_CNT0] = c0; sh[S_MASS0] = m0;
+    }
+    if (b1 >= NB) return;                                         // uniform: nothing to refine
+    float span = 30.0 * stemp, w = span / float(NB), scale2 = float(NB) / w; uint stride = gl_NumWorkGroups.x * 256u;
+    for (uint i = gl_WorkGroupID.x * 256u + t; i < p.n; i += stride) {
+        float l = logits[i], d = max(M - l, 0.0);
+        if (d <= span && min(NB - 1u, uint(d * (float(NB) / span))) == b1) {
+            uint s = min(NB - 1u, uint(max(d - float(b1) * w, 0.0) * scale2));
+            atomicAdd(sh[H2C + s], 1u); atomicAdd(sh[H2M + s], uint(exp((l - M) / stemp) / Z * FIX));
+        }
+    }
+}
